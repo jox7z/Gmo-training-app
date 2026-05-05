@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm --version)",
+      "Bash(node -e ' *)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx expo-doctor *)",
+      "Bash(npx expo *)",
+      "Bash(gh repo *)",
+      "PowerShell(gh repo view jox7z/Gmo-training-app --json defaultBranchRef,isEmpty 2>&1)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue; if \\(-not $?\\) { \"gh not in PATH\"; Test-Path \"C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe\"; Test-Path \"$env:LOCALAPPDATA\\\\Programs\\\\GitHub CLI\\\\gh.exe\" })",
+      "Bash(env)",
+      "PowerShell($env:Path += \";$env:ProgramFiles\\\\GitHub CLI\"; & \"$env:ProgramFiles\\\\GitHub CLI\\\\gh.exe\" --version 2>&1 | Select-Object -First 2; \"---\"; & \"$env:ProgramFiles\\\\GitHub CLI\\\\gh.exe\" auth status 2>&1 | Select-Object -First 5)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git checkout *)",
+      "Bash(git credential *)",
+      "Bash(tee /tmp/cred.txt)",
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --base main --head feat/initial-app-foundation --title 'feat: scaffold Gmo Training App foundation \\(Expo + Supabase\\)' --body ' *)"
+    ]
+  }
+}
