@@ -1,0 +1,125 @@
+export const colors = {
+  bg: {
+    base: '#0B0B0B',
+    elevated: '#161616',
+    card: '#1C1C1E',
+    overlay: 'rgba(0,0,0,0.7)',
+  },
+  primary: {
+    DEFAULT: '#FF3B3B',
+    hover: '#E62E2E',
+    muted: 'rgba(255,59,59,0.18)',
+    glow: 'rgba(255,59,59,0.35)',
+  },
+  accent: {
+    DEFAULT: '#FF7A00',
+    soft: 'rgba(255,122,0,0.18)',
+    glow: 'rgba(255,122,0,0.4)',
+  },
+  info: {
+    DEFAULT: '#1E90FF',
+    soft: 'rgba(30,144,255,0.18)',
+  },
+  text: {
+    primary: '#FFFFFF',
+    secondary: '#A1A1AA',
+    muted: '#71717A',
+  },
+  border: '#27272A',
+  borderStrong: '#3F3F46',
+  success: '#22C55E',
+  danger: '#EF4444',
+  warning: '#F59E0B',
+} as const;
+
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  '2xl': 32,
+  '3xl': 48,
+  '4xl': 64,
+} as const;
+
+export const radius = {
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
+  '2xl': 28,
+  full: 9999,
+} as const;
+
+export const fontSize = {
+  xs: 11,
+  sm: 13,
+  base: 15,
+  md: 17,
+  lg: 20,
+  xl: 24,
+  '2xl': 30,
+  '3xl': 38,
+  '4xl': 48,
+  '5xl': 60,
+} as const;
+
+export const fontWeight = {
+  regular: '400' as const,
+  medium: '500' as const,
+  semibold: '600' as const,
+  bold: '700' as const,
+  black: '900' as const,
+};
+
+export const shadow = {
+  glowPrimary: {
+    shadowColor: colors.primary.DEFAULT,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  glowAccent: {
+    shadowColor: colors.accent.DEFAULT,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+};
+
+export const RANKS = [
+  { id: 'bronze', label: 'Bronze', min: 0, color: '#CD7F32', gradient: ['#A05A23', '#CD7F32'] },
+  { id: 'silver', label: 'Silver', min: 100, color: '#C0C0C0', gradient: ['#8E8E93', '#D1D1D6'] },
+  { id: 'gold', label: 'Gold', min: 300, color: '#FFD700', gradient: ['#B8860B', '#FFD700'] },
+  { id: 'platinum', label: 'Platinum', min: 700, color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] },
+  { id: 'elite', label: 'Elite', min: 1500, color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] },
+  { id: 'legend', label: 'Legend', min: 3000, color: '#FF7A00', gradient: ['#FF3B3B', '#FF7A00'] },
+] as const;
+
+export type RankInfo = (typeof RANKS)[number];
+export type RankId = RankInfo['id'];
+
+export function rankFromPoints(points: number): RankInfo {
+  let current: RankInfo = RANKS[0];
+  for (const r of RANKS) {
+    if (points >= r.min) current = r;
+  }
+  return current;
+}
+
+export function nextRank(points: number): RankInfo | null {
+  for (const r of RANKS) {
+    if (r.min > points) return r;
+  }
+  return null;
+}

@@ -1,0 +1,345 @@
+import { useState } from 'react';
+import { View, ScrollView, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Screen } from '@/components/ui/Screen';
+import { Text } from '@/components/ui/Text';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Card } from '@/components/ui/Card';
+import { colors, spacing, radius } from '@/theme/tokens';
+import { useAppStore, Goal, Level, Unit } from '@/store/app';
+
+const STEPS = ['welcome', 'profile', 'level', 'goal', 'frequency', 'final'] as const;
+type Step = (typeof STEPS)[number];
+
+export default function Onboarding() {
+  const router = useRouter();
+  const setProfile = useAppStore((s) => s.setProfile);
+  const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+
+  const [step, setStep] = useState<Step>('welcome');
+  const [name, setName] = useState('');
+  const [weight, setWeight] = useState('75');
+  const [height, setHeight] = useState('175');
+  const [unit, setUnit] = useState<Unit>('kg');
+  const [level, setLevel] = useState<Level>('intermediate');
+  const [goal, setGoal] = useState<Goal>('hypertrophy');
+  const [days, setDays] = useState(4);
+
+  const idx = STEPS.indexOf(step);
+  const next = () => setStep(STEPS[Math.min(STEPS.length - 1, idx + 1)]);
+  const back = () => setStep(STEPS[Math.max(0, idx - 1)]);
+
+  const finish = async () => {
+    await setProfile({
+      id: 'local-user',
+      username: name.trim().toLowerCase().replace(/\s+/g, '_') || 'gmo_athlete',
+      displayName: name.trim() || 'Atleta',
+      weightKg: parseFloat(weight) || 75,
+      heightCm: parseFloat(height) || 175,
+      unit,
+      level,
+      goal,
+      weeklyGoalDays: days,
+      rankPoints: 50,
+      currentRank: 'bronze',
+    });
+    await completeOnboarding();
+    router.replace('/(tabs)');
+  };
+
+  return (
+    <Screen scroll={false} padded={false}>
+      <LinearGradient
+        colors={[colors.primary.muted, 'transparent']}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
+      />
+      <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 120 }}>
+        <View style={{ height: 8, flexDirection: 'row', gap: 6, marginBottom: spacing['2xl'] }}>
+          {STEPS.map((_, i) => (
+            <View
+              key={i}
+              style={{
+                flex: 1,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: i <= idx ? colors.primary.DEFAULT : colors.bg.card,
+              }}
+            />
+          ))}
+        </View>
+
+        {step === 'welcome' && (
+          <View>
+            <Text variant="display" tone="brand">GMO</Text>
+            <Text variant="title" style={{ marginTop: 4 }}>Entrena. Compite. Evoluciona.</Text>
+            <Text variant="body" tone="secondary" style={{ marginTop: spacing.md }}>
+              La app que convierte tu disciplina en progreso medible. Rachas, rangos y un coach IA siempre a tu lado.
+            </Text>
+            <View style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
+              <FeatureRow emoji="🔥" title="Rachas que motivan" desc="Visualiza tu constancia semana a semana." />
+              <FeatureRow emoji="🏆" title="Sistema Ranked" desc="Sube de rango por consistencia, no por ego." />
+              <FeatureRow emoji="🤖" title="Coach IA 24/7" desc="Resuelve dudas de técnica y nutrición al instante." />
+            </View>
+          </View>
+        )}
+
+        {step === 'profile' && (
+          <Section title="Cuéntanos sobre ti" subtitle="Personalizamos tu experiencia">
+            <Input label="Tu nombre" placeholder="Ej: Adrián" value={name} onChangeText={setName} />
+            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
+              <Input
+                label="Peso"
+                placeholder="75"
+                keyboardType="numeric"
+                value={weight}
+                onChangeText={setWeight}
+                containerStyle={{ flex: 1 }}
+                rightAdornment={<Text tone="muted">{unit}</Text>}
+              />
+              <Input
+                label="Altura"
+                placeholder="175"
+                keyboardType="numeric"
+                value={height}
+                onChangeText={setHeight}
+                containerStyle={{ flex: 1 }}
+                rightAdornment={<Text tone="muted">cm</Text>}
+              />
+            </View>
+            <Text variant="label" tone="secondary" style={{ marginTop: spacing.lg, marginBottom: 6 }}>
+              Unidad de peso
+            </Text>
+            <SegmentedToggle
+              options={[{ value: 'kg', label: 'KG' }, { value: 'lb', label: 'LB' }]}
+              value={unit}
+              onChange={(v) => setUnit(v as Unit)}
+            />
+          </Section>
+        )}
+
+        {step === 'level' && (
+          <Section title="¿Cuál es tu nivel?" subtitle="Sé honesto, ajustaremos las recomendaciones">
+            <ChoiceCard
+              selected={level === 'beginner'}
+              onPress={() => setLevel('beginner')}
+              emoji="🌱"
+              title="Principiante"
+              desc="Menos de 6 meses entrenando o vuelvo después de mucho tiempo."
+            />
+            <ChoiceCard
+              selected={level === 'intermediate'}
+              onPress={() => setLevel('intermediate')}
+              emoji="💪"
+              title="Intermedio"
+              desc="6 meses a 2 años con rutina constante."
+            />
+            <ChoiceCard
+              selected={level === 'advanced'}
+              onPress={() => setLevel('advanced')}
+              emoji="🔥"
+              title="Avanzado"
+              desc="Más de 2 años, conozco mi cuerpo y mis pesos."
+            />
+          </Section>
+        )}
+
+        {step === 'goal' && (
+          <Section title="¿Cuál es tu objetivo?" subtitle="Elige el principal — luego puedes cambiarlo">
+            <ChoiceCard selected={goal === 'hypertrophy'} onPress={() => setGoal('hypertrophy')} emoji="🏋️" title="Hipertrofia" desc="Ganar masa muscular y tamaño." />
+            <ChoiceCard selected={goal === 'strength'} onPress={() => setGoal('strength')} emoji="⚡" title="Fuerza" desc="Levantar más peso, ser más fuerte." />
+            <ChoiceCard selected={goal === 'fat_loss'} onPress={() => setGoal('fat_loss')} emoji="🔥" title="Pérdida de grasa" desc="Definir y reducir % de grasa." />
+            <ChoiceCard selected={goal === 'general'} onPress={() => setGoal('general')} emoji="🎯" title="Salud general" desc="Mantenerme activo y en forma." />
+          </Section>
+        )}
+
+        {step === 'frequency' && (
+          <Section title="¿Cuántos días por semana?" subtitle="Tu meta de racha. Sé realista.">
+            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
+              <Text variant="display" tone="accent" numeric>{days}</Text>
+              <Text variant="body" tone="secondary">días por semana</Text>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+                {[2, 3, 4, 5, 6].map((n) => (
+                  <Pressable
+                    key={n}
+                    onPress={() => setDays(n)}
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 22,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: days === n ? colors.primary.DEFAULT : colors.bg.elevated,
+                      borderWidth: 1,
+                      borderColor: days === n ? colors.primary.DEFAULT : colors.border,
+                    }}
+                  >
+                    <Text weight="bold">{n}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text variant="caption" tone="muted" style={{ marginTop: spacing.md, textAlign: 'center' }}>
+                Cumplir tu meta semanal te da +30 puntos de rango.
+              </Text>
+            </Card>
+          </Section>
+        )}
+
+        {step === 'final' && (
+          <Section title="¡Todo listo!" subtitle="Tu primer paso comienza ahora.">
+            <Card variant="glow" padding="xl" style={{ marginTop: spacing.lg }}>
+              <Text variant="heading" tone="brand">Tu plan</Text>
+              <Text variant="body" tone="secondary" style={{ marginTop: spacing.sm }}>
+                Empezarás en rango <Text tone="accent" weight="bold">Bronze</Text> con meta de{' '}
+                <Text weight="bold">{days} días/semana</Text>. Usa la rutina sugerida o crea la tuya.
+              </Text>
+            </Card>
+            <Card padding="lg" style={{ marginTop: spacing.md }}>
+              <Text variant="label" tone="muted">Recomendación</Text>
+              <Text variant="body" style={{ marginTop: 6 }}>
+                {goal === 'strength' && 'Split Upper/Lower 4 días con bajas reps.'}
+                {goal === 'hypertrophy' && days >= 5 && 'PPL (Push/Pull/Legs) con volumen moderado-alto.'}
+                {goal === 'hypertrophy' && days < 5 && 'Upper/Lower o Full Body 3-4 días.'}
+                {goal === 'fat_loss' && 'Full body con énfasis en compuestos + cardio.'}
+                {goal === 'general' && 'Full body 3 días, simple y sostenible.'}
+              </Text>
+            </Card>
+          </Section>
+        )}
+      </ScrollView>
+
+      <View
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: spacing.lg,
+          backgroundColor: colors.bg.base,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          flexDirection: 'row',
+          gap: spacing.md,
+        }}
+      >
+        {idx > 0 && <Button title="Atrás" variant="ghost" onPress={back} />}
+        {step !== 'final' ? (
+          <Button title="Continuar" onPress={next} fullWidth style={{ flex: 1 }} />
+        ) : (
+          <Button title="Comenzar" variant="accent" onPress={finish} fullWidth style={{ flex: 1 }} />
+        )}
+      </View>
+    </Screen>
+  );
+}
+
+function Section({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <View>
+      <Text variant="title">{title}</Text>
+      {subtitle && (
+        <Text variant="body" tone="secondary" style={{ marginTop: 4 }}>
+          {subtitle}
+        </Text>
+      )}
+      <View style={{ marginTop: spacing.xl }}>{children}</View>
+    </View>
+  );
+}
+
+function FeatureRow({ emoji, title, desc }: { emoji: string; title: string; desc: string }) {
+  return (
+    <Card padding="md" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <Text style={{ fontSize: 28 }}>{emoji}</Text>
+      <View style={{ flex: 1 }}>
+        <Text variant="heading">{title}</Text>
+        <Text variant="caption" tone="secondary">{desc}</Text>
+      </View>
+    </Card>
+  );
+}
+
+function ChoiceCard({
+  selected,
+  onPress,
+  emoji,
+  title,
+  desc,
+}: {
+  selected: boolean;
+  onPress: () => void;
+  emoji: string;
+  title: string;
+  desc: string;
+}) {
+  return (
+    <Pressable onPress={onPress} style={{ marginBottom: spacing.md }}>
+      <Card
+        variant={selected ? 'glow' : 'default'}
+        padding="lg"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+      >
+        <Text style={{ fontSize: 32 }}>{emoji}</Text>
+        <View style={{ flex: 1 }}>
+          <Text variant="heading">{title}</Text>
+          <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>{desc}</Text>
+        </View>
+        <View
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 11,
+            borderWidth: 2,
+            borderColor: selected ? colors.primary.DEFAULT : colors.border,
+            backgroundColor: selected ? colors.primary.DEFAULT : 'transparent',
+          }}
+        />
+      </Card>
+    </Pressable>
+  );
+}
+
+function SegmentedToggle({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        backgroundColor: colors.bg.elevated,
+        borderRadius: radius.lg,
+        padding: 4,
+        borderWidth: 1,
+        borderColor: colors.border,
+      }}
+    >
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <Pressable
+            key={opt.value}
+            onPress={() => onChange(opt.value)}
+            style={{
+              flex: 1,
+              paddingVertical: 10,
+              alignItems: 'center',
+              borderRadius: radius.md,
+              backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
+            }}
+          >
+            <Text weight="bold" tone={active ? 'primary' : 'secondary'}>
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}

@@ -1,0 +1,27 @@
+-- Seed catálogo de ejercicios. Mantenerlo sincronizado con src/data/exercises.ts
+insert into public.exercises (id, name, muscle_group, equipment, is_compound, instructions) values
+  ('bench-press', 'Press de banca', 'chest', 'barbell', true, 'Acuéstate en banca, baja la barra al pecho y empuja hasta extender los codos.'),
+  ('incline-db-press', 'Press inclinado con mancuernas', 'chest', 'dumbbell', true, 'Banca a 30°, baja las mancuernas controladas hasta el pecho.'),
+  ('cable-fly', 'Aperturas con cable', 'chest', 'cable', false, 'Brazos ligeramente flexionados, junta las manos al frente.'),
+  ('pull-up', 'Dominadas', 'back', 'bodyweight', true, 'Cuelga, sube hasta superar la barra con la barbilla.'),
+  ('barbell-row', 'Remo con barra', 'back', 'barbell', true, 'Espalda neutra, tira la barra hacia el abdomen.'),
+  ('lat-pulldown', 'Jalón al pecho', 'back', 'cable', true, 'Tira la barra hacia el pecho, codos abajo.'),
+  ('face-pull', 'Face pull', 'back', 'cable', false, 'Tira hacia la cara separando manos.'),
+  ('deadlift', 'Peso muerto', 'full_body', 'barbell', true, 'Caderas atrás, espalda neutra, levanta empujando el suelo.'),
+  ('overhead-press', 'Press militar', 'shoulders', 'barbell', true, 'Empuja la barra encima de la cabeza, glúteos contraídos.'),
+  ('lateral-raise', 'Elevaciones laterales', 'shoulders', 'dumbbell', false, 'Eleva mancuernas a los lados hasta altura de hombros.'),
+  ('rear-delt-fly', 'Pájaros (rear delt)', 'shoulders', 'dumbbell', false, 'Inclínate, eleva mancuernas hacia los lados.'),
+  ('biceps-curl', 'Curl de bíceps', 'biceps', 'dumbbell', false, 'Codos pegados al torso, sube controlado.'),
+  ('hammer-curl', 'Curl martillo', 'biceps', 'dumbbell', false, 'Agarre neutro, sube hasta el hombro.'),
+  ('triceps-pushdown', 'Press tríceps polea', 'triceps', 'cable', false, 'Codos pegados al torso, extiende los brazos.'),
+  ('skull-crusher', 'Skull crusher', 'triceps', 'barbell', false, 'Acostado, baja la barra a la frente flexionando codos.'),
+  ('squat', 'Sentadilla', 'quads', 'barbell', true, 'Baja caderas hasta paralelo, empuja el suelo.'),
+  ('leg-press', 'Prensa de pierna', 'quads', 'machine', true, 'Pies a la altura del hombro, baja controlado.'),
+  ('lunges', 'Zancadas', 'quads', 'dumbbell', true, 'Da un paso al frente y baja hasta 90°.'),
+  ('romanian-deadlift', 'Peso muerto rumano', 'hamstrings', 'barbell', true, 'Caderas atrás, baja con piernas casi rectas.'),
+  ('leg-curl', 'Curl femoral', 'hamstrings', 'machine', false, 'Flexiona las rodillas contra la resistencia.'),
+  ('hip-thrust', 'Hip thrust', 'glutes', 'barbell', true, 'Hombros sobre banco, eleva caderas contrayendo glúteo.'),
+  ('standing-calf', 'Elevación de gemelos', 'calves', 'machine', false, 'Eleva los talones al máximo, contracción de 1s.'),
+  ('plank', 'Plancha', 'core', 'bodyweight', false, 'Mantén el cuerpo recto, abdomen contraído.'),
+  ('hanging-leg-raise', 'Elevación de piernas colgado', 'core', 'bodyweight', false, 'Cuelga y eleva las piernas controladas.')
+on conflict (id) do nothing;
