@@ -4,12 +4,16 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import 'react-native-url-polyfill/auto';
 
 import { colors } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// Set the native root window background so Android doesn't flash/show white
+// while React mounts or when a screen renders an empty state.
+SystemUI.setBackgroundColorAsync(colors.bg.base).catch(() => {});
 
 const queryClient = new QueryClient({
   defaultOptions: {

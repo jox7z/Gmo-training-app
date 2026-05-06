@@ -8,6 +8,7 @@ import { Stat } from '@/components/ui/Stat';
 import { Badge } from '@/components/ui/Badge';
 import { RankBadge } from '@/components/RankBadge';
 import { colors, spacing, radius } from '@/theme/tokens';
+import { Loader } from '@/components/ui/Loader';
 import { useAppStore, Unit } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
 import { formatDuration } from '@/lib/units';
@@ -28,7 +29,7 @@ export default function Profile() {
   const streakWeeks = useAppStore((s) => s.streakWeeks);
   const history = useWorkoutsStore((s) => s.history);
 
-  if (!profile) return null;
+  if (!profile) return <Loader />;
 
   const totalVolume = history.reduce((a, w) => a + w.totalVolumeKg, 0);
   const totalDuration = history.reduce((a, w) => a + (w.durationSeconds ?? 0), 0);

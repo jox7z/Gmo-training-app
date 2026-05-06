@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge';
 import { StreakRing } from '@/components/StreakRing';
 import { RankBadge } from '@/components/RankBadge';
 import { colors, spacing, radius, rankFromPoints } from '@/theme/tokens';
+import { Loader } from '@/components/ui/Loader';
 import { useAppStore } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
 import { useRoutinesStore } from '@/store/routines';
@@ -24,7 +25,7 @@ export default function Home() {
   const routines = useRoutinesStore((s) => s.routines);
   const activeRoutineId = useRoutinesStore((s) => s.activeRoutineId);
 
-  if (!profile) return null;
+  if (!profile) return <Loader />;
 
   const rank = rankFromPoints(profile.rankPoints);
   const activeRoutine = routines.find((r) => r.id === activeRoutineId) ?? routines[0];
