@@ -7,8 +7,11 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { Icon, IconName } from '@/components/Icon';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useAppStore, Goal, Level, Unit } from '@/store/app';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { upsertProfile } from '@/lib/repos/profile';
 
 const STEPS = ['welcome', 'profile', 'level', 'goal', 'frequency', 'final'] as const;
 type Step = (typeof STEPS)[number];
@@ -32,8 +35,14 @@ export default function Onboarding() {
   const back = () => setStep(STEPS[Math.max(0, idx - 1)]);
 
   const finish = async () => {
-    await setProfile({
-      id: 'local-user',
+    let userId = 'local-user';
+    if (isSupabaseConfigured) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) userId = user.id;
+    }
+
+    const profileData = {
+      id: userId,
       username: name.trim().toLowerCase().replace(/\s+/g, '_') || 'gmo_athlete',
       displayName: name.trim() || 'Atleta',
       weightKg: parseFloat(weight) || 75,
@@ -43,9 +52,21 @@ export default function Onboarding() {
       goal,
       weeklyGoalDays: days,
       rankPoints: 50,
-      currentRank: 'bronze',
-    });
+      currentRank: 'bronze' as const,
+    };
+
+    await setProfile(profileData);
     await completeOnboarding();
+
+    if (isSupabaseConfigured) {
+      const finalProfile = useAppStore.getState().profile;
+      if (finalProfile && finalProfile.id !== 'local-user') {
+        try {
+          await upsertProfile(finalProfile);
+        } catch {}
+      }
+    }
+
     router.replace('/(tabs)');
   };
 
@@ -78,9 +99,9 @@ export default function Onboarding() {
               La app que convierte tu disciplina en progreso medible. Rachas, rangos y un coach IA siempre a tu lado.
             </Text>
             <View style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
-              <FeatureRow emoji="🔥" title="Rachas que motivan" desc="Visualiza tu constancia semana a semana." />
-              <FeatureRow emoji="🏆" title="Sistema Ranked" desc="Sube de rango por consistencia, no por ego." />
-              <FeatureRow emoji="🤖" title="Coach IA 24/7" desc="Resuelve dudas de técnica y nutrición al instante." />
+              <FeatureRow icon="fire" color={colors.accent.DEFAULT} title="Rachas que motivan" desc="Visualiza tu constancia semana a semana." />
+              <FeatureRow icon="trophy" color="#FFD700" title="Sistema Ranked" desc="Sube de rango por consistencia, no por ego." />
+              <FeatureRow icon="robot" color={colors.info.DEFAULT} title="Coach IA 24/7" desc="Resuelve dudas de técnica y nutrición al instante." />
             </View>
           </View>
         )}
@@ -124,21 +145,24 @@ export default function Onboarding() {
             <ChoiceCard
               selected={level === 'beginner'}
               onPress={() => setLevel('beginner')}
-              emoji="🌱"
+              icon="seedling"
+              iconColor={colors.success}
               title="Principiante"
               desc="Menos de 6 meses entrenando o vuelvo después de mucho tiempo."
             />
             <ChoiceCard
               selected={level === 'intermediate'}
               onPress={() => setLevel('intermediate')}
-              emoji="💪"
+              icon="dumbbell"
+              iconColor={colors.info.DEFAULT}
               title="Intermedio"
               desc="6 meses a 2 años con rutina constante."
             />
             <ChoiceCard
               selected={level === 'advanced'}
               onPress={() => setLevel('advanced')}
-              emoji="🔥"
+              icon="fire"
+              iconColor={colors.accent.DEFAULT}
               title="Avanzado"
               desc="Más de 2 años, conozco mi cuerpo y mis pesos."
             />
@@ -147,10 +171,10 @@ export default function Onboarding() {
 
         {step === 'goal' && (
           <Section title="¿Cuál es tu objetivo?" subtitle="Elige el principal — luego puedes cambiarlo">
-            <ChoiceCard selected={goal === 'hypertrophy'} onPress={() => setGoal('hypertrophy')} emoji="🏋️" title="Hipertrofia" desc="Ganar masa muscular y tamaño." />
-            <ChoiceCard selected={goal === 'strength'} onPress={() => setGoal('strength')} emoji="⚡" title="Fuerza" desc="Levantar más peso, ser más fuerte." />
-            <ChoiceCard selected={goal === 'fat_loss'} onPress={() => setGoal('fat_loss')} emoji="🔥" title="Pérdida de grasa" desc="Definir y reducir % de grasa." />
-            <ChoiceCard selected={goal === 'general'} onPress={() => setGoal('general')} emoji="🎯" title="Salud general" desc="Mantenerme activo y en forma." />
+            <ChoiceCard selected={goal === 'hypertrophy'} onPress={() => setGoal('hypertrophy')} icon="muscle" iconColor={colors.primary.DEFAULT} title="Hipertrofia" desc="Ganar masa muscular y tamaño." />
+            <ChoiceCard selected={goal === 'strength'} onPress={() => setGoal('strength')} icon="lightning" iconColor="#FFD700" title="Fuerza" desc="Levantar más peso, ser más fuerte." />
+            <ChoiceCard selected={goal === 'fat_loss'} onPress={() => setGoal('fat_loss')} icon="fire" iconColor={colors.accent.DEFAULT} title="Pérdida de grasa" desc="Definir y reducir % de grasa." />
+            <ChoiceCard selected={goal === 'general'} onPress={() => setGoal('general')} icon="target" iconColor={colors.success} title="Salud general" desc="Mantenerme activo y en forma." />
           </Section>
         )}
 
@@ -248,10 +272,21 @@ function Section({ title, subtitle, children }: { title: string; subtitle?: stri
   );
 }
 
-function FeatureRow({ emoji, title, desc }: { emoji: string; title: string; desc: string }) {
+function FeatureRow({ icon, color, title, desc }: { icon: IconName; color: string; title: string; desc: string }) {
   return (
     <Card padding="md" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-      <Text style={{ fontSize: 28 }}>{emoji}</Text>
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          backgroundColor: color + '22',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Icon name={icon} size={24} color={color} />
+      </View>
       <View style={{ flex: 1 }}>
         <Text variant="heading">{title}</Text>
         <Text variant="caption" tone="secondary">{desc}</Text>
@@ -263,13 +298,15 @@ function FeatureRow({ emoji, title, desc }: { emoji: string; title: string; desc
 function ChoiceCard({
   selected,
   onPress,
-  emoji,
+  icon,
+  iconColor,
   title,
   desc,
 }: {
   selected: boolean;
   onPress: () => void;
-  emoji: string;
+  icon: IconName;
+  iconColor: string;
   title: string;
   desc: string;
 }) {
@@ -280,7 +317,18 @@ function ChoiceCard({
         padding="lg"
         style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
       >
-        <Text style={{ fontSize: 32 }}>{emoji}</Text>
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: iconColor + '22',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name={icon} size={24} color={iconColor} />
+        </View>
         <View style={{ flex: 1 }}>
           <Text variant="heading">{title}</Text>
           <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>{desc}</Text>

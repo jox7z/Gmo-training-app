@@ -1,12 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { colors, spacing, radius } from '@/theme/tokens';
-import { askCoach, CoachMessage } from '@/lib/coach';
+import { askCoach, CoachMessage, CoachContext, WorkoutSummary } from '@/lib/coach';
+import { useAppStore } from '@/store/app';
+import { useWorkoutsStore } from '@/store/workouts';
+import { computeOptimizationScore } from '@/lib/optimizationScore';
+import { Icon } from '@/components/Icon';
 
 const SUGGESTIONS = [
   '¿Cómo hago bien la sentadilla?',
@@ -17,6 +22,36 @@ const SUGGESTIONS = [
 
 export default function Coach() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const profile = useAppStore((s) => s.profile);
+  const history = useWorkoutsStore((s) => s.history);
+
+  const coachContext = useMemo<CoachContext>(() => {
+    const opt = profile
+      ? computeOptimizationScore(history, profile)
+      : { score: 0, breakdown: { frequency: 0, volumeBalance: 0, recovery: 100, progression: 50, variety: 50 }, weakGroups: [] };
+
+    const recentWorkouts: WorkoutSummary[] = history.slice(0, 5).map((w) => ({
+      date: w.startedAt.slice(0, 10),
+      durationMin: Math.round((w.durationSeconds ?? 0) / 60),
+      volumeKg: w.totalVolumeKg,
+      exercises: w.exercises.map((e) => e.exerciseName),
+    }));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const trainedDays = new Set(history.map((w) => w.startedAt.slice(0, 10)));
+    const trainingGaps: string[] = [];
+    for (let i = 1; i <= 14; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const k = d.toISOString().slice(0, 10);
+      if (!trainedDays.has(k)) trainingGaps.push(k);
+    }
+
+    return { ...opt, recentWorkouts, trainingGaps };
+  }, [history, profile]);
+
   const [messages, setMessages] = useState<CoachMessage[]>([
     {
       id: 'init',
@@ -42,7 +77,7 @@ export default function Coach() {
     setInput('');
     setLoading(true);
     try {
-      const res = await askCoach(next);
+      const res = await askCoach(next, coachContext);
       setMessages((m) => [
         ...m,
         { id: Math.random().toString(36).slice(2), role: 'assistant', content: res.reply, createdAt: Date.now() },
@@ -69,14 +104,15 @@ export default function Coach() {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
+          paddingTop: insets.top + spacing.md,
           paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.md,
+          paddingBottom: spacing.md,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
         }}
       >
         <Pressable onPress={() => router.back()} hitSlop={12}>
-          <Text variant="heading" tone="muted">✕</Text>
+          <Icon name="close" size={20} color={colors.text.muted} />
         </Pressable>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <View
@@ -89,11 +125,14 @@ export default function Coach() {
               justifyContent: 'center',
             }}
           >
-            <Text>🤖</Text>
+            <Icon name="robot" size={18} color={colors.info.DEFAULT} />
           </View>
           <View>
             <Text weight="bold">Coach IA</Text>
-            <Text variant="caption" tone="success">● Online</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Icon name="dot" size={8} color={colors.success} />
+                <Text variant="caption" tone="success">Online</Text>
+              </View>
           </View>
         </View>
         <View style={{ width: 24 }} />
@@ -193,7 +232,7 @@ export default function Coach() {
                     marginLeft: 4,
                   }}
                 >
-                  <Text weight="black" style={{ color: '#fff' }}>↑</Text>
+                  <Icon name="send" size={18} color="#fff" />
                 </View>
               </Pressable>
             }

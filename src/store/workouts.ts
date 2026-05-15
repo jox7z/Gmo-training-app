@@ -8,6 +8,7 @@ export interface SetEntry {
   rpe?: number;
   isWarmup?: boolean;
   isCompleted: boolean;
+  restSeconds?: number;
 }
 
 export interface WorkoutExercise {
@@ -27,6 +28,7 @@ export interface Workout {
   endedAt?: string;
   durationSeconds?: number;
   totalVolumeKg: number;
+  avgRestSeconds?: number;
   exercises: WorkoutExercise[];
   feeling?: 'great' | 'good' | 'tired' | 'bad';
   isPublished?: boolean;
@@ -58,6 +60,15 @@ function calcVolume(w: Workout) {
       acc + ex.sets.filter((s) => s.isCompleted && !s.isWarmup).reduce((a, s) => a + s.reps * s.weightKg, 0),
     0,
   );
+}
+
+function calcAvgRest(w: Workout): number | undefined {
+  const rests = w.exercises
+    .flatMap((ex) => ex.sets)
+    .map((s) => s.restSeconds)
+    .filter((v): v is number => typeof v === 'number' && v > 0);
+  if (rests.length === 0) return undefined;
+  return Math.round(rests.reduce((a, b) => a + b, 0) / rests.length);
 }
 
 export const useWorkoutsStore = create<State>((set, get) => ({
@@ -94,6 +105,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       endedAt: ended.toISOString(),
       durationSeconds: duration,
       totalVolumeKg: calcVolume(a),
+      avgRestSeconds: calcAvgRest(a),
       feeling,
       photoUri,
       isPublished: !!published,

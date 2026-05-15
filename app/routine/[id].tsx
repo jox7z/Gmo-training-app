@@ -9,7 +9,11 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore, Routine, RoutineDay, nid } from '@/store/routines';
+import { useAppStore } from '@/store/app';
+import { saveRoutine } from '@/lib/repos/routines';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { EXERCISES, exerciseById, MuscleGroup } from '@/data/exercises';
+import { Icon } from '@/components/Icon';
 
 const EMPTY_ROUTINE = (): Routine => ({
   id: nid(),
@@ -24,6 +28,7 @@ export default function RoutineEditor() {
   const router = useRouter();
   const existing = useRoutinesStore((s) => s.routines.find((r) => r.id === id));
   const upsert = useRoutinesStore((s) => s.upsertRoutine);
+  const profile = useAppStore((s) => s.profile);
 
   const [routine, setRoutine] = useState<Routine>(existing ?? EMPTY_ROUTINE());
   const [activeDayIdx, setActiveDayIdx] = useState(0);
@@ -82,6 +87,9 @@ export default function RoutineEditor() {
 
   const handleSave = () => {
     upsert(routine);
+    if (isSupabaseConfigured && profile?.id && profile.id !== 'local-user') {
+      saveRoutine(profile.id, routine).catch(() => {});
+    }
     router.back();
   };
 
@@ -167,7 +175,7 @@ export default function RoutineEditor() {
         <View style={{ marginTop: spacing.lg }}>
           {day.exercises.length === 0 && (
             <Card padding="xl" style={{ alignItems: 'center' }}>
-              <Text style={{ fontSize: 32 }}>🏋️</Text>
+              <Icon name="dumbbell" size={40} color={colors.text.muted} />
               <Text variant="heading" style={{ marginTop: spacing.sm }}>Día vacío</Text>
               <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
                 Agrega ejercicios para empezar.

@@ -1,4 +1,4 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -9,6 +9,8 @@ import 'react-native-url-polyfill/auto';
 
 import { colors } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getProfile } from '@/lib/repos/profile';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // Set the native root window background so Android doesn't flash/show white
@@ -26,10 +28,30 @@ const queryClient = new QueryClient({
 
 export default function RootLayout() {
   const hydrate = useAppStore((s) => s.hydrate);
+  const setProfile = useAppStore((s) => s.setProfile);
+  const router = useRouter();
 
   useEffect(() => {
     hydrate().finally(() => SplashScreen.hideAsync().catch(() => {}));
   }, [hydrate]);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT' || !session) {
+        if (event === 'SIGNED_OUT') router.replace('/auth/login');
+        return;
+      }
+      try {
+        const remote = await getProfile(session.user.id);
+        if (remote) await setProfile(remote);
+        else await hydrate();
+      } catch {
+        await hydrate().catch(() => {});
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [hydrate, setProfile, router]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg.base }}>
@@ -55,6 +77,10 @@ export default function RootLayout() {
             <Stack.Screen
               name="coach"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="auth/login"
+              options={{ animation: 'fade', gestureEnabled: false }}
             />
           </Stack>
         </QueryClientProvider>

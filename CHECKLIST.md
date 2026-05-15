@@ -244,3 +244,34 @@ Si solo puedes hacer una cosa, hazla en este orden:
 - **Pesos siempre se almacenan en KG en DB** — la conversión a LB es solo presentación.
 - **Sin Supabase configurado, la app sigue funcionando** gracias a stores locales + mock del coach.
 - **El mock del Coach IA** usa palabras clave para responder; al activar Supabase + secrets, automáticamente pasa a usar Gemini real.
+
+---
+
+## 🤖 Prompts para el agente IA
+
+> Copia/pega un prompt a la vez. Después de cada uno, corre `npm run typecheck` y prueba la pantalla afectada antes de seguir con el siguiente.
+
+### Prompt 1 — Score de optimización del entreno
+
+```
+Crea un módulo `src/lib/optimizationScore.ts` que reciba el historial
+de workouts y el perfil del usuario y devuelva un objeto:
+{
+  score: 0-100,
+  breakdown: { frequency, volumeBalance, recovery, progression, variety },
+  weakGroups: string[]
+}
+
+Reglas:
+- frequency: días entrenados últimos 7 días vs profile.weeklyGoalDays
+- volumeBalance: desviación estándar del volumen por grupo muscular
+  (usa exerciseById de src/data/exercises.ts para mapear ejercicio→grupo)
+- recovery: penaliza si hay >2 días seguidos del mismo grupo
+- progression: tendencia de volumen últimas 4 semanas
+- variety: número de ejercicios distintos / total
+
+Luego añade una Card en app/(tabs)/index.tsx debajo de "Esta semana"
+que muestre el score con un color (verde >80, amarillo 50-80, rojo <50)
+y los 2 grupos más débiles. No toques el backend.
+```
+

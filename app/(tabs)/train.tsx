@@ -1,4 +1,4 @@
-import { View, Pressable } from 'react-native';
+import { View, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -7,11 +7,23 @@ import { Button } from '@/components/ui/Button';
 import { colors, spacing } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
 import { useWorkoutsStore } from '@/store/workouts';
+import { Icon } from '@/components/Icon';
+import { canStartWorkout } from '@/lib/workoutGuards';
 
 export default function Train() {
   const router = useRouter();
   const routines = useRoutinesStore((s) => s.routines);
   const active = useWorkoutsStore((s) => s.active);
+  const history = useWorkoutsStore((s) => s.history);
+
+  const tryStart = (routineId: string, dayId: string) => {
+    const guard = canStartWorkout(history);
+    if (!guard.allowed) {
+      Alert.alert('Espera un momento', guard.reason);
+      return;
+    }
+    router.push({ pathname: '/workout/active', params: { routineId, dayId } });
+  };
 
   if (active) {
     return (
@@ -47,9 +59,7 @@ export default function Train() {
             {r.days.map((d) => (
               <Pressable
                 key={d.id}
-                onPress={() =>
-                  router.push({ pathname: '/workout/active', params: { routineId: r.id, dayId: d.id } })
-                }
+                onPress={() => tryStart(r.id, d.id)}
               >
                 <Card padding="lg" style={{ marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center' }}>
                   <View
@@ -68,7 +78,7 @@ export default function Train() {
                     <Text variant="heading">{d.name}</Text>
                     <Text variant="caption" tone="secondary">{d.exercises.length} ejercicios</Text>
                   </View>
-                  <Text variant="heading" tone="muted">›</Text>
+                  <Icon name="chevron-right" size={20} color={colors.text.muted} />
                 </Card>
               </Pressable>
             ))}

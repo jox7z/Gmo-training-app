@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RankId } from '@/theme/tokens';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 export type Unit = 'kg' | 'lb';
 export type Level = 'beginner' | 'intermediate' | 'advanced';
@@ -34,8 +35,8 @@ interface AppState {
 
 const STORAGE_KEY = 'gmo:app:v1';
 
-const defaultProfile = (): UserProfile => ({
-  id: 'local-user',
+const defaultProfile = (id = 'local-user'): UserProfile => ({
+  id,
   username: 'gmo_athlete',
   displayName: 'Atleta',
   weightKg: 75,
@@ -47,6 +48,12 @@ const defaultProfile = (): UserProfile => ({
   rankPoints: 120,
   currentRank: 'silver',
 });
+
+async function getAuthUserId(): Promise<string> {
+  if (!isSupabaseConfigured) return 'local-user';
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id ?? 'local-user';
+}
 
 export const useAppStore = create<AppState>((set, get) => ({
   onboarded: false,
@@ -66,6 +73,19 @@ export const useAppStore = create<AppState>((set, get) => ({
           daysThisWeek: data.daysThisWeek ?? 0,
         });
       }
+
+      // Sync real auth user ID if Supabase is configured
+      if (isSupabaseConfigured) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const profile = get().profile;
+          if (profile && profile.id !== user.id) {
+            const updated = { ...profile, id: user.id };
+            set({ profile: updated });
+            await persist({ ...get(), profile: updated });
+          }
+        }
+      }
     } catch (e) {
       console.warn('hydrate failed', e);
     }
@@ -77,7 +97,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   completeOnboarding: async () => {
-    if (!get().profile) set({ profile: defaultProfile() });
+    const userId = await getAuthUserId();
+    const existing = get().profile;
+
+    if (!existing) {
+      set({ profile: defaultProfile(userId) });
+    } else if (existing.id === 'local-user' && userId !== 'local-user') {
+      set({ profile: { ...existing, id: userId } });
+    }
+
     set({ onboarded: true, streakWeeks: 1, daysThisWeek: 0 });
     await persist(get());
   },

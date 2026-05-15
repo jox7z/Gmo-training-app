@@ -35,7 +35,7 @@ interface State {
   hydrate: () => Promise<void>;
   upsertRoutine: (r: Routine) => void;
   deleteRoutine: (id: string) => void;
-  duplicateRoutine: (id: string) => void;
+  duplicateRoutine: (id: string) => Routine | undefined;
   setActiveRoutine: (id: string) => void;
 }
 
@@ -121,9 +121,10 @@ export const useRoutinesStore = create<State>((set, get) => ({
 
   duplicateRoutine: (id) => {
     const r = get().routines.find((x) => x.id === id);
-    if (!r) return;
+    if (!r) return undefined;
     const copy: Routine = { ...r, id: nid(), name: `${r.name} (copia)`, createdAt: new Date().toISOString() };
     set({ routines: [copy, ...get().routines] });
+    return copy;
   },
 
   setActiveRoutine: (id) => {

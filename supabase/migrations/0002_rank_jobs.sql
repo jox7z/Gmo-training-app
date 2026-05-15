@@ -1,6 +1,7 @@
 -- Weekly rank/streak recalculation job.
--- Schedule with pg_cron in Supabase Studio:
---   select cron.schedule('weekly-rank-update', '0 6 * * 1', $$ select public.recalc_weekly_ranks(); $$);
+-- Requires pg_cron extension enabled in Supabase Dashboard → Database → Extensions.
+
+create extension if not exists pg_cron;
 
 create or replace function public.recalc_weekly_ranks()
 returns void language plpgsql security definer set search_path = public as $$
@@ -84,3 +85,10 @@ begin
     end;
 end;
 $$;
+
+-- Schedule: every Monday at 06:00 UTC
+select cron.schedule(
+  'weekly-rank-update',
+  '0 6 * * 1',
+  $$ select public.recalc_weekly_ranks(); $$
+);

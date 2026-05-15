@@ -19,7 +19,9 @@
       "Bash(git checkout *)",
       "Bash(git credential *)",
       "Bash(tee /tmp/cred.txt)",
-      "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --base main --head feat/initial-app-foundation --title 'feat: scaffold Gmo Training App foundation \\(Expo + Supabase\\)' --body ' *)"
+      "Bash('/c/Program Files/GitHub CLI/gh.exe' pr create --base main --head feat/initial-app-foundation --title 'feat: scaffold Gmo Training App foundation \\(Expo + Supabase\\)' --body ' *)",
+      "Bash(npm run *)",
+      "Bash(git rm *)"
     ]
   }
 }

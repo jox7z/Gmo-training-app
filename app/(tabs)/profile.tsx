@@ -12,14 +12,16 @@ import { Loader } from '@/components/ui/Loader';
 import { useAppStore, Unit } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
 import { formatDuration } from '@/lib/units';
+import { Heatmap } from '@/components/Heatmap';
+import { Icon, IconName } from '@/components/Icon';
 
-const BADGES = [
-  { id: 'first', label: 'Primer workout', emoji: '🥉', earned: true },
-  { id: 'streak3', label: 'Racha 3 sem', emoji: '🔥', earned: true },
-  { id: 'streak10', label: 'Racha 10 sem', emoji: '🔥', earned: false },
-  { id: 'volume', label: 'Bestia (>10t)', emoji: '🦍', earned: false },
-  { id: 'early', label: 'Madrugador', emoji: '🌅', earned: true },
-  { id: 'social', label: 'Influencer', emoji: '📣', earned: false },
+const BADGES: { id: string; label: string; icon: IconName; color: string; earned: boolean }[] = [
+  { id: 'first', label: 'Primer workout', icon: 'medal', color: '#CD7F32', earned: true },
+  { id: 'streak3', label: 'Racha 3 sem', icon: 'fire', color: colors.accent.DEFAULT, earned: true },
+  { id: 'streak10', label: 'Racha 10 sem', icon: 'fire', color: colors.accent.DEFAULT, earned: false },
+  { id: 'volume', label: 'Bestia (>10t)', icon: 'muscle', color: colors.primary.DEFAULT, earned: false },
+  { id: 'early', label: 'Madrugador', icon: 'seedling', color: colors.success, earned: true },
+  { id: 'social', label: 'Influencer', icon: 'target', color: colors.info.DEFAULT, earned: false },
 ];
 
 export default function Profile() {
@@ -31,7 +33,10 @@ export default function Profile() {
 
   if (!profile) return <Loader />;
 
-  const totalVolume = history.reduce((a, w) => a + w.totalVolumeKg, 0);
+  const totalSets = history.reduce(
+    (a, w) => a + w.exercises.reduce((b, e) => b + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length, 0),
+    0,
+  );
   const totalDuration = history.reduce((a, w) => a + (w.durationSeconds ?? 0), 0);
 
   const toggleUnit = () => {
@@ -73,11 +78,15 @@ export default function Profile() {
       </View>
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
         <Card padding="lg" style={{ flex: 1 }}>
-          <Stat label={`Volumen (${profile.unit})`} value={Math.round(totalVolume).toLocaleString()} tone="info" />
+          <Stat label="Sets totales" value={totalSets.toLocaleString()} tone="info" />
         </Card>
         <Card padding="lg" style={{ flex: 1 }}>
           <Stat label="Tiempo total" value={formatDuration(totalDuration)} tone="info" />
         </Card>
+      </View>
+
+      <View style={{ marginTop: spacing['2xl'] }}>
+        <Heatmap />
       </View>
 
       <Text variant="heading" style={{ marginTop: spacing['2xl'], marginBottom: spacing.md }}>
@@ -92,7 +101,7 @@ export default function Profile() {
             glowColor={colors.accent.DEFAULT}
             style={{ width: '47%', alignItems: 'center', opacity: b.earned ? 1 : 0.4 }}
           >
-            <Text style={{ fontSize: 32 }}>{b.emoji}</Text>
+            <Icon name={b.icon} size={32} color={b.color} />
             <Text variant="caption" weight="bold" style={{ marginTop: 4, textAlign: 'center' }}>
               {b.label}
             </Text>
@@ -153,7 +162,7 @@ function SettingRow({
         <Text>{label}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Text tone="secondary" weight="semibold">{value}</Text>
-          {onPress && <Text tone="muted">›</Text>}
+          {onPress && <Icon name="chevron-right" size={18} color={colors.text.muted} />}
         </View>
       </View>
     </Pressable>
