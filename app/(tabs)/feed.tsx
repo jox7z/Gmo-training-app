@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
@@ -82,6 +83,7 @@ async function fetchLeaderboard(): Promise<Entry[]> {
 }
 
 export default function FeedScreen() {
+  const router = useRouter();
   const profile = useAppStore((s) => s.profile);
   const [tab, setTab] = useState<Tab>('feed');
   const [refreshing, setRefreshing] = useState(false);
@@ -112,7 +114,25 @@ export default function FeedScreen() {
 
   return (
     <Screen refreshing={refreshing} onRefresh={onRefresh}>
-      <Text variant="title">Comunidad</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <Pressable onPress={() => router.push('/coach')}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: colors.info.soft,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: colors.info.DEFAULT,
+            }}
+          >
+            <Icon name="robot" size={20} color={colors.info.DEFAULT} />
+          </View>
+        </Pressable>
+        <Text variant="title">Comunidad</Text>
+      </View>
 
       <View
         style={{

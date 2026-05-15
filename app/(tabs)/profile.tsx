@@ -46,6 +46,24 @@ export default function Profile() {
 
   return (
     <Screen>
+      <View style={{ flexDirection: 'row', marginBottom: spacing.lg }}>
+        <Pressable onPress={() => router.push('/coach')}>
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: colors.info.soft,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: colors.info.DEFAULT,
+            }}
+          >
+            <Icon name="robot" size={20} color={colors.info.DEFAULT} />
+          </View>
+        </Pressable>
+      </View>
       <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
         <View
           style={{

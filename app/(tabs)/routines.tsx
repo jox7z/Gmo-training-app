@@ -64,7 +64,25 @@ export default function Routines() {
   return (
     <Screen>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text variant="title">Mis rutinas</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 }}>
+          <Pressable onPress={() => router.push('/coach')}>
+            <View
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: colors.info.soft,
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: colors.info.DEFAULT,
+              }}
+            >
+              <Icon name="robot" size={20} color={colors.info.DEFAULT} />
+            </View>
+          </Pressable>
+          <Text variant="title">Mis rutinas</Text>
+        </View>
         <Pressable
           onPress={() =>
             router.push({ pathname: '/routine/[id]', params: { id: 'new' } })
