@@ -106,6 +106,14 @@ export default function RootLayout() {
     const inAuthGroup = first === 'auth';
     const inOnboarding = first === 'onboarding';
     const inTabs = first === '(tabs)';
+    // Authenticated routes that legitimately live outside the (tabs) group
+    // (modals, full-screen flows, profile sub-pages). These must NOT be
+    // bounced back to /(tabs) by the catch-all below.
+    const inAllowedAuthedRoute =
+      first === 'coach' ||
+      first === 'workout' ||
+      first === 'routine' ||
+      first === 'profile';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
     // creates a temporary session. We MUST let them stay on reset-password and
@@ -142,9 +150,9 @@ export default function RootLayout() {
       return;
     }
 
-    // CASE 4: signed in + onboarded → must be in tabs.
-    // Redirect from root "/" or any stray non-tab route.
-    if (!inTabs) {
+    // CASE 4: signed in + onboarded → must be in tabs or an allowed authed route.
+    // Redirect from root "/" or any stray unknown route.
+    if (!inTabs && !inAllowedAuthedRoute) {
       console.log('[RootLayout] → /(tabs) (from', first ?? '(root)', ')');
       router.replace('/(tabs)');
     }
@@ -174,6 +182,18 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="coach"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="profile/social"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="profile/settings"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="profile/edit"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen

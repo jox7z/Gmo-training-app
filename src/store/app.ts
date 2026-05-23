@@ -7,10 +7,30 @@ export type Unit = 'kg' | 'lb';
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 export type Goal = 'strength' | 'hypertrophy' | 'fat_loss' | 'general';
 
+export interface PrivacySettings {
+  profilePublic: boolean;
+  showActivity: boolean;
+  showStats: boolean;
+}
+
+export interface NotificationSettings {
+  workoutReminders: boolean;
+  socialUpdates: boolean;
+  achievements: boolean;
+  weeklyReport: boolean;
+}
+
 export interface UserProfile {
   id: string;
   username: string;
   displayName: string;
+  fullName?: string;
+  bio?: string;
+  location?: string;
+  country?: string;
+  avatarUrl?: string;
+  followers: number;
+  following: number;
   weightKg: number;
   heightCm: number;
   unit: Unit;
@@ -19,6 +39,8 @@ export interface UserProfile {
   weeklyGoalDays: number;
   rankPoints: number;
   currentRank: RankId;
+  privacy: PrivacySettings;
+  notifications: NotificationSettings;
 }
 
 interface AppState {
@@ -41,6 +63,13 @@ const defaultProfile = (id = 'local-user'): UserProfile => ({
   id,
   username: 'gmo_athlete',
   displayName: 'Atleta',
+  fullName: '',
+  bio: '',
+  location: '',
+  country: '',
+  avatarUrl: undefined,
+  followers: 0,
+  following: 0,
   weightKg: 75,
   heightCm: 175,
   unit: 'kg',
@@ -49,6 +78,8 @@ const defaultProfile = (id = 'local-user'): UserProfile => ({
   weeklyGoalDays: 4,
   rankPoints: 120,
   currentRank: 'silver',
+  privacy: { profilePublic: true, showActivity: true, showStats: true },
+  notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
 });
 
 async function getAuthUserId(): Promise<string> {
@@ -69,9 +100,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
         const data = JSON.parse(raw);
+        const profile = data.profile ? migrateProfile(data.profile) : null;
         set({
           onboarded: data.onboarded ?? false,
-          profile: data.profile ?? null,
+          profile,
           streakWeeks: data.streakWeeks ?? 0,
           daysThisWeek: data.daysThisWeek ?? 0,
         });
@@ -158,6 +190,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('[Store] signOut complete');
   },
 }));
+
+function migrateProfile(p: any): UserProfile {
+  const def = defaultProfile(p?.id ?? 'local-user');
+  return {
+    ...def,
+    ...p,
+    privacy: { ...def.privacy, ...(p?.privacy ?? {}) },
+    notifications: { ...def.notifications, ...(p?.notifications ?? {}) },
+  };
+}
 
 async function persist(state: AppState) {
   await AsyncStorage.setItem(

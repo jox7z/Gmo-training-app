@@ -20,6 +20,12 @@ function toApp(row: DbProfile): UserProfile {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
+    fullName: '',
+    bio: '',
+    location: '',
+    country: '',
+    followers: 0,
+    following: 0,
     weightKg: row.weight_kg ?? 75,
     heightCm: row.height_cm ?? 175,
     unit: row.unit_preference,
@@ -28,6 +34,8 @@ function toApp(row: DbProfile): UserProfile {
     currentRank: row.current_rank as UserProfile['currentRank'],
     rankPoints: row.rank_points,
     weeklyGoalDays: row.weekly_goal_days,
+    privacy: { profilePublic: true, showActivity: true, showStats: true },
+    notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
   };
 }
 

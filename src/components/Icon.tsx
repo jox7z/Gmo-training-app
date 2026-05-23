@@ -8,6 +8,7 @@ export type IconName =
   | 'close'
   | 'send'
   | 'chevron-right'
+  | 'chevron-left'
   | 'check'
   | 'dot'
   | 'fire'
@@ -17,7 +18,25 @@ export type IconName =
   | 'seedling'
   | 'medal'
   | 'clap'
-  | 'chat';
+  | 'chat'
+  | 'settings'
+  | 'camera'
+  | 'edit'
+  | 'lock'
+  | 'map-pin'
+  | 'bell'
+  | 'users'
+  | 'share'
+  | 'image'
+  | 'globe'
+  | 'eye'
+  | 'eye-off'
+  | 'plus'
+  | 'logout'
+  | 'heart'
+  | 'calendar'
+  | 'clock'
+  | 'route';
 
 interface Props {
   name: IconName;
@@ -235,6 +254,228 @@ function renderIcon(name: IconName, c: string) {
           d="M4 5a1 1 0 011-1h14a1 1 0 011 1v10a1 1 0 01-1 1H10l-4 4v-4H5a1 1 0 01-1-1V5z"
           stroke={c}
           strokeWidth={2}
+          strokeLinejoin="round"
+        />
+      );
+
+    case 'settings':
+      return (
+        <>
+          <Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={2} />
+          <Path
+            d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3h0a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8v0a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"
+            stroke={c}
+            strokeWidth={1.8}
+            strokeLinejoin="round"
+          />
+        </>
+      );
+
+    case 'chevron-left':
+      return (
+        <Path
+          d="M15 18l-6-6 6-6"
+          stroke={c}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+
+    case 'camera':
+      return (
+        <>
+          <Path
+            d="M3 8a2 2 0 012-2h2l1.5-2h7L17 6h2a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          <Circle cx="12" cy="13" r="3.5" stroke={c} strokeWidth={2} />
+        </>
+      );
+
+    case 'edit':
+      return (
+        <Path
+          d="M4 20h4l10-10-4-4L4 16v4zM14 6l4 4"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+
+    case 'lock':
+      return (
+        <>
+          <Rect x="4" y="11" width="16" height="10" rx="2" stroke={c} strokeWidth={2} />
+          <Path
+            d="M8 11V7a4 4 0 018 0v4"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </>
+      );
+
+    case 'map-pin':
+      return (
+        <>
+          <Path
+            d="M12 22s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          <Circle cx="12" cy="10" r="2.5" stroke={c} strokeWidth={2} />
+        </>
+      );
+
+    case 'bell':
+      return (
+        <Path
+          d="M6 16V10a6 6 0 1112 0v6l2 2H4l2-2zM10 20a2 2 0 004 0"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+
+    case 'users':
+      return (
+        <>
+          <Circle cx="9" cy="8" r="3.5" stroke={c} strokeWidth={2} />
+          <Path
+            d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Path
+            d="M16 4a3.5 3.5 0 010 7M17 14c2.8.5 5 2.8 5 6"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </>
+      );
+
+    case 'share':
+      return (
+        <>
+          <Circle cx="18" cy="5" r="3" stroke={c} strokeWidth={2} />
+          <Circle cx="6" cy="12" r="3" stroke={c} strokeWidth={2} />
+          <Circle cx="18" cy="19" r="3" stroke={c} strokeWidth={2} />
+          <Path d="M8.6 10.5l6.8-4M8.6 13.5l6.8 4" stroke={c} strokeWidth={2} strokeLinecap="round" />
+        </>
+      );
+
+    case 'image':
+      return (
+        <>
+          <Rect x="3" y="4" width="18" height="16" rx="2" stroke={c} strokeWidth={2} />
+          <Circle cx="9" cy="10" r="1.5" fill={c} />
+          <Path d="M21 17l-6-6-9 9" stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        </>
+      );
+
+    case 'globe':
+      return (
+        <>
+          <Circle cx="12" cy="12" r="9" stroke={c} strokeWidth={2} />
+          <Path
+            d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </>
+      );
+
+    case 'eye':
+      return (
+        <>
+          <Path
+            d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          <Circle cx="12" cy="12" r="3" stroke={c} strokeWidth={2} />
+        </>
+      );
+
+    case 'eye-off':
+      return (
+        <Path
+          d="M3 3l18 18M10.6 6.2A9.6 9.6 0 0112 6c6.5 0 10 6 10 6a16 16 0 01-3.3 3.9M6.6 6.6A16 16 0 002 12s3.5 6 10 6c1.5 0 2.9-.3 4-.8M9.9 9.9a3 3 0 004.2 4.2"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
+        />
+      );
+
+    case 'plus':
+      return (
+        <Path
+          d="M12 5v14M5 12h14"
+          stroke={c}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+        />
+      );
+
+    case 'logout':
+      return (
+        <Path
+          d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+
+    case 'heart':
+      return (
+        <Path
+          d="M12 21s-7-4.5-9.3-9.2A5 5 0 0112 6a5 5 0 019.3 5.8C19 16.5 12 21 12 21z"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinejoin="round"
+        />
+      );
+
+    case 'calendar':
+      return (
+        <>
+          <Rect x="3" y="5" width="18" height="16" rx="2" stroke={c} strokeWidth={2} />
+          <Path
+            d="M3 10h18M8 3v4M16 3v4"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+        </>
+      );
+
+    case 'clock':
+      return (
+        <>
+          <Circle cx="12" cy="12" r="9" stroke={c} strokeWidth={2} />
+          <Path d="M12 7v5l3 2" stroke={c} strokeWidth={2} strokeLinecap="round" />
+        </>
+      );
+
+    case 'route':
+      return (
+        <Path
+          d="M6 4v12a4 4 0 008 0V8a4 4 0 018 0v12M6 4l-2 2M6 4l2 2M18 20l-2-2M18 20l2-2"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
           strokeLinejoin="round"
         />
       );

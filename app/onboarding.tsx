@@ -45,6 +45,12 @@ export default function Onboarding() {
       id: userId,
       username: name.trim().toLowerCase().replace(/\s+/g, '_') || 'gmo_athlete',
       displayName: name.trim() || 'Atleta',
+      fullName: '',
+      bio: '',
+      location: '',
+      country: '',
+      followers: 0,
+      following: 0,
       weightKg: parseFloat(weight) || 75,
       heightCm: parseFloat(height) || 175,
       unit,
@@ -53,6 +59,8 @@ export default function Onboarding() {
       weeklyGoalDays: days,
       rankPoints: 50,
       currentRank: 'bronze' as const,
+      privacy: { profilePublic: true, showActivity: true, showStats: true },
+      notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
     };
 
     await setProfile(profileData);
