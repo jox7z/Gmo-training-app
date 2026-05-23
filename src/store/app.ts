@@ -22,6 +22,7 @@ export interface UserProfile {
 }
 
 interface AppState {
+  hydrated: boolean;
   onboarded: boolean;
   profile: UserProfile | null;
   streakWeeks: number;
@@ -56,6 +57,7 @@ async function getAuthUserId(): Promise<string> {
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
+  hydrated: false,
   onboarded: false,
   profile: null,
   streakWeeks: 0,
@@ -73,10 +75,21 @@ export const useAppStore = create<AppState>((set, get) => ({
           daysThisWeek: data.daysThisWeek ?? 0,
         });
       }
+      console.log('[Store] hydrate: AsyncStorage read OK', {
+        onboarded: get().onboarded,
+        hasProfile: !!get().profile,
+      });
 
-      // Sync real auth user ID if Supabase is configured
+      // Sync real auth user ID if Supabase is configured.
+      // Wrapped in a 2s timeout: on Android the Supabase auth call can hang
+      // when AsyncStorage is slow during cold start. We don't want to block
+      // the splash screen on this — it's a background sync.
       if (isSupabaseConfigured) {
-        const { data: { user } } = await supabase.auth.getUser();
+        const userPromise = supabase.auth.getUser().then((r) => r.data.user);
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 2000),
+        );
+        const user = await Promise.race([userPromise, timeoutPromise]).catch(() => null);
         if (user) {
           const profile = get().profile;
           if (profile && profile.id !== user.id) {
@@ -87,7 +100,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     } catch (e) {
-      console.warn('hydrate failed', e);
+      console.warn('[Store] hydrate failed', e);
+    } finally {
+      set({ hydrated: true });
+      console.log('[Store] hydrate finished');
     }
   },
 

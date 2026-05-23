@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/Text';
 import { TabIcon } from '@/components/TabIcon';
 
 export default function TabsLayout() {
+  console.log('[TabsLayout] render — usuario entró al grupo de tabs');
   return (
     <Tabs
       screenOptions={{

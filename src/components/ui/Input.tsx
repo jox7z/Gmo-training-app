@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useState } from 'react';
 import { View, TextInput, TextInputProps, ViewStyle } from 'react-native';
 import { colors, radius, spacing, fontSize } from '@/theme/tokens';
 import { Text } from './Text';
@@ -11,7 +11,10 @@ interface Props extends TextInputProps {
   rightAdornment?: React.ReactNode;
 }
 
-export function Input({ label, error, hint, containerStyle, rightAdornment, ...rest }: Props) {
+export const Input = forwardRef<TextInput, Props>(function Input(
+  { label, error, hint, containerStyle, rightAdornment, ...rest },
+  ref,
+) {
   const [focused, setFocused] = useState(false);
   return (
     <View style={containerStyle}>
@@ -32,6 +35,7 @@ export function Input({ label, error, hint, containerStyle, rightAdornment, ...r
         }}
       >
         <TextInput
+          ref={ref}
           {...rest}
           onFocus={(e) => {
             setFocused(true);
@@ -65,4 +69,4 @@ export function Input({ label, error, hint, containerStyle, rightAdornment, ...r
       )}
     </View>
   );
-}
+});

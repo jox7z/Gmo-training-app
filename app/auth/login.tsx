@@ -1,41 +1,53 @@
-import { useState } from 'react';
-import { View, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useRef, useEffect } from 'react';
+import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { PasswordInput } from '@/components/auth/PasswordInput';
+import { OAuthButtons } from '@/components/auth/OAuthButtons';
 import { colors, spacing } from '@/theme/tokens';
 import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app';
 import { getProfile } from '@/lib/repos/profile';
+import { humanizeAuthError } from '@/lib/authErrors';
+import { isEmailValid } from '@/lib/passwordPolicy';
 
 export default function Login() {
   const router = useRouter();
-  const hydrate = useAppStore((s) => s.hydrate);
   const setProfile = useAppStore((s) => s.setProfile);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [touched, setTouched] = useState({ email: false, password: false });
 
-  const handle = async () => {
+  const passwordRef = useRef<TextInput | null>(null);
+  const emailRef = useRef<TextInput | null>(null);
+
+  useEffect(() => {
+    // Slight delay so the screen mounts before requesting focus on Android
+    const t = setTimeout(() => emailRef.current?.focus(), 250);
+    return () => clearTimeout(t);
+  }, []);
+
+  const emailValid = isEmailValid(email);
+  const canSubmit = emailValid && password.length >= 6 && !loading;
+
+  const handleLogin = async () => {
+    setTouched({ email: true, password: true });
     setError(null);
-    if (!email.trim() || password.length < 6) {
-      setError('Email válido y contraseña de mínimo 6 caracteres.');
-      return;
-    }
+    if (!canSubmit) return;
     setLoading(true);
     try {
-      const { data, error: authError } = isSignUp
-        ? await supabase.auth.signUp({ email: email.trim(), password })
-        : await supabase.auth.signInWithPassword({ email: email.trim(), password });
-
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
       if (authError) throw authError;
-
       const user = data.user;
       if (!user) throw new Error('No se pudo obtener el usuario.');
 
@@ -46,44 +58,79 @@ export default function Login() {
       } else {
         router.replace('/onboarding');
       }
-    } catch (e: any) {
-      setError(e.message ?? 'Error de autenticación.');
+    } catch (e: unknown) {
+      setError(humanizeAuthError(e));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Screen>
+    <Screen scroll={false}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <Text variant="display" tone="brand" style={{ marginBottom: 4 }}>
-            GMO
-          </Text>
-          <Text variant="title" style={{ marginBottom: spacing['2xl'] }}>
-            {isSignUp ? 'Crea tu cuenta' : 'Bienvenido de vuelta'}
-          </Text>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: spacing.xl }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{ marginBottom: spacing['2xl'] }}>
+            <Text variant="display" tone="brand">GMO</Text>
+            <Text variant="title" style={{ marginTop: 4 }}>Bienvenido de vuelta</Text>
+            <Text variant="body" tone="secondary" style={{ marginTop: 4 }}>
+              Entrena. Compite. Evoluciona.
+            </Text>
+          </View>
 
           <Input
+            ref={emailRef}
             label="Email"
             placeholder="tu@email.com"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(v) => {
+              setEmail(v);
+              if (error) setError(null);
+            }}
+            onBlur={() => setTouched((t) => ({ ...t, email: true }))}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
+            autoComplete="email"
+            textContentType="emailAddress"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordRef.current?.focus()}
+            error={touched.email && email.length > 0 && !emailValid ? 'Email no válido' : undefined}
           />
+
           <View style={{ height: spacing.md }} />
-          <Input
+
+          <PasswordInput
+            ref={passwordRef}
             label="Contraseña"
-            placeholder="Mínimo 6 caracteres"
+            placeholder="Tu contraseña"
             value={password}
-            onChangeText={setPassword}
-            secureTextEntry
+            onChangeText={(v) => {
+              setPassword(v);
+              if (error) setError(null);
+            }}
+            onBlur={() => setTouched((t) => ({ ...t, password: true }))}
+            autoComplete="current-password"
+            textContentType="password"
+            returnKeyType="go"
+            onSubmitEditing={handleLogin}
           />
+
+          <Pressable
+            onPress={() => router.push('/auth/forgot-password')}
+            hitSlop={8}
+            style={{ alignSelf: 'flex-end', marginTop: spacing.sm }}
+          >
+            <Text variant="caption" tone="brand" weight="semibold">
+              ¿Olvidaste tu contraseña?
+            </Text>
+          </Pressable>
 
           {error && (
             <Card
@@ -98,32 +145,23 @@ export default function Login() {
           )}
 
           <Button
-            title={isSignUp ? 'Crear cuenta' : 'Entrar'}
-            onPress={handle}
+            title="Entrar"
+            onPress={handleLogin}
             loading={loading}
+            disabled={!canSubmit}
             style={{ marginTop: spacing.xl }}
             fullWidth
           />
 
-          <Button
-            title={isSignUp ? '¿Ya tienes cuenta? Entra' : '¿Sin cuenta? Regístrate'}
-            variant="ghost"
-            onPress={() => {
-              setIsSignUp(!isSignUp);
-              setError(null);
-            }}
-            style={{ marginTop: spacing.sm }}
-            fullWidth
-          />
+          <OAuthButtons loading={loading} />
 
-          <Button
-            title="Continuar sin cuenta"
-            variant="ghost"
-            onPress={() => router.replace('/(tabs)')}
-            style={{ marginTop: spacing.sm }}
-            fullWidth
-          />
-        </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl, gap: 4 }}>
+            <Text variant="caption" tone="secondary">¿No tienes cuenta?</Text>
+            <Pressable onPress={() => router.push('/auth/signup')} hitSlop={6}>
+              <Text variant="caption" tone="brand" weight="bold">Crear cuenta</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );

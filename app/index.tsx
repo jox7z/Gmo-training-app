@@ -1,23 +1,9 @@
-import { useEffect, useState } from 'react';
-import { Redirect } from 'expo-router';
-import { useAppStore } from '@/store/app';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { Loader } from '@/components/ui/Loader';
 
+// The redirect logic now lives in app/_layout.tsx (centralized so it works
+// regardless of which route expo-router picks as the initial entry point).
+// This file just renders a visible loader while the redirect happens.
 export default function Index() {
-  const onboarded = useAppStore((s) => s.onboarded);
-  const [authReady, setAuthReady] = useState(!isSupabaseConfigured);
-  const [hasSession, setHasSession] = useState(false);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setHasSession(!!session);
-      setAuthReady(true);
-    });
-  }, []);
-
-  if (!authReady) return null;
-  if (!onboarded) return <Redirect href="/onboarding" />;
-  if (isSupabaseConfigured && !hasSession) return <Redirect href="/auth/login" />;
-  return <Redirect href="/(tabs)" />;
+  console.log('[Index] render — waiting for RootLayout redirect');
+  return <Loader />;
 }
