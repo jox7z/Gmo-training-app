@@ -102,11 +102,10 @@ export default function RootLayout() {
     const segs = segments as string[];
     const first = segs[0];
     const second = segs[1];
-    const len = segs.length;
 
     const inAuthGroup = first === 'auth';
     const inOnboarding = first === 'onboarding';
-    const inTabs = first === '(tabs)' || len === 0;
+    const inTabs = first === '(tabs)';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
     // creates a temporary session. We MUST let them stay on reset-password and
@@ -143,9 +142,10 @@ export default function RootLayout() {
       return;
     }
 
-    // CASE 4: signed in + onboarded → must be in tabs
+    // CASE 4: signed in + onboarded → must be in tabs.
+    // Redirect from root "/" or any stray non-tab route.
     if (!inTabs) {
-      console.log('[RootLayout] → /(tabs)');
+      console.log('[RootLayout] → /(tabs) (from', first ?? '(root)', ')');
       router.replace('/(tabs)');
     }
   }, [hydrated, authChecked, hasSession, onboarded, segments, router]);
