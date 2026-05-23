@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { View, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
@@ -28,10 +30,41 @@ export default function Profile() {
   const router = useRouter();
   const profile = useAppStore((s) => s.profile);
   const setProfile = useAppStore((s) => s.setProfile);
+  const signOut = useAppStore((s) => s.signOut);
   const streakWeeks = useAppStore((s) => s.streakWeeks);
   const history = useWorkoutsStore((s) => s.history);
+  const [signingOut, setSigningOut] = useState(false);
 
   if (!profile) return <Loader />;
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Seguro que quieres salir? Tus datos quedan guardados en la nube.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: async () => {
+            setSigningOut(true);
+            await signOut();
+            // The auth subscription in _layout.tsx detects SIGNED_OUT and redirects.
+            // No router.replace needed here.
+            setSigningOut(false);
+          },
+        },
+      ],
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Borrar cuenta',
+      'Esta función estará disponible próximamente. Mientras tanto, escríbenos para borrar tu cuenta manualmente.',
+      [{ text: 'Entendido' }],
+    );
+  };
 
   const totalSets = history.reduce(
     (a, w) => a + w.exercises.reduce((b, e) => b + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length, 0),
@@ -145,6 +178,31 @@ export default function Profile() {
         style={{ marginTop: spacing.xl }}
         fullWidth
       />
+
+      {/* Cuenta */}
+      {isSupabaseConfigured && (
+        <View style={{ marginTop: spacing['2xl'] }}>
+          <Text variant="heading" style={{ marginBottom: spacing.md }}>
+            Cuenta
+          </Text>
+          <Button
+            title="Cerrar sesión"
+            variant="secondary"
+            onPress={handleSignOut}
+            loading={signingOut}
+            fullWidth
+          />
+          <Pressable
+            onPress={handleDeleteAccount}
+            hitSlop={10}
+            style={{ marginTop: spacing.md, alignSelf: 'center', padding: spacing.sm }}
+          >
+            <Text variant="caption" style={{ color: colors.danger }} weight="semibold">
+              Borrar cuenta
+            </Text>
+          </Pressable>
+        </View>
+      )}
 
       <Text variant="caption" tone="muted" style={{ marginTop: spacing.xl, textAlign: 'center' }}>
         Gmo Training App · v0.1.0

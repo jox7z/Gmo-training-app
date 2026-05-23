@@ -32,6 +32,7 @@ interface AppState {
   completeOnboarding: () => Promise<void>;
   addWorkoutDay: () => void;
   addPoints: (n: number) => void;
+  signOut: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'gmo:app:v1';
@@ -137,6 +138,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!profile) return;
     set({ profile: { ...profile, rankPoints: profile.rankPoints + n } });
     persist(get());
+  },
+
+  signOut: async () => {
+    // 1. Sign out from Supabase (clears the JWT in AsyncStorage too)
+    if (isSupabaseConfigured) {
+      try { await supabase.auth.signOut(); } catch (e) { console.warn('[Store] supabase signOut failed', e); }
+    }
+    // 2. Wipe local app state from storage
+    try { await AsyncStorage.removeItem(STORAGE_KEY); } catch {}
+    // 3. Reset in-memory state so guards re-evaluate immediately
+    set({
+      profile: null,
+      onboarded: false,
+      streakWeeks: 0,
+      daysThisWeek: 0,
+      // keep hydrated=true; we don't want the splash loader to reappear
+    });
+    console.log('[Store] signOut complete');
   },
 }));
 
