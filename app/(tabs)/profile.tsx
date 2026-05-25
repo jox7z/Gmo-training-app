@@ -32,15 +32,9 @@ export default function Profile() {
   const streakWeeks = useAppStore((s) => s.streakWeeks);
   const history = useWorkoutsStore((s) => s.history);
 
-  if (!profile) return <Loader />;
-
-  const totalSets = history.reduce(
-    (a, w) => a + w.exercises.reduce((b, e) => b + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length, 0),
-    0,
-  );
-  const totalDuration = history.reduce((a, w) => a + (w.durationSeconds ?? 0), 0);
-  const totalVolume = history.reduce((a, w) => a + (w.totalVolumeKg ?? 0), 0);
-
+  // useMemo ANTES del early return. Lee profile con optional chaining para
+  // que sea seguro cuando profile === null durante el sign-out (un render
+  // transitorio antes de que _layout desmonte esta pantalla).
   const recent: ActivityItem[] = useMemo(
     () =>
       history.slice(0, 3).map((w) => ({
@@ -54,11 +48,20 @@ export default function Profile() {
         feeling: w.feeling,
         photoUri: w.photoUri,
         type: 'workout',
-        authorName: profile.displayName,
-        authorAvatarUrl: profile.avatarUrl,
+        authorName: profile?.displayName ?? '',
+        authorAvatarUrl: profile?.avatarUrl,
       })),
-    [history, profile.displayName, profile.avatarUrl],
+    [history, profile?.displayName, profile?.avatarUrl],
   );
+
+  if (!profile) return <Loader />;
+
+  const totalSets = history.reduce(
+    (a, w) => a + w.exercises.reduce((b, e) => b + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length, 0),
+    0,
+  );
+  const totalDuration = history.reduce((a, w) => a + (w.durationSeconds ?? 0), 0);
+  const totalVolume = history.reduce((a, w) => a + (w.totalVolumeKg ?? 0), 0);
 
   const earnedCount = BADGES.filter((b) => b.earned).length;
 

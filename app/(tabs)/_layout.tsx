@@ -1,9 +1,6 @@
 import { Tabs } from 'expo-router';
-import { View, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
-import * as Haptics from 'expo-haptics';
-import { colors, spacing } from '@/theme/tokens';
-import { Text } from '@/components/ui/Text';
+import { colors } from '@/theme/tokens';
 import { TabIcon } from '@/components/TabIcon';
 
 export default function TabsLayout() {
@@ -37,7 +34,14 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: 'Feed',
+          tabBarIcon: ({ color, focused }) => <TabIcon name="feed" color={color} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="today"
+        options={{
+          title: 'Hoy',
           tabBarIcon: ({ color, focused }) => <TabIcon name="home" color={color} focused={focused} />,
         }}
       />
@@ -46,20 +50,6 @@ export default function TabsLayout() {
         options={{
           title: 'Rutinas',
           tabBarIcon: ({ color, focused }) => <TabIcon name="routines" color={color} focused={focused} />,
-        }}
-      />
-      <Tabs.Screen
-        name="train"
-        options={{
-          title: '',
-          tabBarIcon: () => <TabIcon name="train" color="" focused={false} />,
-        }}
-      />
-      <Tabs.Screen
-        name="feed"
-        options={{
-          title: 'Feed',
-          tabBarIcon: ({ color, focused }) => <TabIcon name="feed" color={color} focused={focused} />,
         }}
       />
       <Tabs.Screen

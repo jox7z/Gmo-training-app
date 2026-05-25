@@ -1,201 +1,409 @@
-import { View, Pressable, Alert } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { View, Pressable, RefreshControl, ActivityIndicator, Share } from 'react-native';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Screen } from '@/components/ui/Screen';
-import { Card } from '@/components/ui/Card';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { FlashList } from '@shopify/flash-list';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
-import { Button } from '@/components/ui/Button';
-import { Stat } from '@/components/ui/Stat';
-import { Badge } from '@/components/ui/Badge';
-import { StreakRing } from '@/components/StreakRing';
-import { RankBadge } from '@/components/RankBadge';
-import { colors, spacing } from '@/theme/tokens';
-import { Loader } from '@/components/ui/Loader';
+import { Card } from '@/components/ui/Card';
+import { Avatar } from '@/components/Avatar';
+import { Icon, IconName } from '@/components/Icon';
+import { FeedItem } from '@/components/feed/FeedItem';
+import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
+import { FeedEmptyState, FeedErrorState } from '@/components/feed/FeedEmptyState';
+import { CommentSheet } from '@/components/feed/CommentSheet';
+import { useToast } from '@/components/ui/Toast';
 import { useAppStore } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
-import { useRoutinesStore } from '@/store/routines';
-import { Icon } from '@/components/Icon';
-import { canStartWorkout } from '@/lib/workoutGuards';
+import {
+  useFeed,
+  useToggleReaction,
+  useDeletePost,
+  useIncrementShare,
+  type Post,
+  type ReactionKind,
+} from '@/lib/queries/feed';
 
-export default function Home() {
+function CoachFab({ onPress }: { onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8}>
+      <View
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 22,
+          backgroundColor: colors.info.soft,
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 1,
+          borderColor: colors.info.DEFAULT,
+        }}
+      >
+        <Icon name="robot" size={20} color={colors.info.DEFAULT} />
+      </View>
+    </Pressable>
+  );
+}
+
+function ComposerAction({
+  icon,
+  label,
+  onPress,
+  disabled,
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      hitSlop={6}
+      style={({ pressed }) => [
+        {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+          paddingVertical: spacing.sm,
+          borderRadius: radius.md,
+          backgroundColor: 'transparent',
+        },
+        pressed && !disabled && { backgroundColor: colors.bg.elevated },
+        disabled && { opacity: 0.5 },
+      ]}
+    >
+      <Icon name={icon} size={16} color={colors.text.primary} />
+      <Text variant="caption" weight="semibold">
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function Composer({
+  displayName,
+  avatarUrl,
+  onOpenManual,
+  onShareWorkout,
+  onShareWorkoutDisabled,
+  onSharePR,
+}: {
+  displayName: string;
+  avatarUrl?: string;
+  onOpenManual: () => void;
+  onShareWorkout: () => void;
+  onShareWorkoutDisabled: boolean;
+  onSharePR: () => void;
+}) {
+  return (
+    <Card padding="lg" style={{ marginBottom: spacing.md }}>
+      <Pressable
+        onPress={onOpenManual}
+        style={({ pressed }) => [
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.md,
+          },
+          pressed && { opacity: 0.7 },
+        ]}
+      >
+        <Avatar uri={avatarUrl} name={displayName} size={40} />
+        <View
+          style={{
+            flex: 1,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            borderRadius: radius.full,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.bg.elevated,
+          }}
+        >
+          <Text tone="muted">¿Qué lograste hoy?</Text>
+        </View>
+      </Pressable>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          marginTop: spacing.md,
+          paddingTop: spacing.md,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          gap: spacing.xs,
+        }}
+      >
+        <ComposerAction icon="image" label="Foto" onPress={onOpenManual} />
+        <ComposerAction
+          icon="dumbbell"
+          label="Workout"
+          onPress={onShareWorkout}
+          disabled={onShareWorkoutDisabled}
+        />
+        <ComposerAction icon="trophy" label="PR" onPress={onSharePR} />
+      </View>
+    </Card>
+  );
+}
+
+export default function FeedHome() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const toast = useToast();
   const profile = useAppStore((s) => s.profile);
-  const streakWeeks = useAppStore((s) => s.streakWeeks);
-  const daysThisWeek = useAppStore((s) => s.daysThisWeek);
   const history = useWorkoutsStore((s) => s.history);
-  const routines = useRoutinesStore((s) => s.routines);
-  const activeRoutineId = useRoutinesStore((s) => s.activeRoutineId);
 
-  if (!profile) return <Loader />;
+  const feedQuery = useFeed();
+  const toggleReaction = useToggleReaction();
+  const deletePost = useDeletePost();
+  const incrementShare = useIncrementShare();
 
-  const activeRoutine = routines.find((r) => r.id === activeRoutineId) ?? routines[0];
-  const weekdayMon0 = (new Date().getDay() + 6) % 7;
-  const dayCount = activeRoutine?.days.length ?? 0;
-  const todayDay = dayCount > 0 ? activeRoutine!.days[weekdayMon0 % dayCount] : undefined;
-  const isRestDay = !todayDay || todayDay.exercises.length === 0;
+  const [commentsPost, setCommentsPost] = useState<Post | null>(null);
 
-  const weeklySets = history
-    .filter((w) => Date.now() - new Date(w.startedAt).getTime() < 7 * 24 * 3600 * 1000)
-    .reduce(
-      (acc, w) =>
-        acc + w.exercises.reduce((a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length, 0),
-      0,
-    );
+  const posts: Post[] = useMemo(
+    () => feedQuery.data?.pages.flatMap((p) => p.posts) ?? [],
+    [feedQuery.data],
+  );
 
-  const todayKey = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
-  const todayWorkouts = history.filter((w) => {
-    const d = new Date(w.startedAt);
-    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return k === todayKey;
-  });
-
-  const handleStart = () => {
-    if (!activeRoutine || !todayDay) return;
-    const guard = canStartWorkout(history);
-    if (!guard.allowed) {
-      Alert.alert('Espera un momento', guard.reason);
-      return;
-    }
-    router.push({
-      pathname: '/workout/active',
-      params: { routineId: activeRoutine.id, dayId: todayDay.id },
+  // Latest finished workout within 24h (for composer "share workout" shortcut)
+  const recentWorkout = useMemo(() => {
+    const candidate = history.find((w) => {
+      const end = w.endedAt ?? w.startedAt;
+      const age = Date.now() - new Date(end).getTime();
+      return age >= 0 && age < 24 * 3600 * 1000;
     });
-  };
+    return candidate ?? null;
+  }, [history]);
+
+  const onRefresh = useCallback(() => {
+    feedQuery.refetch();
+  }, [feedQuery]);
+
+  const onEndReached = useCallback(() => {
+    if (feedQuery.hasNextPage && !feedQuery.isFetchingNextPage) {
+      feedQuery.fetchNextPage();
+    }
+  }, [feedQuery]);
+
+  const handleToggleReaction = useCallback(
+    (postId: string, reaction: ReactionKind) => {
+      toggleReaction.mutate(
+        { postId, reaction },
+        {
+          onError: (err) =>
+            toast.show({
+              message: err?.message ?? 'No se pudo guardar tu reacción',
+              tone: 'danger',
+            }),
+        },
+      );
+    },
+    [toggleReaction, toast],
+  );
+
+  const handleDelete = useCallback(
+    (post: Post) => {
+      deletePost.mutate(post.id, {
+        onSuccess: () => toast.show({ message: 'Post eliminado', tone: 'success' }),
+        onError: (err) =>
+          toast.show({ message: err?.message ?? 'No se pudo eliminar', tone: 'danger' }),
+      });
+    },
+    [deletePost, toast],
+  );
+
+  const handleOpenComments = useCallback((post: Post) => {
+    setCommentsPost(post);
+  }, []);
+
+  const handleShare = useCallback(
+    async (post: Post) => {
+      const title = post.title ?? 'Mira esto en Gmo';
+      const message = post.caption
+        ? `${title} — ${post.caption}\n\nCompartido desde Gmo Training App`
+        : `${title}\n\nCompartido desde Gmo Training App`;
+      try {
+        const result = await Share.share({ message, title });
+        if (result.action !== Share.dismissedAction) {
+          incrementShare.mutate(post.id, {
+            onError: () => {
+              // Optimistic increment ya se revierte solo en onError del hook.
+            },
+          });
+        }
+      } catch (err) {
+        toast.show({
+          message: (err as Error)?.message ?? 'No se pudo compartir',
+          tone: 'danger',
+        });
+      }
+    },
+    [incrementShare, toast],
+  );
+
+  const handleOpenProfile = useCallback(
+    (post: Post) => {
+      router.push({
+        pathname: '/profile/[username]',
+        params: { username: post.user.username },
+      });
+    },
+    [router],
+  );
+
+  const goManualPublish = useCallback(() => router.push('/publish'), [router]);
+  const goShareWorkout = useCallback(() => {
+    if (!recentWorkout) return;
+    router.push({
+      pathname: '/publish',
+      params: { mode: 'workout', workoutId: recentWorkout.id },
+    });
+  }, [router, recentWorkout]);
+  const goSharePR = useCallback(
+    () => router.push({ pathname: '/publish', params: { mode: 'pr' } }),
+    [router],
+  );
+
+  const goDiscover = useCallback(() => router.push('/discover'), [router]);
+  const goCoach = useCallback(() => router.push('/coach'), [router]);
+
+  const isInitialLoading = feedQuery.isLoading && posts.length === 0;
+  const hasError = !!feedQuery.error && posts.length === 0;
+  const isEmpty = !isInitialLoading && !hasError && posts.length === 0;
 
   return (
-    <Screen>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xl }}>
-        <View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
+      <StatusBar style="light" />
+
+      {/* Sticky header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.sm,
+          paddingBottom: spacing.md,
+          gap: spacing.md,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          backgroundColor: colors.bg.base,
+        }}
+      >
+        <CoachFab onPress={goCoach} />
+        <View style={{ flex: 1 }}>
           <Text variant="caption" tone="muted">Hola,</Text>
-          <Text variant="title">{profile.displayName}</Text>
+          <Text variant="heading" numberOfLines={1}>
+            {profile?.displayName ?? 'Atleta'}
+          </Text>
         </View>
-        <Pressable onPress={() => router.push('/coach')}>
+        <Pressable onPress={goDiscover} hitSlop={8}>
           <View
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: colors.info.soft,
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: colors.bg.elevated,
               alignItems: 'center',
               justifyContent: 'center',
               borderWidth: 1,
-              borderColor: colors.info.DEFAULT,
+              borderColor: colors.border,
             }}
           >
-            <Icon name="robot" size={20} color={colors.info.DEFAULT} />
+            <Icon name="users" size={18} color={colors.text.primary} />
           </View>
         </Pressable>
       </View>
 
-      {/* Hero card: racha + rango */}
-      <Card variant="elevated" padding="xl" style={{ overflow: 'hidden' }}>
-        <LinearGradient
-          colors={[colors.primary.muted, 'transparent']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-        />
-        <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
-          <StreakRing
-            weeks={streakWeeks}
-            daysThisWeek={daysThisWeek}
-            weeklyGoal={profile.weeklyGoalDays}
+      {isInitialLoading ? (
+        <View
+          style={{
+            flex: 1,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: insets.bottom + 100,
+          }}
+        >
+          <Composer
+            displayName={profile?.displayName ?? 'Atleta'}
+            avatarUrl={profile?.avatarUrl}
+            onOpenManual={goManualPublish}
+            onShareWorkout={goShareWorkout}
+            onShareWorkoutDisabled={!recentWorkout}
+            onSharePR={goSharePR}
+          />
+          <FeedSkeleton count={3} />
+        </View>
+      ) : hasError ? (
+        <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
+          <FeedErrorState
+            message={feedQuery.error?.message}
+            onRetry={() => feedQuery.refetch()}
           />
         </View>
-        <RankBadge points={profile.rankPoints} size="md" showProgress />
-      </Card>
-
-      {/* CTA principal */}
-      {activeRoutine && (isRestDay ? (
-        <Card padding="lg" style={{ marginTop: spacing.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Text variant="label" tone="muted">Hoy toca</Text>
-              <Text variant="title" style={{ marginTop: 4 }}>Descanso</Text>
-              <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
-                Recuperarte también es parte del plan.
-              </Text>
-            </View>
-            <Button title="Entrenar libre" variant="ghost" size="sm" onPress={() => router.push('/(tabs)/train')} />
-          </View>
-        </Card>
-      ) : todayDay ? (
-        <Card variant="glow" padding="lg" style={{ marginTop: spacing.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1 }}>
-              <Text variant="label" tone="brand">Hoy toca</Text>
-              <Text variant="title" style={{ marginTop: 4 }}>{todayDay.name}</Text>
-              <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
-                {todayDay.exercises.length} ejercicios · ~{todayDay.exercises.length * 15} min
-              </Text>
-            </View>
-            <Button title="Empezar" onPress={handleStart} />
-          </View>
-        </Card>
-      ) : null)}
-
-      {/* Stats semanales */}
-      <View style={{ marginTop: spacing['2xl'] }}>
-        <Text variant="heading" style={{ marginBottom: spacing.md }}>
-          Esta semana
-        </Text>
-        <View style={{ flexDirection: 'row', gap: spacing.md }}>
-          <Card padding="lg" style={{ flex: 1 }}>
-            <Stat label="Workouts" value={daysThisWeek} unit={`/ ${profile.weeklyGoalDays}`} tone="brand" />
-          </Card>
-          <Card padding="lg" style={{ flex: 1 }}>
-            <Stat
-              label="Sets"
-              value={weeklySets}
-              unit="completados"
-              tone="info"
+      ) : (
+        <FlashList<Post>
+          data={posts}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <FeedItem
+              post={item}
+              isMine={item.userId === profile?.id}
+              onToggleReaction={handleToggleReaction}
+              onDelete={handleDelete}
+              onOpenComments={handleOpenComments}
+              onShare={handleShare}
+              onOpenProfile={handleOpenProfile}
             />
-          </Card>
-        </View>
-      </View>
+          )}
+          contentContainerStyle={{
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            paddingBottom: insets.bottom + 100,
+          }}
+          ListHeaderComponent={
+            <Composer
+              displayName={profile?.displayName ?? 'Atleta'}
+              avatarUrl={profile?.avatarUrl}
+              onOpenManual={goManualPublish}
+              onShareWorkout={goShareWorkout}
+              onShareWorkoutDisabled={!recentWorkout}
+              onSharePR={goSharePR}
+            />
+          }
+          ListEmptyComponent={isEmpty ? <FeedEmptyState onDiscover={goDiscover} /> : null}
+          ListFooterComponent={
+            feedQuery.isFetchingNextPage ? (
+              <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+                <ActivityIndicator color={colors.primary.DEFAULT} />
+              </View>
+            ) : null
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={feedQuery.isRefetching && !feedQuery.isFetchingNextPage}
+              onRefresh={onRefresh}
+              tintColor={colors.primary.DEFAULT}
+            />
+          }
+          onEndReached={onEndReached}
+          onEndReachedThreshold={0.5}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
-      {/* Historial de hoy */}
-      <View style={{ marginTop: spacing['2xl'] }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-          <Text variant="heading">Hoy</Text>
-          <Pressable onPress={() => router.push('/profile')}>
-            <Text variant="caption" tone="brand" weight="semibold">Ver todo</Text>
-          </Pressable>
-        </View>
-
-        {todayWorkouts.length === 0 ? (
-          <Card padding="xl" style={{ alignItems: 'center' }}>
-            <Icon name="dumbbell" size={40} color={colors.text.muted} />
-            <Text variant="heading" style={{ marginTop: spacing.sm }}>Aún no entrenaste hoy</Text>
-            <Text variant="caption" tone="secondary" style={{ marginTop: 4, textAlign: 'center' }}>
-              Empieza tu workout cuando estés listo.
-            </Text>
-          </Card>
-        ) : (
-          todayWorkouts.map((w) => {
-            const setsDone = w.exercises.reduce(
-              (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
-              0,
-            );
-            return (
-              <Card key={w.id} padding="md" style={{ marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text weight="semibold">{w.routineName ?? 'Entrenamiento libre'}</Text>
-                    <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                      {new Date(w.startedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {Math.round((w.durationSeconds ?? 0) / 60)} min · {w.exercises.length} ejercicios
-                    </Text>
-                  </View>
-                  <Badge label={`${setsDone} sets`} tone="info" />
-                </View>
-              </Card>
-            );
-          })
-        )}
-      </View>
-    </Screen>
+      <CommentSheet
+        visible={!!commentsPost}
+        postId={commentsPost?.id ?? null}
+        postOwnerId={commentsPost?.userId ?? null}
+        currentUserId={profile?.id ?? null}
+        onClose={() => setCommentsPost(null)}
+      />
+    </SafeAreaView>
   );
 }

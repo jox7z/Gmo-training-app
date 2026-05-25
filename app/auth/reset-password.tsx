@@ -9,8 +9,7 @@ import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { PasswordChecklist } from '@/components/auth/PasswordChecklist';
 import { colors, spacing } from '@/theme/tokens';
-import { supabase } from '@/lib/supabase';
-import { humanizeAuthError } from '@/lib/authErrors';
+import { updatePassword, AuthError } from '@/lib/auth';
 import { isPasswordValid } from '@/lib/passwordPolicy';
 
 export default function ResetPassword() {
@@ -36,12 +35,11 @@ export default function ResetPassword() {
     if (!canSubmit) return;
     setLoading(true);
     try {
-      const { error: err } = await supabase.auth.updateUser({ password });
-      if (err) throw err;
+      await updatePassword(password);
       setSuccess(true);
       setTimeout(() => router.replace('/(tabs)'), 1500);
     } catch (e: unknown) {
-      setError(humanizeAuthError(e));
+      setError(e instanceof AuthError ? e.message : 'Ha ocurrido un error inesperado.');
     } finally {
       setLoading(false);
     }

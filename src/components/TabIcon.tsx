@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { colors } from '@/theme/tokens';
 
-type Name = 'home' | 'routines' | 'train' | 'feed' | 'profile';
+type Name = 'home' | 'routines' | 'feed' | 'profile';
 
 interface Props {
   name: Name;

@@ -9,11 +9,10 @@ import { Card } from '@/components/ui/Card';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { OAuthButtons } from '@/components/auth/OAuthButtons';
 import { colors, spacing } from '@/theme/tokens';
-import { supabase } from '@/lib/supabase';
 import { useAppStore } from '@/store/app';
 import { getProfile } from '@/lib/repos/profile';
-import { humanizeAuthError } from '@/lib/authErrors';
 import { isEmailValid } from '@/lib/passwordPolicy';
+import { signIn, AuthError } from '@/lib/auth';
 
 export default function Login() {
   const router = useRouter();
@@ -29,7 +28,7 @@ export default function Login() {
   const emailRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
-    // Slight delay so the screen mounts before requesting focus on Android
+    // Slight delay so the screen mounts before requesting focus on Android.
     const t = setTimeout(() => emailRef.current?.focus(), 250);
     return () => clearTimeout(t);
   }, []);
@@ -43,15 +42,9 @@ export default function Login() {
     if (!canSubmit) return;
     setLoading(true);
     try {
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (authError) throw authError;
-      const user = data.user;
-      if (!user) throw new Error('No se pudo obtener el usuario.');
+      const { userId } = await signIn(email, password);
 
-      const remoteProfile = await getProfile(user.id);
+      const remoteProfile = await getProfile(userId);
       if (remoteProfile) {
         await setProfile(remoteProfile);
         router.replace('/(tabs)');
@@ -59,7 +52,7 @@ export default function Login() {
         router.replace('/onboarding');
       }
     } catch (e: unknown) {
-      setError(humanizeAuthError(e));
+      setError(e instanceof AuthError ? e.message : 'Ha ocurrido un error inesperado.');
     } finally {
       setLoading(false);
     }

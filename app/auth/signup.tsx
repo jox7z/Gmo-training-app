@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
@@ -8,24 +8,14 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
-import { PasswordChecklist } from '@/components/auth/PasswordChecklist';
 import { OAuthButtons } from '@/components/auth/OAuthButtons';
 import { colors, spacing, radius } from '@/theme/tokens';
-import { supabase } from '@/lib/supabase';
-import { humanizeAuthError } from '@/lib/authErrors';
-import {
-  isEmailValid,
-  isPasswordValid,
-  isUsernameValid,
-  suggestUsernameFromEmail,
-} from '@/lib/passwordPolicy';
+import { isEmailValid, isPasswordValid } from '@/lib/passwordPolicy';
+import { signUp, AuthError } from '@/lib/auth';
 
 export default function Signup() {
   const router = useRouter();
 
-  const [displayName, setDisplayName] = useState('');
-  const [username, setUsername] = useState('');
-  const [usernameTouched, setUsernameTouched] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -34,40 +24,26 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [touched, setTouched] = useState({
-    displayName: false,
-    username: false,
     email: false,
     password: false,
     confirm: false,
   });
 
-  const displayRef = useRef<TextInput | null>(null);
-  const usernameRef = useRef<TextInput | null>(null);
   const emailRef = useRef<TextInput | null>(null);
   const passwordRef = useRef<TextInput | null>(null);
   const confirmRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => displayRef.current?.focus(), 250);
+    // Slight delay so the screen mounts before requesting focus on Android.
+    const t = setTimeout(() => emailRef.current?.focus(), 250);
     return () => clearTimeout(t);
   }, []);
 
-  // Auto-suggest username from email if user hasn't touched it
-  useEffect(() => {
-    if (!usernameTouched && email && isEmailValid(email)) {
-      setUsername(suggestUsernameFromEmail(email));
-    }
-  }, [email, usernameTouched]);
-
-  const displayValid = displayName.trim().length >= 2;
-  const usernameValid = isUsernameValid(username);
   const emailValid = isEmailValid(email);
   const passwordValid = isPasswordValid(password);
   const confirmValid = confirm.length > 0 && confirm === password;
 
   const canSubmit =
-    displayValid &&
-    usernameValid &&
     emailValid &&
     passwordValid &&
     confirmValid &&
@@ -75,44 +51,28 @@ export default function Signup() {
     !loading;
 
   const handleSignup = async () => {
-    setTouched({
-      displayName: true,
-      username: true,
-      email: true,
-      password: true,
-      confirm: true,
-    });
+    setTouched({ email: true, password: true, confirm: true });
     setError(null);
     if (!canSubmit) return;
 
     setLoading(true);
     try {
-      const { data, error: authError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            display_name: displayName.trim(),
-            username: username.trim(),
-          },
-        },
-      });
-      if (authError) throw authError;
-      if (!data.user) throw new Error('No se pudo crear el usuario.');
+      const { needsEmailConfirmation } = await signUp({ email, password });
 
-      // Supabase by default sends a confirmation email and does NOT log the user in.
-      // If session is present, email confirmation is disabled and we can go straight in.
-      if (data.session) {
-        router.replace('/onboarding');
-      } else {
+      if (needsEmailConfirmation) {
         router.replace({
           pathname: '/auth/check-email',
           params: { email: email.trim(), purpose: 'signup' },
         });
+        setLoading(false);
+        return;
       }
+      // Auto-login: el _layout va a navegar a /onboarding en cuanto
+      // procese SIGNED_IN. Dejamos loading=true para que el botón siga
+      // deshabilitado y el usuario no pueda disparar un segundo signUp
+      // durante la ventana de redirect (100-500 ms).
     } catch (e: unknown) {
-      setError(humanizeAuthError(e));
-    } finally {
+      setError(e instanceof AuthError ? e.message : 'Ha ocurrido un error inesperado.');
       setLoading(false);
     }
   };
@@ -139,48 +99,14 @@ export default function Signup() {
           </Text>
 
           <Input
-            ref={displayRef}
-            label="Nombre"
-            placeholder="Adrián Hernández"
-            value={displayName}
-            onChangeText={setDisplayName}
-            onBlur={() => setTouched((t) => ({ ...t, displayName: true }))}
-            autoCapitalize="words"
-            autoComplete="name"
-            textContentType="name"
-            returnKeyType="next"
-            onSubmitEditing={() => usernameRef.current?.focus()}
-            error={touched.displayName && !displayValid ? 'Mínimo 2 caracteres' : undefined}
-          />
-
-          <View style={{ height: spacing.md }} />
-
-          <Input
-            ref={usernameRef}
-            label="Usuario"
-            placeholder="adrian_lifts"
-            value={username}
-            onChangeText={(v) => {
-              setUsername(v.toLowerCase());
-              setUsernameTouched(true);
-            }}
-            onBlur={() => setTouched((t) => ({ ...t, username: true }))}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="next"
-            onSubmitEditing={() => emailRef.current?.focus()}
-            hint="3-20 caracteres · letras, números o guion bajo"
-            error={touched.username && username.length > 0 && !usernameValid ? 'Solo minúsculas, números o _' : undefined}
-          />
-
-          <View style={{ height: spacing.md }} />
-
-          <Input
             ref={emailRef}
             label="Email"
             placeholder="tu@email.com"
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(v) => {
+              setEmail(v);
+              if (error) setError(null);
+            }}
             onBlur={() => setTouched((t) => ({ ...t, email: true }))}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -199,7 +125,10 @@ export default function Signup() {
             label="Contraseña"
             placeholder="Crea una contraseña segura"
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(v) => {
+              setPassword(v);
+              if (error) setError(null);
+            }}
             onBlur={() => setTouched((t) => ({ ...t, password: true }))}
             autoComplete="new-password"
             textContentType="newPassword"
@@ -208,9 +137,6 @@ export default function Signup() {
           />
 
           <PasswordStrengthMeter password={password} />
-          {(touched.password || password.length > 0) && (
-            <PasswordChecklist password={password} />
-          )}
 
           <View style={{ height: spacing.md }} />
 
@@ -219,7 +145,10 @@ export default function Signup() {
             label="Confirmar contraseña"
             placeholder="Repite la contraseña"
             value={confirm}
-            onChangeText={setConfirm}
+            onChangeText={(v) => {
+              setConfirm(v);
+              if (error) setError(null);
+            }}
             onBlur={() => setTouched((t) => ({ ...t, confirm: true }))}
             autoComplete="new-password"
             returnKeyType="go"

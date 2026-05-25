@@ -1,4 +1,5 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +12,8 @@ import { colors } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getProfile } from '@/lib/repos/profile';
+import { isProfileComplete } from '@/lib/auth';
+import { ToastProvider } from '@/components/ui/Toast';
 
 console.log('[RootLayout] module load. Supabase configured?', isSupabaseConfigured);
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -39,6 +42,10 @@ export default function RootLayout() {
 
   const [authChecked, setAuthChecked] = useState(!isSupabaseConfigured);
   const [hasSession, setHasSession] = useState(false);
+  // Cache de is_profile_complete por sesión. null = aún no consultado.
+  // Solo se recalcula en SIGNED_IN / cuando el perfil se actualiza, NO en
+  // cada cambio de segmento (evita un RPC por navegación).
+  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
   // 1. Hydrate AsyncStorage
   useEffect(() => {
@@ -56,11 +63,19 @@ export default function RootLayout() {
       }
     }, AUTH_TIMEOUT_MS);
     supabase.auth.getSession()
-      .then(({ data: { session } }) => {
+      .then(async ({ data: { session } }) => {
         if (cancelled) return;
         clearTimeout(timer);
         console.log('[RootLayout] getSession OK, hasSession =', !!session);
         setHasSession(!!session);
+        if (session) {
+          try {
+            const ok = await isProfileComplete(session.user.id);
+            if (!cancelled) setProfileComplete(ok);
+          } catch {
+            if (!cancelled) setProfileComplete(false);
+          }
+        }
         setAuthChecked(true);
       })
       .catch((e) => {
@@ -82,7 +97,20 @@ export default function RootLayout() {
       console.log('[RootLayout] auth event:', event, 'session?', !!session);
       setHasSession(!!session);
       setAuthChecked(true);
-      if (event === 'SIGNED_OUT' || !session) return;
+      if (event === 'SIGNED_OUT' || !session) {
+        // Reset el cache para el próximo login (otra cuenta puede tener
+        // distinto estado de profile completion).
+        setProfileComplete(null);
+        return;
+      }
+      // Recalcula profileComplete en cada SIGNED_IN / USER_UPDATED / etc.
+      // Es la única vía: no se llama por cada cambio de segmento.
+      try {
+        const ok = await isProfileComplete(session.user.id);
+        setProfileComplete(ok);
+      } catch {
+        setProfileComplete(false);
+      }
       try {
         const remote = await getProfile(session.user.id);
         if (remote) await setProfile(remote);
@@ -113,7 +141,9 @@ export default function RootLayout() {
       first === 'coach' ||
       first === 'workout' ||
       first === 'routine' ||
-      first === 'profile';
+      first === 'profile' ||
+      first === 'publish' ||
+      first === 'discover';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
     // creates a temporary session. We MUST let them stay on reset-password and
@@ -150,18 +180,48 @@ export default function RootLayout() {
       return;
     }
 
+    // EXTRA CHECK: aunque el store local diga onboarded=true, si el backend
+    // dice que el profile NO está completo (registró cuenta y cerró app antes
+    // de terminar onboarding) → forzar /onboarding. profileComplete=null se
+    // ignora aquí porque es el estado "aún no chequeado" — confiamos en el
+    // store local hasta que llegue la respuesta del RPC.
+    if (isSupabaseConfigured && profileComplete === false) {
+      if (!inOnboarding) {
+        console.log('[RootLayout] → /onboarding (profile incomplete)');
+        router.replace('/onboarding');
+      }
+      return;
+    }
+
     // CASE 4: signed in + onboarded → must be in tabs or an allowed authed route.
     // Redirect from root "/" or any stray unknown route.
     if (!inTabs && !inAllowedAuthedRoute) {
       console.log('[RootLayout] → /(tabs) (from', first ?? '(root)', ')');
       router.replace('/(tabs)');
     }
-  }, [hydrated, authChecked, hasSession, onboarded, segments, router]);
+  }, [hydrated, authChecked, hasSession, onboarded, profileComplete, segments, router]);
+
+  const ready = hydrated && authChecked;
+
+  // Render a neutral background while we resolve hydration + initial auth.
+  // This prevents authenticated screens from mounting (and subscribing to
+  // stores) before we know whether the user is signed in. Avoids the
+  // "rendered fewer hooks" class of bug during sign-out.
+  if (!ready) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg.base }}>
+        <SafeAreaProvider>
+          <View style={{ flex: 1, backgroundColor: colors.bg.base }} />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg.base }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
+          <ToastProvider>
           <Stack
             screenOptions={{
               headerShown: false,
@@ -204,7 +264,17 @@ export default function RootLayout() {
             <Stack.Screen name="auth/forgot-password" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="auth/check-email" options={{ animation: 'fade' }} />
             <Stack.Screen name="auth/reset-password" options={{ animation: 'fade' }} />
+            <Stack.Screen
+              name="publish"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen name="discover" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen
+              name="profile/[username]"
+              options={{ animation: 'slide_from_right' }}
+            />
           </Stack>
+          </ToastProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

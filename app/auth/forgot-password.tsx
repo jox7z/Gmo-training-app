@@ -8,8 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { colors, spacing } from '@/theme/tokens';
-import { supabase } from '@/lib/supabase';
-import { humanizeAuthError } from '@/lib/authErrors';
+import { resetPasswordForEmail, AuthError } from '@/lib/auth';
 import { isEmailValid } from '@/lib/passwordPolicy';
 
 export default function ForgotPassword() {
@@ -35,17 +34,13 @@ export default function ForgotPassword() {
     setLoading(true);
     try {
       const redirectTo = Linking.createURL('/auth/reset-password');
-      const { error: authError } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        { redirectTo },
-      );
-      if (authError) throw authError;
+      await resetPasswordForEmail(email, redirectTo);
       router.replace({
         pathname: '/auth/check-email',
         params: { email: email.trim(), purpose: 'reset' },
       });
     } catch (e: unknown) {
-      setError(humanizeAuthError(e));
+      setError(e instanceof AuthError ? e.message : 'Ha ocurrido un error inesperado.');
     } finally {
       setLoading(false);
     }

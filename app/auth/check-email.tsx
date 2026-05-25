@@ -7,8 +7,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { colors, spacing } from '@/theme/tokens';
-import { supabase } from '@/lib/supabase';
-import { humanizeAuthError } from '@/lib/authErrors';
+import { resendConfirmationEmail, resetPasswordForEmail, AuthError } from '@/lib/auth';
 
 export default function CheckEmail() {
   const router = useRouter();
@@ -26,16 +25,14 @@ export default function CheckEmail() {
     setResending(true);
     try {
       if (purpose === 'signup') {
-        const { error: err } = await supabase.auth.resend({ type: 'signup', email });
-        if (err) throw err;
+        await resendConfirmationEmail(email);
       } else {
         const redirectTo = Linking.createURL('/auth/reset-password');
-        const { error: err } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-        if (err) throw err;
+        await resetPasswordForEmail(email, redirectTo);
       }
       setMessage('Te enviamos un nuevo enlace. Revisa tu bandeja de entrada.');
     } catch (e: unknown) {
-      setError(humanizeAuthError(e));
+      setError(e instanceof AuthError ? e.message : 'Ha ocurrido un error inesperado.');
     } finally {
       setResending(false);
     }

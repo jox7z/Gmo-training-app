@@ -59,7 +59,14 @@ interface AppState {
 
 const STORAGE_KEY = 'gmo:app:v1';
 
-const defaultProfile = (id = 'local-user'): UserProfile => ({
+/**
+ * Sentinel id used when the app runs without Supabase (dev / offline). Code
+ * comparing a profile id against this knows the profile hasn't been bound to
+ * a real auth user yet, so it can decide to skip writes to the backend.
+ */
+export const LOCAL_USER_ID = 'local-user';
+
+const defaultProfile = (id = LOCAL_USER_ID): UserProfile => ({
   id,
   username: 'gmo_athlete',
   displayName: 'Atleta',
@@ -83,9 +90,9 @@ const defaultProfile = (id = 'local-user'): UserProfile => ({
 });
 
 async function getAuthUserId(): Promise<string> {
-  if (!isSupabaseConfigured) return 'local-user';
+  if (!isSupabaseConfigured) return LOCAL_USER_ID;
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.id ?? 'local-user';
+  return user?.id ?? LOCAL_USER_ID;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -151,7 +158,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (!existing) {
       set({ profile: defaultProfile(userId) });
-    } else if (existing.id === 'local-user' && userId !== 'local-user') {
+    } else if (existing.id === LOCAL_USER_ID && userId !== LOCAL_USER_ID) {
       set({ profile: { ...existing, id: userId } });
     }
 
@@ -173,13 +180,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   signOut: async () => {
-    // 1. Sign out from Supabase (clears the JWT in AsyncStorage too)
-    if (isSupabaseConfigured) {
-      try { await supabase.auth.signOut(); } catch (e) { console.warn('[Store] supabase signOut failed', e); }
-    }
-    // 2. Wipe local app state from storage
+    // 1. Wipe local state FIRST so any subscriber that re-reads the store
+    //    while we're awaiting supabase sees a coherent "logged out" state
+    //    instead of a half-state (profile present but session gone).
     try { await AsyncStorage.removeItem(STORAGE_KEY); } catch {}
-    // 3. Reset in-memory state so guards re-evaluate immediately
     set({
       profile: null,
       onboarded: false,
@@ -187,12 +191,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       daysThisWeek: 0,
       // keep hydrated=true; we don't want the splash loader to reappear
     });
+    // 2. Now sign out from Supabase. The onAuthStateChange listener in
+    //    _layout will pick this up and trigger the redirect to /auth/login,
+    //    by which time the store is already clean.
+    if (isSupabaseConfigured) {
+      try { await supabase.auth.signOut(); } catch (e) { console.warn('[Store] supabase signOut failed', e); }
+    }
     console.log('[Store] signOut complete');
   },
 }));
 
 function migrateProfile(p: any): UserProfile {
-  const def = defaultProfile(p?.id ?? 'local-user');
+  const def = defaultProfile(p?.id ?? LOCAL_USER_ID);
   return {
     ...def,
     ...p,

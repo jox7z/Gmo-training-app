@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Icon, IconName } from '@/components/Icon';
 import { colors, spacing, radius } from '@/theme/tokens';
-import { useAppStore, Goal, Level, Unit } from '@/store/app';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { upsertProfile } from '@/lib/repos/profile';
+import { useAppStore, Goal, Level, Unit, LOCAL_USER_ID } from '@/store/app';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { completeSignup, getCurrentUserId, checkUsernameAvailable, AuthError, AuthErrorCode } from '@/lib/auth';
+import { isUsernameValid } from '@/lib/passwordPolicy';
 
 const STEPS = ['welcome', 'profile', 'level', 'goal', 'frequency', 'final'] as const;
 type Step = (typeof STEPS)[number];
@@ -23,60 +24,126 @@ export default function Onboarding() {
 
   const [step, setStep] = useState<Step>('welcome');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameCheck, setUsernameCheck] = useState<
+    { state: 'idle' | 'checking' | 'available' | 'taken' | 'invalid' | 'error'; message?: string }
+  >({ state: 'idle' });
   const [weight, setWeight] = useState('75');
   const [height, setHeight] = useState('175');
   const [unit, setUnit] = useState<Unit>('kg');
   const [level, setLevel] = useState<Level>('intermediate');
   const [goal, setGoal] = useState<Goal>('hypertrophy');
   const [days, setDays] = useState(4);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [usernameOverride, setUsernameOverride] = useState<string | null>(null);
+
+  // Validación debounced de username contra la RPC. Solo dispara el RPC
+  // cuando el formato local ya es válido — evita pedir al backend que
+  // valide cadenas obviamente malas.
+  useEffect(() => {
+    const trimmed = username.trim().toLowerCase();
+    if (!trimmed) {
+      setUsernameCheck({ state: 'idle' });
+      return;
+    }
+    if (!isUsernameValid(trimmed)) {
+      setUsernameCheck({ state: 'invalid', message: 'Solo minúsculas, números o _ (3-20)' });
+      return;
+    }
+    setUsernameCheck({ state: 'checking' });
+    const handle = setTimeout(async () => {
+      try {
+        const ok = await checkUsernameAvailable(trimmed);
+        setUsernameCheck(ok ? { state: 'available' } : { state: 'taken', message: 'Ese username ya está tomado.' });
+      } catch (e) {
+        setUsernameCheck({
+          state: 'error',
+          message: e instanceof AuthError ? e.message : 'No pudimos validar el username.',
+        });
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [username]);
 
   const idx = STEPS.indexOf(step);
   const next = () => setStep(STEPS[Math.min(STEPS.length - 1, idx + 1)]);
   const back = () => setStep(STEPS[Math.max(0, idx - 1)]);
 
   const finish = async () => {
-    let userId = 'local-user';
-    if (isSupabaseConfigured) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) userId = user.id;
-    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      const userId = (await getCurrentUserId()) ?? LOCAL_USER_ID;
 
-    const profileData = {
-      id: userId,
-      username: name.trim().toLowerCase().replace(/\s+/g, '_') || 'gmo_athlete',
-      displayName: name.trim() || 'Atleta',
-      fullName: '',
-      bio: '',
-      location: '',
-      country: '',
-      followers: 0,
-      following: 0,
-      weightKg: parseFloat(weight) || 75,
-      heightCm: parseFloat(height) || 175,
-      unit,
-      level,
-      goal,
-      weeklyGoalDays: days,
-      rankPoints: 50,
-      currentRank: 'bronze' as const,
-      privacy: { profilePublic: true, showActivity: true, showStats: true },
-      notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
-    };
+      // Prioridad: override (lo que el usuario escribió en el step final tras
+      // un USERNAME_TAKEN) > lo capturado en el step profile > fallback derivado
+      // del nombre. El último 'gmo_athlete' es solo defensa de último recurso.
+      const typed = username.trim().toLowerCase() || name.trim().toLowerCase().replace(/\s+/g, '_');
+      const finalUsername = (usernameOverride ?? typed) || 'gmo_athlete';
 
-    await setProfile(profileData);
-    await completeOnboarding();
+      const profileData = {
+        id: userId,
+        username: finalUsername,
+        displayName: name.trim() || 'Atleta',
+        fullName: '',
+        bio: '',
+        location: '',
+        country: '',
+        followers: 0,
+        following: 0,
+        weightKg: parseFloat(weight) || 75,
+        heightCm: parseFloat(height) || 175,
+        unit,
+        level,
+        goal,
+        weeklyGoalDays: days,
+        rankPoints: 50,
+        currentRank: 'bronze' as const,
+        privacy: { profilePublic: true, showActivity: true, showStats: true },
+        notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
+      };
 
-    if (isSupabaseConfigured) {
-      const finalProfile = useAppStore.getState().profile;
-      if (finalProfile && finalProfile.id !== 'local-user') {
+      // Push to backend FIRST. Solo si el backend acepta el perfil, mutamos
+      // el store local. Evita dejar el store con un username/datos que el
+      // servidor rechazó (regresión del Round 3, ver historial del MD).
+      if (isSupabaseConfigured && userId !== LOCAL_USER_ID) {
         try {
-          await upsertProfile(finalProfile);
-        } catch {}
+          await completeSignup({
+            username: finalUsername,
+            displayName: profileData.displayName,
+            weightKg: profileData.weightKg,
+            heightCm: profileData.heightCm,
+            unit: profileData.unit,
+            level: profileData.level,
+            goal: profileData.goal,
+            weeklyGoalDays: profileData.weeklyGoalDays,
+          });
+        } catch (e) {
+          if (e instanceof AuthError && e.code === AuthErrorCode.USERNAME_TAKEN) {
+            setError('Ese username ya está tomado. Elige otro.');
+            setUsernameOverride(usernameOverride ?? finalUsername);
+          } else {
+            setError(e instanceof AuthError ? e.message : 'No pudimos guardar tu perfil. Inténtalo de nuevo.');
+          }
+          return;
+        }
       }
-    }
 
-    router.replace('/(tabs)');
+      await setProfile(profileData);
+      await completeOnboarding();
+      router.replace('/(tabs)');
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  // Reglas para avanzar desde el step `profile`: necesitamos nombre con
+  // al menos 2 chars y un username verificado como disponible por el RPC.
+  // Los demás steps no necesitan gate — los inputs tienen defaults válidos.
+  const canAdvance =
+    step !== 'profile' ||
+    (name.trim().length >= 2 && usernameCheck.state === 'available');
 
   return (
     <Screen scroll={false} padded={false}>
@@ -116,7 +183,35 @@ export default function Onboarding() {
 
         {step === 'profile' && (
           <Section title="Cuéntanos sobre ti" subtitle="Personalizamos tu experiencia">
-            <Input label="Tu nombre" placeholder="Ej: Adrián" value={name} onChangeText={setName} />
+            <Input
+              label="Tu nombre"
+              placeholder="Ej: Adrián"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoComplete="name"
+            />
+            <Input
+              label="Username"
+              placeholder="adrian_lifts"
+              value={username}
+              onChangeText={(v) => setUsername(v.toLowerCase())}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={20}
+              containerStyle={{ marginTop: spacing.md }}
+              hint={
+                usernameCheck.state === 'idle' ? '3-20 caracteres · letras, números o _' :
+                usernameCheck.state === 'checking' ? 'Verificando…' :
+                usernameCheck.state === 'available' ? 'Disponible' :
+                undefined
+              }
+              error={
+                usernameCheck.state === 'invalid' || usernameCheck.state === 'taken' || usernameCheck.state === 'error'
+                  ? usernameCheck.message
+                  : undefined
+              }
+            />
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
               <Input
                 label="Peso"
@@ -237,6 +332,26 @@ export default function Onboarding() {
                 {goal === 'general' && 'Full body 3 días, simple y sostenible.'}
               </Text>
             </Card>
+            {usernameOverride !== null && (
+              <Input
+                label="Username"
+                value={usernameOverride}
+                onChangeText={setUsernameOverride}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={20}
+                containerStyle={{ marginTop: spacing.md }}
+              />
+            )}
+            {error && (
+              <Card
+                variant="outlined"
+                padding="md"
+                style={{ marginTop: spacing.md, borderColor: colors.danger }}
+              >
+                <Text variant="caption" style={{ color: colors.danger }}>{error}</Text>
+              </Card>
+            )}
           </Section>
         )}
       </ScrollView>
@@ -255,11 +370,19 @@ export default function Onboarding() {
           gap: spacing.md,
         }}
       >
-        {idx > 0 && <Button title="Atrás" variant="ghost" onPress={back} />}
+        {idx > 0 && <Button title="Atrás" variant="ghost" onPress={back} disabled={submitting} />}
         {step !== 'final' ? (
-          <Button title="Continuar" onPress={next} fullWidth style={{ flex: 1 }} />
+          <Button title="Continuar" onPress={next} disabled={!canAdvance} fullWidth style={{ flex: 1 }} />
         ) : (
-          <Button title="Comenzar" variant="accent" onPress={finish} fullWidth style={{ flex: 1 }} />
+          <Button
+            title="Comenzar"
+            variant="accent"
+            onPress={finish}
+            loading={submitting}
+            disabled={submitting}
+            fullWidth
+            style={{ flex: 1 }}
+          />
         )}
       </View>
     </Screen>
