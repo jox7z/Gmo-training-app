@@ -8,7 +8,8 @@ export interface SetEntry {
   rpe?: number;
   isWarmup?: boolean;
   isCompleted: boolean;
-  restSeconds?: number;
+  durationSeconds?: number;
+  restAfterSeconds?: number;
 }
 
 export interface WorkoutExercise {
@@ -28,6 +29,9 @@ export interface Workout {
   endedAt?: string;
   durationSeconds?: number;
   totalVolumeKg: number;
+  totalReps: number;
+  totalRestSeconds: number;
+  totalActiveSeconds: number;
   avgRestSeconds?: number;
   exercises: WorkoutExercise[];
   feeling?: 'great' | 'good' | 'tired' | 'bad';
@@ -62,10 +66,39 @@ function calcVolume(w: Workout) {
   );
 }
 
+function calcTotalReps(w: Workout): number {
+  return w.exercises.reduce(
+    (acc, ex) => acc + ex.sets.filter((s) => s.isCompleted && !s.isWarmup).reduce((a, s) => a + s.reps, 0),
+    0,
+  );
+}
+
+function calcTotalActiveSeconds(w: Workout): number {
+  return w.exercises.reduce(
+    (acc, ex) =>
+      acc +
+      ex.sets
+        .filter((s) => s.isCompleted && typeof s.durationSeconds === 'number')
+        .reduce((a, s) => a + (s.durationSeconds ?? 0), 0),
+    0,
+  );
+}
+
+function calcTotalRestSeconds(w: Workout): number {
+  return w.exercises.reduce(
+    (acc, ex) =>
+      acc +
+      ex.sets
+        .filter((s) => typeof s.restAfterSeconds === 'number')
+        .reduce((a, s) => a + (s.restAfterSeconds ?? 0), 0),
+    0,
+  );
+}
+
 function calcAvgRest(w: Workout): number | undefined {
   const rests = w.exercises
     .flatMap((ex) => ex.sets)
-    .map((s) => s.restSeconds)
+    .map((s) => s.restAfterSeconds)
     .filter((v): v is number => typeof v === 'number' && v > 0);
   if (rests.length === 0) return undefined;
   return Math.round(rests.reduce((a, b) => a + b, 0) / rests.length);
@@ -88,6 +121,9 @@ export const useWorkoutsStore = create<State>((set, get) => ({
         routineName,
         startedAt: new Date().toISOString(),
         totalVolumeKg: 0,
+        totalReps: 0,
+        totalRestSeconds: 0,
+        totalActiveSeconds: 0,
         exercises: exercises.map((e) => ({ ...e, id: nid() })),
       },
     });
@@ -105,6 +141,9 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       endedAt: ended.toISOString(),
       durationSeconds: duration,
       totalVolumeKg: calcVolume(a),
+      totalReps: calcTotalReps(a),
+      totalRestSeconds: calcTotalRestSeconds(a),
+      totalActiveSeconds: calcTotalActiveSeconds(a),
       avgRestSeconds: calcAvgRest(a),
       feeling,
       photoUri,

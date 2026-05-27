@@ -1,21 +1,19 @@
-import { useMemo } from 'react';
-import { View, Pressable } from 'react-native';
+import { View, Pressable, ScrollView, Share, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen } from '@/components/ui/Screen';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
-import { Stat } from '@/components/ui/Stat';
+import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/Avatar';
-import { RankBadge } from '@/components/RankBadge';
-import { Heatmap } from '@/components/Heatmap';
-import { ActivityCard, ActivityItem } from '@/components/ActivityCard';
 import { Icon, IconName } from '@/components/Icon';
-import { colors, spacing, radius } from '@/theme/tokens';
+import { colors, radius, spacing, rankFromPoints } from '@/theme/tokens';
 import { Loader } from '@/components/ui/Loader';
 import { useAppStore } from '@/store/app';
-import { useWorkoutsStore } from '@/store/workouts';
-import { formatDuration } from '@/lib/units';
+import { useProfileCounters } from '@/lib/queries/profile';
+import { useToast } from '@/components/ui/Toast';
 
 const BADGES: { id: string; label: string; icon: IconName; color: string; earned: boolean }[] = [
   { id: 'first', label: 'Primer workout', icon: 'medal', color: '#CD7F32', earned: true },
@@ -28,267 +26,336 @@ const BADGES: { id: string; label: string; icon: IconName; color: string; earned
 
 export default function Profile() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const toast = useToast();
   const profile = useAppStore((s) => s.profile);
   const streakWeeks = useAppStore((s) => s.streakWeeks);
-  const history = useWorkoutsStore((s) => s.history);
+  const signOut = useAppStore((s) => s.signOut);
 
-  // useMemo ANTES del early return. Lee profile con optional chaining para
-  // que sea seguro cuando profile === null durante el sign-out (un render
-  // transitorio antes de que _layout desmonte esta pantalla).
-  const recent: ActivityItem[] = useMemo(
-    () =>
-      history.slice(0, 3).map((w) => ({
-        id: w.id,
-        title: w.routineName ?? 'Entrenamiento libre',
-        subtitle: `${w.exercises.length} ejercicios`,
-        date: new Date(w.startedAt).toLocaleDateString('es-ES', { weekday: 'short', day: '2-digit', month: 'short' }),
-        durationLabel: formatDuration(w.durationSeconds ?? 0),
-        volumeLabel: `${Math.round(w.totalVolumeKg).toLocaleString()} kg`,
-        setsLabel: String(w.exercises.reduce((b, e) => b + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length, 0)),
-        feeling: w.feeling,
-        photoUri: w.photoUri,
-        type: 'workout',
-        authorName: profile?.displayName ?? '',
-        authorAvatarUrl: profile?.avatarUrl,
-      })),
-    [history, profile?.displayName, profile?.avatarUrl],
-  );
+  const countersQuery = useProfileCounters(profile?.id);
 
   if (!profile) return <Loader />;
 
-  const totalSets = history.reduce(
-    (a, w) => a + w.exercises.reduce((b, e) => b + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length, 0),
-    0,
-  );
-  const totalDuration = history.reduce((a, w) => a + (w.durationSeconds ?? 0), 0);
-  const totalVolume = history.reduce((a, w) => a + (w.totalVolumeKg ?? 0), 0);
+  const rank = rankFromPoints(profile.rankPoints);
+  const followersCount = countersQuery.data?.followers ?? 0;
+  const followingCount = countersQuery.data?.following ?? 0;
+  const postsCount = countersQuery.data?.posts ?? 0;
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Sígueme en Gmo Training: gmo://profile/${profile.username}`,
+      });
+    } catch (e) {
+      toast.show({ message: (e as Error)?.message ?? 'No se pudo compartir', tone: 'danger' });
+    }
+  };
+
+  const handleSignOut = () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Seguro que quieres salir?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cerrar sesión',
+          style: 'destructive',
+          onPress: () => {
+            signOut().catch(() => {});
+          },
+        },
+      ],
+    );
+  };
 
   const earnedCount = BADGES.filter((b) => b.earned).length;
 
   return (
-    <Screen>
-      {/* Top bar: avatar (left) — title — gear (right) */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: spacing.xl,
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
+      <StatusBar style="light" />
+      <ScrollView
+        contentContainerStyle={{
+          padding: spacing.lg,
+          paddingBottom: insets.bottom + 100,
+          gap: spacing.md,
         }}
       >
-        <Pressable
-          onPress={() => router.push('/profile/social')}
-          hitSlop={10}
-          style={({ pressed }) => [pressed && { transform: [{ scale: 0.95 }] }]}
-        >
-          <Avatar uri={profile.avatarUrl} name={profile.displayName} size={44} />
-        </Pressable>
-        <Text variant="heading" weight="bold">Tú</Text>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <IconButton icon="robot" onPress={() => router.push('/coach')} tone="info" />
-          <IconButton icon="settings" onPress={() => router.push('/profile/settings')} tone="default" />
-        </View>
-      </View>
-
-      {/* Identity card */}
-      <Pressable onPress={() => router.push('/profile/social')}>
-        <Card padding="lg" variant="elevated">
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
-            <Avatar uri={profile.avatarUrl} name={profile.displayName} size={80} />
-            <View style={{ flex: 1 }}>
-              <Text variant="title">{profile.displayName}</Text>
-              <Text variant="caption" tone="muted">@{profile.username}</Text>
-              {!!profile.location && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                  <Icon name="map-pin" size={12} color={colors.text.muted} />
-                  <Text variant="caption" tone="muted">{profile.location}</Text>
-                </View>
-              )}
+        {/* Hero */}
+        <Card padding="xl" style={{ alignItems: 'center', overflow: 'hidden' }}>
+          <LinearGradient
+            colors={rank.gradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 110,
+              opacity: 0.25,
+            }}
+          />
+          <Avatar
+            uri={profile.avatarUrl}
+            name={profile.displayName}
+            size={110}
+            borderColor={rank.color}
+          />
+          <Text variant="title" style={{ marginTop: spacing.md }}>
+            {profile.displayName}
+          </Text>
+          <Text variant="caption" tone="muted">@{profile.username}</Text>
+          <View style={{ marginTop: spacing.md }}>
+            <View
+              style={{
+                paddingHorizontal: spacing.md,
+                paddingVertical: 6,
+                borderRadius: radius.full,
+                overflow: 'hidden',
+              }}
+            >
+              <LinearGradient
+                colors={rank.gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+              />
+              <Text weight="black" style={{ color: '#0B0B0B', letterSpacing: 1 }}>
+                {rank.label.toUpperCase()}
+              </Text>
             </View>
-            <Icon name="chevron-right" size={20} color={colors.text.muted} />
           </View>
-
+          {streakWeeks > 0 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                marginTop: spacing.sm,
+              }}
+            >
+              <Icon name="fire" size={14} color={colors.accent.DEFAULT} />
+              <Text variant="caption" tone="accent" weight="bold">
+                {streakWeeks} {streakWeeks === 1 ? 'semana' : 'semanas'} seguidas
+              </Text>
+            </View>
+          )}
           {!!profile.bio && (
-            <Text variant="caption" tone="secondary" style={{ marginTop: spacing.md }}>
+            <Text
+              variant="caption"
+              tone="secondary"
+              style={{ marginTop: spacing.md, textAlign: 'center' }}
+            >
               {profile.bio}
             </Text>
           )}
-
-          {/* Followers row */}
-          <View
-            style={{
-              flexDirection: 'row',
-              marginTop: spacing.lg,
-              paddingTop: spacing.lg,
-              borderTopWidth: 1,
-              borderTopColor: colors.border,
-            }}
-          >
-            <SocialStat label="Seguidores" value={profile.followers} />
-            <Divider />
-            <SocialStat label="Siguiendo" value={profile.following} />
-            <Divider />
-            <SocialStat label="Actividades" value={history.length} />
-          </View>
         </Card>
-      </Pressable>
 
-      {/* Rank */}
-      <Card padding="lg" variant="outlined" style={{ marginTop: spacing.md }}>
-        <RankBadge points={profile.rankPoints} size="lg" showProgress />
-      </Card>
-
-      {/* Big stats grid */}
-      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-        <Card padding="lg" style={{ flex: 1 }}>
-          <Stat label="Workouts" value={history.length} tone="brand" />
+        {/* Social stats row */}
+        <Card padding="lg" style={{ flexDirection: 'row' }}>
+          <SocialStat
+            label="Seguidores"
+            value={followersCount}
+            onPress={() => router.push({ pathname: '/profile/connections', params: { type: 'followers' } })}
+          />
+          <Divider />
+          <SocialStat
+            label="Siguiendo"
+            value={followingCount}
+            onPress={() => router.push({ pathname: '/profile/connections', params: { type: 'following' } })}
+          />
+          <Divider />
+          <SocialStat label="Posts" value={postsCount} />
         </Card>
-        <Card padding="lg" style={{ flex: 1 }}>
-          <Stat label="Racha" value={streakWeeks} unit="sem" tone="accent" />
-        </Card>
-      </View>
-      <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-        <Card padding="lg" style={{ flex: 1 }}>
-          <Stat label="Sets" value={totalSets.toLocaleString()} tone="info" />
-        </Card>
-        <Card padding="lg" style={{ flex: 1 }}>
-          <Stat label="Tiempo" value={formatDuration(totalDuration)} tone="info" />
-        </Card>
-      </View>
-      <Card padding="lg" style={{ marginTop: spacing.md }}>
-        <Stat label="Volumen total" value={`${Math.round(totalVolume).toLocaleString()} ${profile.unit}`} tone="brand" />
-      </Card>
 
-      {/* Heatmap */}
-      <View style={{ marginTop: spacing['2xl'] }}>
-        <Heatmap />
-      </View>
+        {/* Share */}
+        <Button
+          title="Compartir perfil"
+          variant="secondary"
+          leftIcon={<Icon name="share" size={16} color={colors.text.primary} />}
+          onPress={handleShare}
+          fullWidth
+        />
 
-      {/* Achievements preview */}
-      <SectionHeader
-        title="Logros"
-        right={`${earnedCount}/${BADGES.length}`}
-        onPress={() => router.push('/profile/social')}
-      />
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-        {BADGES.slice(0, 4).map((b) => (
-          <Card
-            key={b.id}
-            padding="md"
-            variant={b.earned ? 'glow' : 'outlined'}
-            glowColor={b.color}
-            style={{ width: '47%', alignItems: 'center', opacity: b.earned ? 1 : 0.4 }}
-          >
-            <Icon name={b.icon} size={28} color={b.color} />
-            <Text variant="caption" weight="bold" style={{ marginTop: 6, textAlign: 'center' }}>
-              {b.label}
-            </Text>
-            {b.earned && <Badge label="Conseguido" tone="accent" />}
-          </Card>
-        ))}
-      </View>
-
-      {/* Recent activity */}
-      <SectionHeader
-        title="Actividad reciente"
-        right={recent.length ? 'Ver todo' : undefined}
-        onPress={recent.length ? () => router.push('/profile/social') : undefined}
-      />
-      {recent.length ? (
-        <View style={{ gap: spacing.md }}>
-          {recent.map((a) => (
-            <ActivityCard key={a.id} item={a} compact onPress={() => router.push('/profile/social')} />
+        {/* Achievements */}
+        <SectionHeader title="Logros" right={`${earnedCount}/${BADGES.length}`} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
+          {BADGES.map((b) => (
+            <Card
+              key={b.id}
+              padding="md"
+              variant={b.earned ? 'glow' : 'outlined'}
+              glowColor={b.color}
+              style={{ width: '47%', alignItems: 'center', opacity: b.earned ? 1 : 0.45 }}
+            >
+              <Icon name={b.icon} size={28} color={b.color} />
+              <Text
+                variant="caption"
+                weight="bold"
+                style={{ marginTop: 6, textAlign: 'center' }}
+              >
+                {b.label}
+              </Text>
+              {b.earned && <Badge label="Conseguido" tone="accent" />}
+            </Card>
           ))}
         </View>
-      ) : (
-        <Card padding="lg" variant="outlined" style={{ alignItems: 'center' }}>
-          <Icon name="dumbbell" size={28} color={colors.text.muted} />
-          <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-            Aún no has registrado entrenamientos. {'\n'}Empieza tu primera rutina.
-          </Text>
-        </Card>
-      )}
 
-      <Text variant="caption" tone="muted" style={{ marginTop: spacing['2xl'], textAlign: 'center' }}>
-        Gmo Training App · v0.1.0
-      </Text>
-    </Screen>
+        {/* Actions */}
+        <SectionHeader title="Cuenta" />
+        <RowButton
+          icon="edit"
+          label="Personalizar perfil"
+          onPress={() => router.push('/profile/edit')}
+        />
+        <RowButton
+          icon="settings"
+          label="Ajustes"
+          onPress={() => router.push('/profile/settings')}
+        />
+        <RowButton
+          icon="robot"
+          label="Coach IA"
+          onPress={() => router.push('/coach')}
+          tone="info"
+        />
+        <RowButton
+          icon="logout"
+          label="Cerrar sesión"
+          onPress={handleSignOut}
+          tone="danger"
+        />
+
+        <Text
+          variant="caption"
+          tone="muted"
+          style={{ marginTop: spacing.xl, textAlign: 'center' }}
+        >
+          Gmo Training App · v0.1.0
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function IconButton({
-  icon,
+function SocialStat({
+  label,
+  value,
   onPress,
-  tone = 'default',
 }: {
-  icon: IconName;
+  label: string;
+  value: number;
   onPress?: () => void;
-  tone?: 'default' | 'info';
 }) {
-  const bg = tone === 'info' ? colors.info.soft : colors.bg.elevated;
-  const border = tone === 'info' ? colors.info.DEFAULT : colors.border;
-  const fg = tone === 'info' ? colors.info.DEFAULT : colors.text.primary;
+  const inner = (
+    <View style={{ flex: 1, alignItems: 'center', paddingVertical: spacing.sm }}>
+      <Text variant="heading" weight="bold" numeric>
+        {value.toLocaleString()}
+      </Text>
+      <Text variant="label" tone="muted" style={{ marginTop: 2 }}>
+        {label}
+      </Text>
+    </View>
+  );
+  if (!onPress) {
+    return <View style={{ flex: 1 }}>{inner}</View>;
+  }
   return (
-    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => [pressed && { transform: [{ scale: 0.92 }] }]}>
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: radius.full,
-          backgroundColor: bg,
-          borderWidth: 1,
-          borderColor: border,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Icon name={icon} size={18} color={fg} />
-      </View>
+    <Pressable
+      onPress={onPress}
+      hitSlop={6}
+      style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.7 }]}
+    >
+      {inner}
     </Pressable>
   );
 }
 
-function SocialStat({ label, value }: { label: string; value: number }) {
+function Divider() {
   return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text variant="heading" weight="bold" numeric>{value.toLocaleString()}</Text>
-      <Text variant="label" tone="muted" style={{ marginTop: 2 }}>{label}</Text>
-    </View>
+    <View
+      style={{
+        width: 1,
+        backgroundColor: colors.border,
+        marginVertical: spacing.xs,
+      }}
+    />
   );
 }
 
-function Divider() {
-  return <View style={{ width: 1, backgroundColor: colors.border, marginVertical: 4 }} />;
-}
-
-function SectionHeader({
-  title,
-  right,
-  onPress,
-}: {
-  title: string;
-  right?: string;
-  onPress?: () => void;
-}) {
+function SectionHeader({ title, right }: { title: string; right?: string }) {
   return (
     <View
       style={{
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginTop: spacing['2xl'],
-        marginBottom: spacing.md,
+        marginTop: spacing.xl,
+        marginBottom: spacing.sm,
       }}
     >
       <Text variant="heading">{title}</Text>
       {right ? (
-        <Pressable onPress={onPress} hitSlop={6}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text variant="caption" tone="secondary" weight="semibold">{right}</Text>
-            {onPress && <Icon name="chevron-right" size={14} color={colors.text.secondary} />}
-          </View>
-        </Pressable>
+        <Text variant="caption" tone="secondary" weight="semibold">
+          {right}
+        </Text>
       ) : null}
     </View>
+  );
+}
+
+function RowButton({
+  icon,
+  label,
+  onPress,
+  tone = 'default',
+}: {
+  icon: IconName;
+  label: string;
+  onPress: () => void;
+  tone?: 'default' | 'info' | 'danger';
+}) {
+  const fg =
+    tone === 'danger' ? colors.danger
+    : tone === 'info' ? colors.info.DEFAULT
+    : colors.text.primary;
+  const iconBg =
+    tone === 'danger' ? 'rgba(239,68,68,0.15)'
+    : tone === 'info' ? colors.info.soft
+    : colors.bg.elevated;
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          padding: spacing.md,
+          borderRadius: radius.lg,
+          backgroundColor: colors.bg.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <View
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: iconBg,
+        }}
+      >
+        <Icon name={icon} size={16} color={fg} />
+      </View>
+      <Text weight="semibold" style={{ flex: 1, color: fg }}>
+        {label}
+      </Text>
+      <Icon name="chevron-right" size={16} color={colors.text.muted} />
+    </Pressable>
   );
 }

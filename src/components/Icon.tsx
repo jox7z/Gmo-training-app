@@ -36,25 +36,30 @@ export type IconName =
   | 'heart'
   | 'calendar'
   | 'clock'
-  | 'route';
+  | 'route'
+  | 'chart'
+  | 'search'
+  | 'scale';
 
 interface Props {
   name: IconName;
   size?: number;
   color?: string;
+  /** Si true, rellena el path del ícono (usado en reacciones activas: heart/muscle). */
+  filled?: boolean;
 }
 
-export function Icon({ name, size = 24, color = '#FFFFFF' }: Props) {
+export function Icon({ name, size = 24, color = '#FFFFFF', filled = false }: Props) {
   const c = color;
 
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      {renderIcon(name, c)}
+      {renderIcon(name, c, filled)}
     </Svg>
   );
 }
 
-function renderIcon(name: IconName, c: string) {
+function renderIcon(name: IconName, c: string, filled = false) {
   switch (name) {
     case 'robot':
       return (
@@ -83,6 +88,7 @@ function renderIcon(name: IconName, c: string) {
       return (
         <Path
           d="M7 13.5c0 2.8 2.2 5.5 5 5.5s5-2.7 5-5.5c0-1.5-.6-3-1.8-4.5L14 8c-.4-1.3-2-3-2-3s-1.6 1.7-2 3l-1.2 1c-1.2 1.5-1.8 3-1.8 4.5z"
+          fill={filled ? c : 'none'}
           stroke={c}
           strokeWidth={2}
           strokeLinecap="round"
@@ -442,6 +448,7 @@ function renderIcon(name: IconName, c: string) {
       return (
         <Path
           d="M12 21s-7-4.5-9.3-9.2A5 5 0 0112 6a5 5 0 019.3 5.8C19 16.5 12 21 12 21z"
+          fill={filled ? c : 'none'}
           stroke={c}
           strokeWidth={2}
           strokeLinejoin="round"
@@ -478,6 +485,39 @@ function renderIcon(name: IconName, c: string) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
+      );
+
+    case 'chart':
+      return (
+        <Path
+          d="M3 20h18M6 16V8M11 16V4M16 16v-6M21 16v-3"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+
+    case 'search':
+      return (
+        <>
+          <Circle cx="11" cy="11" r="7" stroke={c} strokeWidth={2} />
+          <Path d="M20 20l-3.5-3.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+        </>
+      );
+
+    case 'scale':
+      return (
+        <>
+          <Rect x="3" y="6" width="18" height="14" rx="2" stroke={c} strokeWidth={2} />
+          <Path
+            d="M8 10h8M12 10v3"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx="12" cy="15" r="2" stroke={c} strokeWidth={2} />
+        </>
       );
 
     default:

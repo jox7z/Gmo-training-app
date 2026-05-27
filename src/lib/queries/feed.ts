@@ -22,14 +22,19 @@ import {
   type ReactionKind,
   type PublishPRParams,
 } from '@/lib/repos/posts';
-import {
-  listDiscover,
-  follow,
-  unfollow,
-  listFollowing,
-  listFollowers,
-  isFollowing,
-} from '@/lib/repos/social';
+import { listDiscover } from '@/lib/repos/social';
+import { profileCountersKey } from '@/lib/queries/profile';
+
+// Re-export social hooks from their new home so existing JSX imports
+// (`@/lib/queries/feed`) keep working without changes.
+export {
+  useFollow,
+  useUnfollow,
+  useFollowing,
+  useFollowers,
+  useIsFollowing,
+  useUserPosts,
+} from '@/lib/queries/social';
 
 export const feedKeys = {
   all: ['feed'] as const,
@@ -62,30 +67,6 @@ export function useDiscover(limit = 5) {
   return useQuery({
     queryKey: feedKeys.discover(),
     queryFn: () => listDiscover(limit),
-  });
-}
-
-export function useFollowing(userId: string | undefined) {
-  return useQuery({
-    queryKey: userId ? feedKeys.following(userId) : ['following', 'noop'],
-    queryFn: () => listFollowing(userId!),
-    enabled: !!userId,
-  });
-}
-
-export function useFollowers(userId: string | undefined) {
-  return useQuery({
-    queryKey: userId ? feedKeys.followers(userId) : ['followers', 'noop'],
-    queryFn: () => listFollowers(userId!),
-    enabled: !!userId,
-  });
-}
-
-export function useIsFollowing(targetUserId: string | undefined) {
-  return useQuery({
-    queryKey: targetUserId ? feedKeys.isFollowing(targetUserId) : ['isFollowing', 'noop'],
-    queryFn: () => isFollowing(targetUserId!),
-    enabled: !!targetUserId,
   });
 }
 
@@ -156,30 +137,6 @@ export function useToggleReaction() {
   });
 }
 
-export function useFollow() {
-  const qc = useQueryClient();
-  return useMutation<void, Error, string>({
-    mutationFn: (targetUserId) => follow(targetUserId),
-    onSuccess: (_data, targetUserId) => {
-      qc.invalidateQueries({ queryKey: feedKeys.discover() });
-      qc.invalidateQueries({ queryKey: feedKeys.list() });
-      qc.invalidateQueries({ queryKey: feedKeys.isFollowing(targetUserId) });
-    },
-  });
-}
-
-export function useUnfollow() {
-  const qc = useQueryClient();
-  return useMutation<void, Error, string>({
-    mutationFn: (targetUserId) => unfollow(targetUserId),
-    onSuccess: (_data, targetUserId) => {
-      qc.invalidateQueries({ queryKey: feedKeys.discover() });
-      qc.invalidateQueries({ queryKey: feedKeys.list() });
-      qc.invalidateQueries({ queryKey: feedKeys.isFollowing(targetUserId) });
-    },
-  });
-}
-
 interface PublishWorkoutVars {
   workoutId: string;
   caption?: string;
@@ -191,6 +148,7 @@ export function usePublishWorkout() {
     mutationFn: ({ workoutId, caption }) => publishWorkout(workoutId, caption),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: profileCountersKey });
     },
   });
 }
@@ -201,6 +159,7 @@ export function usePublishPR() {
     mutationFn: (args) => publishPR(args),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: profileCountersKey });
     },
   });
 }
@@ -216,6 +175,7 @@ export function usePublishManualPost() {
     mutationFn: ({ caption, photoUrl }) => publishManualPost(caption, photoUrl),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: profileCountersKey });
     },
   });
 }
@@ -226,6 +186,7 @@ export function useDeletePost() {
     mutationFn: (postId) => deletePost(postId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: profileCountersKey });
     },
   });
 }

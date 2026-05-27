@@ -1,8 +1,7 @@
-import { View } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { colors } from '@/theme/tokens';
 
-type Name = 'home' | 'routines' | 'feed' | 'profile';
+type Name = 'home' | 'routines' | 'feed' | 'profile' | 'progress';
 
 interface Props {
   name: Name;
@@ -10,40 +9,7 @@ interface Props {
   focused: boolean;
 }
 
-export function TabIcon({ name, color, focused }: Props) {
-  if (name === 'train') {
-    return (
-      <View
-        style={{
-          width: 56,
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: colors.primary.DEFAULT,
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginTop: -18,
-          shadowColor: colors.primary.DEFAULT,
-          shadowOpacity: 0.7,
-          shadowRadius: 14,
-          shadowOffset: { width: 0, height: 0 },
-          elevation: 12,
-          borderWidth: 4,
-          borderColor: colors.bg.base,
-        }}
-      >
-        <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M6 6 L18 18 M6 18 L18 6"
-            stroke="#fff"
-            strokeWidth={3}
-            strokeLinecap="round"
-          />
-          <Path d="M3 9 V15 M21 9 V15" stroke="#fff" strokeWidth={3} strokeLinecap="round" />
-        </Svg>
-      </View>
-    );
-  }
-
+export function TabIcon({ name, color }: Props) {
   return (
     <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
       {iconPath(name, color)}
@@ -81,6 +47,16 @@ function iconPath(name: Name, color: string) {
           <Circle cx={12} cy={12} r={9} stroke={stroke} strokeWidth={2} />
           <Path d="M3 12 H21 M12 3 a14 14 0 0 1 0 18 a14 14 0 0 1 0 -18" stroke={stroke} strokeWidth={2} />
         </>
+      );
+    case 'progress':
+      return (
+        <Path
+          d="M3 20 H21 M6 16 V8 M11 16 V4 M16 16 V10 M21 16 V13"
+          stroke={stroke}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       );
     case 'profile':
       return (

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
-import { useAppStore } from '@/store/app';
+import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
 import { generateRoutine } from '@/lib/routineGenerator';
 import * as Haptics from 'expo-haptics';
@@ -54,7 +54,7 @@ export default function Routines() {
     });
     upsert(routine);
     setActive(routine.id);
-    if (isSupabaseConfigured && profile.id !== 'local-user') {
+    if (isSupabaseConfigured && profile.id !== LOCAL_USER_ID) {
       saveRoutine(profile.id, routine).catch(() => {});
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -242,7 +242,7 @@ export default function Routines() {
                     size="sm"
                     onPress={() => {
                       const copy = dup(r.id);
-                      if (copy && isSupabaseConfigured && profile?.id !== 'local-user') {
+                      if (copy && isSupabaseConfigured && profile?.id !== LOCAL_USER_ID) {
                         saveRoutine(profile!.id, copy).catch(() => {});
                       }
                     }}
@@ -260,7 +260,7 @@ export default function Routines() {
                           style: 'destructive',
                           onPress: () => {
                             del(r.id);
-                            if (isSupabaseConfigured && profile?.id !== 'local-user') {
+                            if (isSupabaseConfigured && profile?.id !== LOCAL_USER_ID) {
                               deleteRoutineRemote(r.id).catch(() => {});
                             }
                           },

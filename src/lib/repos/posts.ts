@@ -17,15 +17,13 @@ export interface PostUser {
 }
 
 export interface PostReactions {
-  fire: number;
   muscle: number;
-  clap: number;
+  heart: number;
 }
 
 export interface MyReactions {
-  fire: boolean;
   muscle: boolean;
-  clap: boolean;
+  heart: boolean;
 }
 
 export interface Post {
@@ -59,7 +57,7 @@ export interface Comment {
   createdAt: string;
 }
 
-export type ReactionKind = 'fire' | 'muscle' | 'clap';
+export type ReactionKind = 'muscle' | 'heart';
 
 interface DbFeedRow {
   id: string;
@@ -78,9 +76,8 @@ interface DbFeedRow {
   display_name: string;
   avatar_url: string | null;
   current_rank: string;
-  fire_count: number;
   muscle_count: number;
-  clap_count: number;
+  heart_count: number;
   my_reactions: ReactionKind[];
 }
 
@@ -116,14 +113,12 @@ function toPost(row: DbFeedRow): Post {
     metadata: (row.metadata ?? {}) as Record<string, any>,
     createdAt: row.created_at,
     reactions: {
-      fire: row.fire_count,
       muscle: row.muscle_count,
-      clap: row.clap_count,
+      heart: row.heart_count,
     },
     myReactions: {
-      fire: row.my_reactions.includes('fire'),
       muscle: row.my_reactions.includes('muscle'),
-      clap: row.my_reactions.includes('clap'),
+      heart: row.my_reactions.includes('heart'),
     },
   };
 }
@@ -150,6 +145,27 @@ export interface FeedPage {
 
 export async function listFeed(cursor?: string, limit = 20): Promise<FeedPage> {
   const { data, error } = await supabase.rpc('feed_for_user', {
+    cursor_ts: cursor ?? null,
+    lim: limit,
+  });
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as DbFeedRow[];
+  const posts = rows.map(toPost);
+  const nextCursor =
+    posts.length === limit ? posts[posts.length - 1]?.createdAt : undefined;
+
+  return { posts, nextCursor };
+}
+
+export async function listUserPosts(
+  userId: string,
+  cursor?: string,
+  limit = 20,
+): Promise<FeedPage> {
+  const { data, error } = await supabase.rpc('list_user_posts', {
+    target_user_id: userId,
     cursor_ts: cursor ?? null,
     lim: limit,
   });

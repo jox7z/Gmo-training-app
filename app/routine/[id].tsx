@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore, Routine, RoutineDay, nid } from '@/store/routines';
-import { useAppStore } from '@/store/app';
+import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { saveRoutine } from '@/lib/repos/routines';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { EXERCISES, exerciseById, MuscleGroup } from '@/data/exercises';
@@ -87,7 +87,7 @@ export default function RoutineEditor() {
 
   const handleSave = () => {
     upsert(routine);
-    if (isSupabaseConfigured && profile?.id && profile.id !== 'local-user') {
+    if (isSupabaseConfigured && profile?.id && profile.id !== LOCAL_USER_ID) {
       saveRoutine(profile.id, routine).catch(() => {});
     }
     router.back();

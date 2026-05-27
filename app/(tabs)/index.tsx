@@ -315,7 +315,7 @@ export default function FeedHome() {
               borderColor: colors.border,
             }}
           >
-            <Icon name="users" size={18} color={colors.text.primary} />
+            <Icon name="search" size={18} color={colors.text.primary} />
           </View>
         </Pressable>
       </View>

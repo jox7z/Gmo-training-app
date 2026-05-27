@@ -26,28 +26,19 @@ export interface FollowProfile {
   username: string;
   displayName: string;
   currentRank: RankId;
+  /** Not returned by list_followers/list_following RPCs (0010). Defaults to 0. */
   rankPoints: number;
+  isFollowing: boolean;
 }
 
-interface DbFollowProfile {
+interface DbFollowRow {
   id: string;
   username: string;
   display_name: string;
   current_rank: string;
   rank_points: number;
+  is_following: boolean;
 }
-
-interface FollowingJoinRow {
-  following_id: string;
-  profiles: DbFollowProfile | null;
-}
-
-interface FollowerJoinRow {
-  follower_id: string;
-  profiles: DbFollowProfile | null;
-}
-
-const PROFILE_COLUMNS = 'id, username, display_name, current_rank, rank_points';
 
 function toDiscover(row: DbDiscoverRow): DiscoverAthlete {
   return {
@@ -61,13 +52,14 @@ function toDiscover(row: DbDiscoverRow): DiscoverAthlete {
   };
 }
 
-function toFollowProfile(row: DbFollowProfile): FollowProfile {
+function toFollowProfile(row: DbFollowRow): FollowProfile {
   return {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
     currentRank: row.current_rank as RankId,
-    rankPoints: row.rank_points,
+    rankPoints: row.rank_points ?? 0,
+    isFollowing: row.is_following,
   };
 }
 
@@ -88,33 +80,15 @@ export async function unfollow(targetUserId: string): Promise<void> {
 }
 
 export async function listFollowing(userId: string): Promise<FollowProfile[]> {
-  const { data, error } = await supabase
-    .from('follows')
-    .select(`following_id, profiles:following_id(${PROFILE_COLUMNS})`)
-    .eq('follower_id', userId)
-    .returns<FollowingJoinRow[]>();
-
+  const { data, error } = await supabase.rpc('list_following', { target_user_id: userId });
   if (error) throw error;
-
-  return (data ?? [])
-    .map((row) => row.profiles)
-    .filter((p): p is DbFollowProfile => p !== null)
-    .map(toFollowProfile);
+  return ((data ?? []) as DbFollowRow[]).map(toFollowProfile);
 }
 
 export async function listFollowers(userId: string): Promise<FollowProfile[]> {
-  const { data, error } = await supabase
-    .from('follows')
-    .select(`follower_id, profiles:follower_id(${PROFILE_COLUMNS})`)
-    .eq('following_id', userId)
-    .returns<FollowerJoinRow[]>();
-
+  const { data, error } = await supabase.rpc('list_followers', { target_user_id: userId });
   if (error) throw error;
-
-  return (data ?? [])
-    .map((row) => row.profiles)
-    .filter((p): p is DbFollowProfile => p !== null)
-    .map(toFollowProfile);
+  return ((data ?? []) as DbFollowRow[]).map(toFollowProfile);
 }
 
 export async function isFollowing(targetUserId: string): Promise<boolean> {

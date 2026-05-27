@@ -37,6 +37,7 @@ export default function RootLayout() {
   const onboarded = useAppStore((s) => s.onboarded);
   const hydrate = useAppStore((s) => s.hydrate);
   const setProfile = useAppStore((s) => s.setProfile);
+  const markOnboarded = useAppStore((s) => s.markOnboarded);
   const router = useRouter();
   const segments = useSegments();
 
@@ -71,7 +72,10 @@ export default function RootLayout() {
         if (session) {
           try {
             const ok = await isProfileComplete(session.user.id);
-            if (!cancelled) setProfileComplete(ok);
+            if (!cancelled) {
+              setProfileComplete(ok);
+              if (ok) void markOnboarded();
+            }
           } catch {
             if (!cancelled) setProfileComplete(false);
           }
@@ -108,6 +112,7 @@ export default function RootLayout() {
       try {
         const ok = await isProfileComplete(session.user.id);
         setProfileComplete(ok);
+        if (ok) void markOnboarded();
       } catch {
         setProfileComplete(false);
       }
@@ -120,7 +125,7 @@ export default function RootLayout() {
       }
     });
     return () => subscription.unsubscribe();
-  }, [hydrate, setProfile]);
+  }, [hydrate, setProfile, markOnboarded]);
 
   // 4. Centralized redirect logic — runs whenever ready state OR location changes.
   // This is the ONLY place that decides where the user should be.
@@ -143,7 +148,8 @@ export default function RootLayout() {
       first === 'routine' ||
       first === 'profile' ||
       first === 'publish' ||
-      first === 'discover';
+      first === 'discover' ||
+      first === 'body';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
     // creates a temporary session. We MUST let them stay on reset-password and
@@ -171,26 +177,35 @@ export default function RootLayout() {
       return;
     }
 
-    // CASE 3: session but not onboarded → push to onboarding (unless already there)
-    if (!onboarded) {
-      if (!inOnboarding) {
-        console.log('[RootLayout] → /onboarding');
-        router.replace('/onboarding');
+    // CASE 3: decidir si el usuario necesita onboarding.
+    // Con Supabase configurado, el backend (profileComplete) es la
+    // única verdad. Si todavía no contestó (null), ESPERA — no decidas.
+    // Sin Supabase (modo offline/dev), respeta el flag local.
+    if (isSupabaseConfigured) {
+      if (profileComplete === null) {
+        console.log('[RootLayout] waiting for is_profile_complete');
+        return;
       }
-      return;
-    }
-
-    // EXTRA CHECK: aunque el store local diga onboarded=true, si el backend
-    // dice que el profile NO está completo (registró cuenta y cerró app antes
-    // de terminar onboarding) → forzar /onboarding. profileComplete=null se
-    // ignora aquí porque es el estado "aún no chequeado" — confiamos en el
-    // store local hasta que llegue la respuesta del RPC.
-    if (isSupabaseConfigured && profileComplete === false) {
-      if (!inOnboarding) {
-        console.log('[RootLayout] → /onboarding (profile incomplete)');
-        router.replace('/onboarding');
+      // profileComplete===false pero onboarded===true: el usuario acaba de
+      // completar onboarding en esta sesión. completeSignup() ya actualizó
+      // el backend pero no hubo SIGNED_IN event que re-corra isProfileComplete().
+      // Confiamos en el flag local; la próxima sesión sincroniza el backend.
+      if (profileComplete === false && !onboarded) {
+        if (!inOnboarding) {
+          console.log('[RootLayout] → /onboarding (profile incomplete)');
+          router.replace('/onboarding');
+        }
+        return;
       }
-      return;
+      // profileComplete===true OR (false && onboarded===true) → liberar.
+    } else {
+      if (!onboarded) {
+        if (!inOnboarding) {
+          console.log('[RootLayout] → /onboarding (offline mode)');
+          router.replace('/onboarding');
+        }
+        return;
+      }
     }
 
     // CASE 4: signed in + onboarded → must be in tabs or an allowed authed route.
@@ -245,15 +260,19 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen
-              name="profile/social"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
               name="profile/settings"
               options={{ animation: 'slide_from_right' }}
             />
             <Stack.Screen
               name="profile/edit"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="profile/connections"
+              options={{ animation: 'slide_from_right' }}
+            />
+            <Stack.Screen
+              name="body/new"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen

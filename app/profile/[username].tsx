@@ -3,28 +3,24 @@ import { View, Pressable, FlatList, RefreshControl, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Stat } from '@/components/ui/Stat';
+import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
-import { RankBadge } from '@/components/RankBadge';
+import { Loader } from '@/components/ui/Loader';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import {
-  useFeed,
-  useFollow,
-  useUnfollow,
   useIsFollowing,
   useFollowers,
   useFollowing,
+  useUserPosts,
   type Post,
 } from '@/lib/queries/feed';
-import { getProfile } from '@/lib/repos/profile';
+import { useSearchUsers } from '@/lib/queries/search';
 import { useAppStore } from '@/store/app';
-import { useToast } from '@/components/ui/Toast';
 import { CommentSheet } from '@/components/feed/CommentSheet';
 
 function rankInfo(id: RankId) {
@@ -34,68 +30,67 @@ function rankInfo(id: RankId) {
 export default function PublicProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const toast = useToast();
   const params = useLocalSearchParams<{ username: string }>();
   const username = (params.username ?? '').toLowerCase();
   const me = useAppStore((s) => s.profile);
 
-  const feedQuery = useFeed();
-  const userPosts = useMemo(() => {
-    const all = feedQuery.data?.pages.flatMap((p) => p.posts) ?? [];
-    return all.filter((p) => p.user.username.toLowerCase() === username);
-  }, [feedQuery.data, username]);
+  // BUG-3: search_users excluye auth.uid(), así que el propio usuario
+  // nunca aparece en resultados. Detectar isSelf antes de la query y
+  // usar me.id directamente en ese caso.
+  const isSelf = !!me && me.username.toLowerCase() === username;
 
-  // Derive userId from the first matching post in cache. If the user has no
-  // posts in our local feed cache, we can't show much (no getProfileByUsername
-  // helper exists in the repo layer, and adding one is out of scope).
-  const derivedUserId = userPosts[0]?.userId ?? null;
-  const derivedUser = userPosts[0]?.user ?? null;
+  // Pasar query vacía cuando isSelf → enabled=false (length < 2), no RPC.
+  const searchQuery = useSearchUsers(isSelf ? '' : username);
+  const matched = useMemo(() => {
+    return (searchQuery.data ?? []).find((u) => u.username.toLowerCase() === username) ?? null;
+  }, [searchQuery.data, username]);
 
-  const profileQuery = useQuery({
-    queryKey: ['public-profile', derivedUserId],
-    queryFn: () => getProfile(derivedUserId!),
-    enabled: !!derivedUserId,
-  });
+  const targetUserId = isSelf
+    ? me!.id
+    : (searchQuery.data ?? []).find((u) => u.username.toLowerCase() === username)?.id;
 
-  const isFollowingQuery = useIsFollowing(derivedUserId ?? undefined);
-  const followersQuery = useFollowers(derivedUserId ?? undefined);
-  const followingQuery = useFollowing(derivedUserId ?? undefined);
-  const follow = useFollow();
-  const unfollow = useUnfollow();
+  // Una vez tenemos el userId, cargamos todo lo que pinta la pantalla.
+  const userPostsQuery = useUserPosts(targetUserId);
+  const followersQuery = useFollowers(targetUserId);
+  const followingQuery = useFollowing(targetUserId);
+  const isFollowingQuery = useIsFollowing(isSelf ? undefined : targetUserId);
 
   const [commentsPost, setCommentsPost] = useState<Post | null>(null);
 
+  const userPosts: Post[] = useMemo(
+    () => userPostsQuery.data?.pages.flatMap((p) => p.posts) ?? [],
+    [userPostsQuery.data],
+  );
+
   const onRefresh = () => {
-    feedQuery.refetch();
-    if (derivedUserId) {
-      profileQuery.refetch();
-      isFollowingQuery.refetch();
+    if (!isSelf) searchQuery.refetch();
+    if (targetUserId) {
+      userPostsQuery.refetch();
       followersQuery.refetch();
       followingQuery.refetch();
+      if (!isSelf) isFollowingQuery.refetch();
     }
   };
 
-  const handleToggleFollow = () => {
-    if (!derivedUserId) return;
-    if (isFollowingQuery.data) {
-      unfollow.mutate(derivedUserId, {
-        onError: (err) =>
-          toast.show({ message: err?.message ?? 'No se pudo dejar de seguir', tone: 'danger' }),
-      });
-    } else {
-      follow.mutate(derivedUserId, {
-        onError: (err) =>
-          toast.show({ message: err?.message ?? 'No se pudo seguir', tone: 'danger' }),
-      });
+  const onEndReached = () => {
+    if (userPostsQuery.hasNextPage && !userPostsQuery.isFetchingNextPage) {
+      userPostsQuery.fetchNextPage();
     }
   };
 
-  const isSelf = !!me && me.id === derivedUserId;
-  const followBusy = follow.isPending || unfollow.isPending;
-  const isFollowingValue = !!isFollowingQuery.data;
+  // Loading state: solo cuando resolvemos por búsqueda (no para propio perfil).
+  if (!isSelf && searchQuery.isLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
+        <StatusBar style="light" />
+        <Header onBack={() => router.back()} title={`@${username}`} />
+        <Loader />
+      </SafeAreaView>
+    );
+  }
 
-  // No info at all
-  if (!derivedUser || !derivedUserId) {
+  // No encontrado (nunca ocurre cuando isSelf porque targetUserId = me.id).
+  if (!targetUserId) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
         <StatusBar style="light" />
@@ -104,15 +99,14 @@ export default function PublicProfile() {
           <Card padding="xl" style={{ alignItems: 'center' }}>
             <Icon name="users" size={32} color={colors.text.muted} />
             <Text variant="heading" style={{ marginTop: spacing.md }}>
-              Perfil no disponible
+              Perfil no encontrado
             </Text>
             <Text
               variant="caption"
               tone="secondary"
               style={{ marginTop: spacing.xs, textAlign: 'center' }}
             >
-              Aún no tenemos posts de @{username} en tu feed.
-              Vuelve a la pantalla de descubrir para encontrarlo.
+              No hay ningún atleta con el username @{username}.
             </Text>
             <Button
               title="Ir a Descubrir"
@@ -127,16 +121,27 @@ export default function PublicProfile() {
     );
   }
 
-  const info = rankInfo(profileQuery.data?.currentRank ?? derivedUser.currentRank);
-  const rankPoints = profileQuery.data?.rankPoints ?? 0;
-  const workoutCount = userPosts.filter((p) => p.type === 'workout').length;
-  const followersCount = followersQuery.data?.length ?? 0;
+  // Perfil a mostrar: puede venir de la búsqueda o del store propio.
+  const displayProfile = matched ?? {
+    id: me!.id,
+    username: me!.username,
+    displayName: me!.displayName,
+    currentRank: me!.currentRank,
+    rankPoints: me!.rankPoints,
+    followersCount: 0,
+    isFollowing: false,
+  };
+
+  const info = rankInfo(displayProfile.currentRank);
+  const isFollowingValue = !!isFollowingQuery.data;
+  const followersCount = followersQuery.data?.length ?? displayProfile.followersCount;
   const followingCount = followingQuery.data?.length ?? 0;
+  const postsCount = userPosts.length;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
-      <Header onBack={() => router.back()} title={`@${derivedUser.username}`} />
+      <Header onBack={() => router.back()} title={`@${displayProfile.username}`} />
 
       <FlatList<Post>
         data={userPosts}
@@ -154,34 +159,20 @@ export default function PublicProfile() {
             <Card padding="lg">
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
                 <Avatar
-                  uri={derivedUser.avatarUrl}
-                  name={derivedUser.displayName}
+                  name={displayProfile.displayName}
                   size={72}
                   borderColor={info.color}
                 />
                 <View style={{ flex: 1 }}>
-                  <Text variant="title">{derivedUser.displayName}</Text>
+                  <Text variant="title">{displayProfile.displayName}</Text>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 4 }}>
                     <Badge label={info.label} tone="muted" />
                     <Text variant="caption" tone="muted">
-                      @{derivedUser.username}
+                      @{displayProfile.username}
                     </Text>
                   </View>
                 </View>
               </View>
-
-              {profileQuery.data && (
-                <View
-                  style={{
-                    marginTop: spacing.lg,
-                    paddingTop: spacing.md,
-                    borderTopWidth: 1,
-                    borderTopColor: colors.border,
-                  }}
-                >
-                  <RankBadge points={rankPoints} size="md" showProgress />
-                </View>
-              )}
 
               <View
                 style={{
@@ -192,29 +183,46 @@ export default function PublicProfile() {
                   borderTopColor: colors.border,
                 }}
               >
-                <View style={{ flex: 1, alignItems: 'center' }}>
-                  <Text variant="heading" weight="bold" numeric>{workoutCount}</Text>
-                  <Text variant="label" tone="muted" style={{ marginTop: 2 }}>WORKOUTS</Text>
-                </View>
-                <View style={{ flex: 1, alignItems: 'center' }}>
+                <Pressable
+                  hitSlop={6}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/profile/connections',
+                      params: { username: displayProfile.username, type: 'followers' },
+                    })
+                  }
+                  style={({ pressed }) => [{ flex: 1, alignItems: 'center' }, pressed && { opacity: 0.7 }]}
+                >
                   <Text variant="heading" weight="bold" numeric>{followersCount}</Text>
                   <Text variant="label" tone="muted" style={{ marginTop: 2 }}>SEGUIDORES</Text>
-                </View>
-                <View style={{ flex: 1, alignItems: 'center' }}>
+                </Pressable>
+                <Pressable
+                  hitSlop={6}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/profile/connections',
+                      params: { username: displayProfile.username, type: 'following' },
+                    })
+                  }
+                  style={({ pressed }) => [{ flex: 1, alignItems: 'center' }, pressed && { opacity: 0.7 }]}
+                >
                   <Text variant="heading" weight="bold" numeric>{followingCount}</Text>
                   <Text variant="label" tone="muted" style={{ marginTop: 2 }}>SIGUIENDO</Text>
+                </Pressable>
+                <View style={{ flex: 1, alignItems: 'center' }}>
+                  <Text variant="heading" weight="bold" numeric>{postsCount}</Text>
+                  <Text variant="label" tone="muted" style={{ marginTop: 2 }}>POSTS</Text>
                 </View>
               </View>
 
               {!isSelf && (
-                <Button
-                  title={isFollowingValue ? 'Siguiendo' : 'Seguir'}
-                  variant={isFollowingValue ? 'secondary' : 'primary'}
-                  onPress={handleToggleFollow}
-                  loading={followBusy}
-                  fullWidth
-                  style={{ marginTop: spacing.lg }}
-                />
+                <View style={{ marginTop: spacing.lg }}>
+                  <FollowButton
+                    userId={targetUserId as string}
+                    isFollowing={isFollowingValue}
+                    size="md"
+                  />
+                </View>
               )}
             </Card>
 
@@ -227,20 +235,28 @@ export default function PublicProfile() {
           <PostCell post={item} onPress={() => setCommentsPost(item)} />
         )}
         ListEmptyComponent={
-          <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
-            <Icon name="image" size={32} color={colors.text.muted} />
-            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-              Aún no hay publicaciones visibles.
-            </Text>
-          </Card>
+          userPostsQuery.isLoading ? (
+            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
+              <Text variant="caption" tone="muted">Cargando publicaciones…</Text>
+            </Card>
+          ) : (
+            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
+              <Icon name="image" size={32} color={colors.text.muted} />
+              <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
+                Aún no hay publicaciones.
+              </Text>
+            </Card>
+          )
         }
         refreshControl={
           <RefreshControl
-            refreshing={feedQuery.isRefetching}
+            refreshing={userPostsQuery.isRefetching}
             onRefresh={onRefresh}
             tintColor={colors.primary.DEFAULT}
           />
         }
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
       />
 

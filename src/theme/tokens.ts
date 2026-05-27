@@ -98,12 +98,12 @@ export const shadow = {
 };
 
 export const RANKS = [
-  { id: 'bronze', label: 'Bronze', min: 0, color: '#CD7F32', gradient: ['#A05A23', '#CD7F32'] },
-  { id: 'silver', label: 'Silver', min: 100, color: '#C0C0C0', gradient: ['#8E8E93', '#D1D1D6'] },
-  { id: 'gold', label: 'Gold', min: 300, color: '#FFD700', gradient: ['#B8860B', '#FFD700'] },
-  { id: 'platinum', label: 'Platinum', min: 700, color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] },
-  { id: 'elite', label: 'Elite', min: 1500, color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] },
-  { id: 'legend', label: 'Legend', min: 3000, color: '#FF7A00', gradient: ['#FF3B3B', '#FF7A00'] },
+  { id: 'bronze', label: 'Bronze', min: 0, color: '#CD7F32', gradient: ['#A05A23', '#CD7F32'] as [string, string] },
+  { id: 'silver', label: 'Silver', min: 100, color: '#C0C0C0', gradient: ['#8E8E93', '#D1D1D6'] as [string, string] },
+  { id: 'gold', label: 'Gold', min: 300, color: '#FFD700', gradient: ['#B8860B', '#FFD700'] as [string, string] },
+  { id: 'platinum', label: 'Platinum', min: 700, color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] as [string, string] },
+  { id: 'elite', label: 'Elite', min: 1500, color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] as [string, string] },
+  { id: 'legend', label: 'Legend', min: 3000, color: '#FF7A00', gradient: ['#FF3B3B', '#FF7A00'] as [string, string] },
 ] as const;
 
 export type RankInfo = (typeof RANKS)[number];

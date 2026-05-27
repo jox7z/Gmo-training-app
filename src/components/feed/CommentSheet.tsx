@@ -9,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from '@/components/ui/Text';
 import { Avatar } from '@/components/Avatar';
@@ -112,6 +113,7 @@ export function CommentSheet({
   const handleSend = () => {
     const trimmed = body.trim();
     if (!trimmed || !postId) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     const sent = body;
     setBody('');
     addComment.mutate(

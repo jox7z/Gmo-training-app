@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
@@ -70,9 +71,9 @@ export default function PublishModal() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {mode === 'manual' && <ManualComposer profileDisplayName={profile?.displayName ?? 'Atleta'} avatarUrl={profile?.avatarUrl} onSuccess={(msg) => { toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} userId={profile?.id ?? null} />}
-        {mode === 'workout' && <WorkoutComposer workout={workout} onSuccess={(msg) => { toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} onClose={close} />}
-        {mode === 'pr' && <PrComposer onSuccess={(msg) => { toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} />}
+        {mode === 'manual' && <ManualComposer profileDisplayName={profile?.displayName ?? 'Atleta'} avatarUrl={profile?.avatarUrl} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} userId={profile?.id ?? null} />}
+        {mode === 'workout' && <WorkoutComposer workout={workout} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} onClose={close} />}
+        {mode === 'pr' && <PrComposer onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} />}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

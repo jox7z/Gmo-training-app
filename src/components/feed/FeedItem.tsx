@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { View, Pressable, Image, Modal } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Animated, View, Pressable, Image, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
@@ -22,9 +22,8 @@ interface Props {
 }
 
 const REACTIONS: { key: ReactionKind; icon: IconName; color: string }[] = [
-  { key: 'fire', icon: 'fire', color: colors.accent.DEFAULT },
   { key: 'muscle', icon: 'muscle', color: colors.primary.DEFAULT },
-  { key: 'clap', icon: 'clap', color: colors.warning },
+  { key: 'heart', icon: 'heart', color: colors.danger },
 ];
 
 function rankInfo(id: RankId) {
@@ -60,35 +59,48 @@ function ReactionPill({
   active: boolean;
   onPress: () => void;
 }) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    Animated.sequence([
+      Animated.timing(scaleAnim, { toValue: 1.3, duration: 100, useNativeDriver: true }),
+      Animated.timing(scaleAnim, { toValue: 1.0, duration: 100, useNativeDriver: true }),
+    ]).start();
+    onPress();
+  }, [scaleAnim, onPress]);
+
   return (
-    <Pressable
-      hitSlop={6}
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 6,
-          paddingHorizontal: spacing.md,
-          paddingVertical: 8,
-          borderRadius: radius.full,
-          borderWidth: 1,
-          borderColor: active ? color : colors.border,
-          backgroundColor: active ? `${color}22` : 'transparent',
-        },
-        pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
-      ]}
-    >
-      <Icon name={icon} size={14} color={active ? color : colors.text.muted} />
-      <Text
-        variant="caption"
-        weight="semibold"
-        numeric
-        style={{ color: active ? color : colors.text.secondary }}
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <Pressable
+        hitSlop={6}
+        onPress={handlePress}
+        style={({ pressed }) => [
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 6,
+            paddingHorizontal: spacing.md,
+            paddingVertical: 8,
+            borderRadius: radius.full,
+            borderWidth: 1,
+            borderColor: active ? color : colors.border,
+            backgroundColor: active ? `${color}22` : 'transparent',
+          },
+          pressed && { opacity: 0.7 },
+        ]}
       >
-        {count}
-      </Text>
-    </Pressable>
+        <Icon name={icon} size={14} color={active ? color : colors.text.muted} filled={active} />
+        <Text
+          variant="caption"
+          weight="semibold"
+          numeric
+          style={{ color: active ? color : colors.text.secondary }}
+        >
+          {count}
+        </Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -427,10 +439,7 @@ export function FeedItem({
               color={r.color}
               count={post.reactions[r.key]}
               active={post.myReactions[r.key]}
-              onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
-                onToggleReaction(post.id, r.key);
-              }}
+              onPress={() => onToggleReaction(post.id, r.key)}
             />
           ))}
         </View>

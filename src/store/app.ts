@@ -52,6 +52,7 @@ interface AppState {
   hydrate: () => Promise<void>;
   setProfile: (p: UserProfile) => Promise<void>;
   completeOnboarding: () => Promise<void>;
+  markOnboarded: () => Promise<void>;
   addWorkoutDay: () => void;
   addPoints: (n: number) => void;
   signOut: () => Promise<void>;
@@ -163,6 +164,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
 
     set({ onboarded: true, streakWeeks: 1, daysThisWeek: 0 });
+    await persist(get());
+  },
+
+  markOnboarded: async () => {
+    if (get().onboarded) return;
+    set({ onboarded: true });
     await persist(get());
   },
 

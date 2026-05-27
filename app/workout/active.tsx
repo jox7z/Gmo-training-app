@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/Badge';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
 import { useWorkoutsStore, Workout } from '@/store/workouts';
-import { useAppStore } from '@/store/app';
+import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { exerciseById } from '@/data/exercises';
 import { formatDuration, toDisplay, fromDisplay } from '@/lib/units';
 import { Icon } from '@/components/Icon';
@@ -55,6 +55,7 @@ export default function ActiveWorkout() {
   const [resting, setResting] = useState(false);
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [restElapsed, setRestElapsed] = useState(0);
+  const [setStartedAt, setSetStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [showJump, setShowJump] = useState(false);
   const [summary, setSummary] = useState<Workout | null>(null);
@@ -99,6 +100,21 @@ export default function ActiveWorkout() {
     return () => clearInterval(t);
   }, [resting, restStartedAt]);
 
+  // Mark setStartedAt cada vez que el SetView pasa a mostrar un set nuevo
+  // (mientras no estemos en descanso). Cubre arranque del workout, "Siguiente
+  // set/ejercicio" y jumps. La duración del set se calcula al pulsar
+  // "Set completado" (now - setStartedAt).
+  useEffect(() => {
+    if (!active || resting || summary) return;
+    const ex = active.exercises[exIdx];
+    const s = ex?.sets[setIdx];
+    if (!s || s.isCompleted) {
+      setSetStartedAt(null);
+      return;
+    }
+    setSetStartedAt(Date.now());
+  }, [active, exIdx, setIdx, resting, summary]);
+
   if (!active || !profile) {
     return (
       <Screen>
@@ -124,7 +140,7 @@ export default function ActiveWorkout() {
 
   const restsLogged = active.exercises
     .flatMap((e) => e.sets)
-    .map((s) => s.restSeconds)
+    .map((s) => s.restAfterSeconds)
     .filter((v): v is number => typeof v === 'number' && v > 0);
   const avgRest =
     restsLogged.length > 0
@@ -132,8 +148,16 @@ export default function ActiveWorkout() {
       : 0;
 
   const handleSetComplete = () => {
+    // Captura duración antes de togglear (now - setStartedAt). Si no había
+    // setStartedAt (caso raro: completado por jump sin pasar por SetView),
+    // simplemente no se persiste.
+    if (setStartedAt) {
+      const secs = Math.max(0, Math.round((Date.now() - setStartedAt) / 1000));
+      updateSet(exIdx, setIdx, { durationSeconds: secs });
+    }
     toggleSetComplete(exIdx, setIdx);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSetStartedAt(null);
     setResting(true);
     setRestStartedAt(Date.now());
     setRestElapsed(0);
@@ -157,7 +181,7 @@ export default function ActiveWorkout() {
   const captureRest = () => {
     if (restStartedAt) {
       const secs = Math.max(0, Math.round((Date.now() - restStartedAt) / 1000));
-      updateSet(exIdx, setIdx, { restSeconds: secs });
+      updateSet(exIdx, setIdx, { restAfterSeconds: secs });
     }
   };
 
@@ -177,7 +201,7 @@ export default function ActiveWorkout() {
       addPoints(10);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSummary(finished);
-      if (isSupabaseConfigured && profile.id !== 'local-user') {
+      if (isSupabaseConfigured && profile.id !== LOCAL_USER_ID) {
         saveWorkout(profile.id, finished).catch((e: any) => {
           Alert.alert('Error al guardar', e?.message ?? 'El workout no se pudo sincronizar.');
         });
@@ -689,7 +713,7 @@ function Summary({
                       tone={s.isCompleted ? 'secondary' : 'muted'}
                     >
                       Set {i + 1}: {toDisplay(s.weightKg, unit).toFixed(unit === 'kg' ? 1 : 0)} {unit} × {s.reps}
-                      {s.restSeconds ? ` · descanso ${formatClock(s.restSeconds)}` : ''}
+                      {s.restAfterSeconds ? ` · descanso ${formatClock(s.restAfterSeconds)}` : ''}
                     </Text>
                   ))}
                 </View>
