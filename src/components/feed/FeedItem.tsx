@@ -188,6 +188,11 @@ function WorkoutBody({ post }: { post: Post }) {
           ))}
         </View>
       )}
+      {post.photoUrl ? (
+        <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
+          <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -221,6 +226,11 @@ function PrBody({ post }: { post: Post }) {
       )}
       {post.subtitle ? (
         <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs }}>{post.subtitle}</Text>
+      ) : null}
+      {post.photoUrl ? (
+        <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
+          <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
+        </View>
       ) : null}
     </View>
   );

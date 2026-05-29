@@ -279,3 +279,11 @@ export async function deletePost(postId: string): Promise<void> {
   const { error } = await supabase.from('posts').delete().eq('id', postId);
   if (error) throw error;
 }
+
+export async function setPostPhoto(postId: string, photoUrl: string): Promise<void> {
+  const { error } = await supabase
+    .from('posts')
+    .update({ photo_url: photoUrl })
+    .eq('id', postId);
+  if (error) throw error;
+}

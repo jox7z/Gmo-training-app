@@ -30,6 +30,7 @@ import {
   usePublishPR,
 } from '@/lib/queries/feed';
 import { uploadPostPhoto } from '@/lib/storage/photos';
+import { setPostPhoto } from '@/lib/repos/posts';
 import { EXERCISES } from '@/data/exercises';
 import { useToast } from '@/components/ui/Toast';
 
@@ -72,8 +73,8 @@ export default function PublishModal() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {mode === 'manual' && <ManualComposer profileDisplayName={profile?.displayName ?? 'Atleta'} avatarUrl={profile?.avatarUrl} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} userId={profile?.id ?? null} />}
-        {mode === 'workout' && <WorkoutComposer workout={workout} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} onClose={close} />}
-        {mode === 'pr' && <PrComposer onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} />}
+        {mode === 'workout' && <WorkoutComposer workout={workout} userId={profile?.id ?? null} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} onClose={close} />}
+        {mode === 'pr' && <PrComposer userId={profile?.id ?? null} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} />}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -289,16 +290,20 @@ function ManualComposer({
 // =====================================================
 function WorkoutComposer({
   workout,
+  userId,
   onSuccess,
   onError,
   onClose,
 }: {
   workout: ReturnType<typeof useWorkoutsStore.getState>['history'][number] | null;
+  userId: string | null;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
   onClose: () => void;
 }) {
   const [caption, setCaption] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const publish = usePublishWorkout();
 
   const stats = useMemo(() => {
@@ -334,11 +339,38 @@ function WorkoutComposer({
   const remaining = MAX_CAPTION - caption.length;
   const overLimit = remaining < 0;
 
-  const submit = () => {
+  const pickPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { onError('Necesitamos permiso para acceder a tus fotos.'); return; }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85, allowsEditing: false });
+    if (res.canceled || !res.assets?.[0]) return;
+    setPhotoUri(res.assets[0].uri);
+  };
+
+  const submit = async () => {
+    if (overLimit || publish.isPending || uploading) return;
+    let photoUrl: string | undefined;
+    if (photoUri && userId) {
+      try {
+        setUploading(true);
+        photoUrl = await uploadPostPhoto(userId, photoUri);
+      } catch (e) {
+        setUploading(false);
+        onError((e as Error)?.message ?? 'No se pudo subir la foto.');
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
     publish.mutate(
       { workoutId: workout.id, caption: caption.trim() || undefined },
       {
-        onSuccess: () => onSuccess('Entreno compartido'),
+        onSuccess: async (postId) => {
+          if (photoUrl && postId) {
+            try { await setPostPhoto(postId, photoUrl); } catch {}
+          }
+          onSuccess('Entreno compartido');
+        },
         onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
       },
     );
@@ -460,11 +492,32 @@ function WorkoutComposer({
         </View>
       </View>
 
+      {photoUri ? (
+        <View style={{ marginTop: spacing.lg, borderRadius: radius.lg, overflow: 'hidden', position: 'relative' }}>
+          <Image source={{ uri: photoUri }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
+          <Pressable
+            onPress={() => setPhotoUri(null)}
+            style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          >
+            <Icon name="close" size={14} color="#fff" />
+            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          onPress={pickPhoto}
+          style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, marginTop: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.bg.elevated, borderStyle: 'dashed' }, pressed && { opacity: 0.7 }]}
+        >
+          <Icon name="image" size={18} color={colors.text.muted} />
+          <Text weight="semibold" tone="secondary">Adjuntar foto (opcional)</Text>
+        </Pressable>
+      )}
+
       <Button
-        title="Publicar entreno"
+        title={uploading ? 'Subiendo foto…' : 'Publicar entreno'}
         onPress={submit}
-        loading={publish.isPending}
-        disabled={overLimit}
+        loading={publish.isPending || uploading}
+        disabled={overLimit || publish.isPending || uploading}
         fullWidth
         style={{ marginTop: spacing.xl }}
       />
@@ -476,9 +529,11 @@ function WorkoutComposer({
 // PR
 // =====================================================
 function PrComposer({
+  userId,
   onSuccess,
   onError,
 }: {
+  userId: string | null;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
 }) {
@@ -486,6 +541,8 @@ function PrComposer({
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [caption, setCaption] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const publish = usePublishPR();
 
   const weightNum = parseFloat(weight);
@@ -497,17 +554,38 @@ function PrComposer({
     !Number.isNaN(repsNum) &&
     repsNum > 0;
 
-  const submit = () => {
-    if (!valid || !exerciseId) return;
+  const pickPhoto = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { onError('Necesitamos permiso para acceder a tus fotos.'); return; }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85, allowsEditing: false });
+    if (res.canceled || !res.assets?.[0]) return;
+    setPhotoUri(res.assets[0].uri);
+  };
+
+  const submit = async () => {
+    if (!valid || !exerciseId || publish.isPending || uploading) return;
+    let photoUrl: string | undefined;
+    if (photoUri && userId) {
+      try {
+        setUploading(true);
+        photoUrl = await uploadPostPhoto(userId, photoUri);
+      } catch (e) {
+        setUploading(false);
+        onError((e as Error)?.message ?? 'No se pudo subir la foto.');
+        return;
+      } finally {
+        setUploading(false);
+      }
+    }
     publish.mutate(
+      { exerciseId, weightKg: weightNum, reps: repsNum, caption: caption.trim() || undefined },
       {
-        exerciseId,
-        weightKg: weightNum,
-        reps: repsNum,
-        caption: caption.trim() || undefined,
-      },
-      {
-        onSuccess: () => onSuccess('PR publicado'),
+        onSuccess: async (postId) => {
+          if (photoUrl && postId) {
+            try { await setPostPhoto(postId, photoUrl); } catch {}
+          }
+          onSuccess('PR publicado');
+        },
         onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
       },
     );
@@ -614,11 +692,32 @@ function PrComposer({
         </View>
       </View>
 
+      {photoUri ? (
+        <View style={{ marginTop: spacing.lg, borderRadius: radius.lg, overflow: 'hidden', position: 'relative' }}>
+          <Image source={{ uri: photoUri }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
+          <Pressable
+            onPress={() => setPhotoUri(null)}
+            style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+          >
+            <Icon name="close" size={14} color="#fff" />
+            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <Pressable
+          onPress={pickPhoto}
+          style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, marginTop: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.bg.elevated, borderStyle: 'dashed' }, pressed && { opacity: 0.7 }]}
+        >
+          <Icon name="image" size={18} color={colors.text.muted} />
+          <Text weight="semibold" tone="secondary">Adjuntar foto (opcional)</Text>
+        </Pressable>
+      )}
+
       <Button
-        title="Publicar PR"
+        title={uploading ? 'Subiendo foto…' : 'Publicar PR'}
         onPress={submit}
-        loading={publish.isPending}
-        disabled={!valid}
+        loading={publish.isPending || uploading}
+        disabled={!valid || publish.isPending || uploading}
         fullWidth
         style={{ marginTop: spacing.xl }}
       />

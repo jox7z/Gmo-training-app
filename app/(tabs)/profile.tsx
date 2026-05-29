@@ -39,6 +39,7 @@ export default function Profile() {
   const countersQuery = useProfileCounters(profile?.id);
   const userPostsQuery = useUserPosts(profile?.id);
   const [commentsPost, setCommentsPost] = useState<Post | null>(null);
+  const [activeTab, setActiveTab] = useState<'posts' | 'activity' | 'achievements'>('posts');
   const userPosts = useMemo(
     () => userPostsQuery.data?.pages.flatMap((p) => p.posts) ?? [],
     [userPostsQuery.data],
@@ -178,67 +179,153 @@ export default function Profile() {
           <SocialStat label="Posts" value={postsCount} />
         </Card>
 
-        {/* Share */}
-        <Button
-          title="Compartir perfil"
-          variant="secondary"
-          leftIcon={<Icon name="share" size={16} color={colors.text.primary} />}
-          onPress={handleShare}
-          fullWidth
-        />
-
-        {/* Achievements */}
-        <SectionHeader title="Logros" right={`${earnedCount}/${BADGES.length}`} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-          {BADGES.map((b) => (
-            <Card
-              key={b.id}
-              padding="md"
-              variant={b.earned ? 'glow' : 'outlined'}
-              glowColor={b.color}
-              style={{ width: '47%', alignItems: 'center', opacity: b.earned ? 1 : 0.45 }}
-            >
-              <Icon name={b.icon} size={28} color={b.color} />
-              <Text
-                variant="caption"
-                weight="bold"
-                style={{ marginTop: 6, textAlign: 'center' }}
-              >
-                {b.label}
-              </Text>
-              {b.earned && <Badge label="Conseguido" tone="accent" />}
-            </Card>
-          ))}
+        {/* Edit / Share row */}
+        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+          <Button
+            title="Editar perfil"
+            variant="secondary"
+            leftIcon={<Icon name="edit" size={15} color={colors.text.primary} />}
+            onPress={() => router.push('/profile/edit')}
+            style={{ flex: 1 }}
+          />
+          <Pressable
+            onPress={handleShare}
+            hitSlop={6}
+            style={({ pressed }) => [
+              {
+                width: 44,
+                height: 44,
+                borderRadius: radius.lg,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: colors.bg.card,
+                borderWidth: 1,
+                borderColor: colors.border,
+              },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Icon name="share" size={18} color={colors.text.primary} />
+          </Pressable>
         </View>
 
-        {/* Posts */}
-        <SectionHeader title="Publicaciones" right={`${userPosts.length}`} />
-        {userPostsQuery.isLoading && userPosts.length === 0 ? (
-          <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-            <Text variant="caption" tone="muted">Cargando publicaciones…</Text>
-          </Card>
-        ) : userPosts.length === 0 ? (
-          <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-            <Icon name="image" size={28} color={colors.text.muted} />
-            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm }}>
-              Aún no hay publicaciones.
-            </Text>
-          </Card>
-        ) : (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {userPosts.map((post) => (
-              <ProfilePostCell key={post.id} post={post} onPress={() => setCommentsPost(post)} />
+        {/* Tab bar */}
+        <View
+          style={{
+            flexDirection: 'row',
+            marginTop: spacing.sm,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          {([
+            { key: 'posts', label: 'Publicaciones', icon: 'image' },
+            { key: 'activity', label: 'Actividad', icon: 'chart' },
+            { key: 'achievements', label: 'Logros', icon: 'medal' },
+          ] as const).map((tab) => {
+            const active = activeTab === tab.key;
+            return (
+              <Pressable
+                key={tab.key}
+                onPress={() => setActiveTab(tab.key)}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  paddingVertical: spacing.md,
+                  borderBottomWidth: active ? 2 : 0,
+                  borderBottomColor: active ? colors.primary.DEFAULT : 'transparent',
+                  gap: 4,
+                }}
+              >
+                <Icon
+                  name={tab.icon}
+                  size={17}
+                  color={active ? colors.primary.DEFAULT : colors.text.muted}
+                />
+                <Text
+                  variant="caption"
+                  weight={active ? 'bold' : 'regular'}
+                  style={{ fontSize: 10, color: active ? colors.text.primary : colors.text.muted }}
+                >
+                  {tab.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* Tab: Publicaciones */}
+        {activeTab === 'posts' && (
+          userPostsQuery.isLoading && userPosts.length === 0 ? (
+            <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl, marginTop: spacing.md }}>
+              <Text variant="caption" tone="muted">Cargando publicaciones…</Text>
+            </Card>
+          ) : userPosts.length === 0 ? (
+            <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl, marginTop: spacing.md }}>
+              <Icon name="image" size={28} color={colors.text.muted} />
+              <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm }}>
+                Aún no hay publicaciones.
+              </Text>
+            </Card>
+          ) : (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
+              {userPosts.map((post) => (
+                <ProfilePostCell key={post.id} post={post} onPress={() => setCommentsPost(post)} />
+              ))}
+            </View>
+          )
+        )}
+
+        {/* Tab: Actividad */}
+        {activeTab === 'activity' && (
+          userPostsQuery.isLoading && userPosts.length === 0 ? (
+            <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl, marginTop: spacing.md }}>
+              <Text variant="caption" tone="muted">Cargando actividad…</Text>
+            </Card>
+          ) : userPosts.length === 0 ? (
+            <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl, marginTop: spacing.md }}>
+              <Icon name="chart" size={28} color={colors.text.muted} />
+              <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm }}>
+                Aún no hay actividad.
+              </Text>
+            </Card>
+          ) : (
+            <Card style={{ marginTop: spacing.md, overflow: 'hidden', padding: 0 }}>
+              {userPosts.map((post, i) => (
+                <ActivityCard
+                  key={post.id}
+                  post={post}
+                  showDivider={i < userPosts.length - 1}
+                  onPress={() => setCommentsPost(post)}
+                />
+              ))}
+            </Card>
+          )
+        )}
+
+        {/* Tab: Logros */}
+        {activeTab === 'achievements' && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md }}>
+            {BADGES.map((b) => (
+              <Card
+                key={b.id}
+                padding="md"
+                variant={b.earned ? 'glow' : 'outlined'}
+                glowColor={b.color}
+                style={{ width: '47%', alignItems: 'center', opacity: b.earned ? 1 : 0.45 }}
+              >
+                <Icon name={b.icon} size={28} color={b.color} />
+                <Text variant="caption" weight="bold" style={{ marginTop: 6, textAlign: 'center' }}>
+                  {b.label}
+                </Text>
+                {b.earned && <Badge label="Conseguido" tone="accent" />}
+              </Card>
             ))}
           </View>
         )}
 
-        {/* Actions */}
+        {/* Account */}
         <SectionHeader title="Cuenta" />
-        <RowButton
-          icon="edit"
-          label="Personalizar perfil"
-          onPress={() => router.push('/profile/edit')}
-        />
         <RowButton
           icon="settings"
           label="Ajustes"
@@ -320,6 +407,94 @@ function ProfilePostCell({ post, onPress }: { post: Post; onPress: () => void })
           </Text>
         </View>
       )}
+    </Pressable>
+  );
+}
+
+function relativeTime(iso: string): string {
+  const sec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+  if (sec < 60) return 'ahora';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `hace ${min}min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `hace ${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `hace ${d}d`;
+  return new Date(iso).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+}
+
+function ActivityCard({
+  post,
+  showDivider,
+  onPress,
+}: {
+  post: Post;
+  showDivider: boolean;
+  onPress: () => void;
+}) {
+  const cfg: Record<Post['type'], { icon: IconName; color: string }> = {
+    workout: { icon: 'dumbbell', color: colors.primary.DEFAULT },
+    pr: { icon: 'trophy', color: colors.accent.DEFAULT },
+    rank_up: { icon: 'lightning', color: colors.primary.DEFAULT },
+    streak: { icon: 'fire', color: colors.accent.DEFAULT },
+    achievement: { icon: 'target', color: colors.info.DEFAULT },
+    manual: { icon: 'image', color: colors.text.secondary },
+  };
+  const { icon, color } = cfg[post.type] ?? cfg.workout;
+  const title = post.title ?? post.caption ?? '';
+  const sub = post.title && post.caption ? post.caption : undefined;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.lg,
+          borderBottomWidth: showDivider ? 1 : 0,
+          borderBottomColor: colors.border,
+        },
+        pressed && { opacity: 0.7 },
+      ]}
+    >
+      <View
+        style={{
+          width: 40,
+          height: 40,
+          borderRadius: 20,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: `${color}22`,
+        }}
+      >
+        <Icon name={icon} size={18} color={color} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text weight="semibold" numberOfLines={1}>{title}</Text>
+        {sub ? <Text variant="caption" tone="secondary" numberOfLines={1}>{sub}</Text> : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: 3 }}>
+          <Text variant="caption" tone="muted">{relativeTime(post.createdAt)}</Text>
+          {post.reactions.muscle > 0 && (
+            <Text variant="caption" tone="muted" numeric>💪 {post.reactions.muscle}</Text>
+          )}
+          {post.reactions.heart > 0 && (
+            <Text variant="caption" tone="muted" numeric>❤️ {post.reactions.heart}</Text>
+          )}
+          {post.commentCount > 0 && (
+            <Text variant="caption" tone="muted" numeric>💬 {post.commentCount}</Text>
+          )}
+        </View>
+      </View>
+      {post.photoUrl ? (
+        <Image
+          source={{ uri: post.photoUrl }}
+          style={{ width: 50, height: 50, borderRadius: radius.md }}
+          resizeMode="cover"
+        />
+      ) : null}
     </Pressable>
   );
 }
