@@ -11,7 +11,8 @@ import { Icon, IconName } from '@/components/Icon';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useAppStore, Goal, Level, Unit, LOCAL_USER_ID } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { completeSignup, getCurrentUserId, checkUsernameAvailable, AuthError, AuthErrorCode } from '@/lib/auth';
+import { completeSignup, getCurrentUserId, getCurrentUser, checkUsernameAvailable, AuthError, AuthErrorCode } from '@/lib/auth';
+import { upsertProfile } from '@/lib/repos/profile';
 import { isUsernameValid } from '@/lib/passwordPolicy';
 
 const STEPS = ['welcome', 'profile', 'level', 'goal', 'frequency', 'final'] as const;
@@ -74,7 +75,9 @@ export default function Onboarding() {
     setError(null);
     setSubmitting(true);
     try {
-      const userId = (await getCurrentUserId()) ?? LOCAL_USER_ID;
+      const authUser = await getCurrentUser();
+      const userId = authUser?.id ?? LOCAL_USER_ID;
+      const userEmail = authUser?.email ?? '';
 
       // Prioridad: override (lo que el usuario escribió en el step final tras
       // un USERNAME_TAKEN) > lo capturado en el step profile > fallback derivado
@@ -84,6 +87,7 @@ export default function Onboarding() {
 
       const profileData = {
         id: userId,
+        email: userEmail,
         username: finalUsername,
         displayName: name.trim() || 'Atleta',
         fullName: '',
@@ -98,8 +102,8 @@ export default function Onboarding() {
         level,
         goal,
         weeklyGoalDays: days,
-        rankPoints: 50,
-        currentRank: 'bronze' as const,
+        rankPoints: 0,
+        currentRank: 'rookie' as const,
         privacy: { profilePublic: true, showActivity: true, showStats: true },
         notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
       };
@@ -119,6 +123,9 @@ export default function Onboarding() {
             goal: profileData.goal,
             weeklyGoalDays: profileData.weeklyGoalDays,
           });
+          // Save email (and all profile fields) via direct upsert so the
+          // profiles table row created by complete_signup also gets the email.
+          await upsertProfile(profileData);
         } catch (e) {
           if (e instanceof AuthError && e.code === AuthErrorCode.USERNAME_TAKEN) {
             setError('Ese username ya está tomado. Elige otro.');

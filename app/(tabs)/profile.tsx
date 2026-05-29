@@ -1,4 +1,5 @@
-import { View, Pressable, ScrollView, Share, Alert } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Pressable, ScrollView, Share, Alert, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +14,10 @@ import { colors, radius, spacing, rankFromPoints } from '@/theme/tokens';
 import { Loader } from '@/components/ui/Loader';
 import { useAppStore } from '@/store/app';
 import { useProfileCounters } from '@/lib/queries/profile';
+import { useUserPosts } from '@/lib/queries/social';
 import { useToast } from '@/components/ui/Toast';
+import { CommentSheet } from '@/components/feed/CommentSheet';
+import type { Post } from '@/lib/repos/posts';
 
 const BADGES: { id: string; label: string; icon: IconName; color: string; earned: boolean }[] = [
   { id: 'first', label: 'Primer workout', icon: 'medal', color: '#CD7F32', earned: true },
@@ -33,6 +37,12 @@ export default function Profile() {
   const signOut = useAppStore((s) => s.signOut);
 
   const countersQuery = useProfileCounters(profile?.id);
+  const userPostsQuery = useUserPosts(profile?.id);
+  const [commentsPost, setCommentsPost] = useState<Post | null>(null);
+  const userPosts = useMemo(
+    () => userPostsQuery.data?.pages.flatMap((p) => p.posts) ?? [],
+    [userPostsQuery.data],
+  );
 
   if (!profile) return <Loader />;
 
@@ -201,6 +211,27 @@ export default function Profile() {
           ))}
         </View>
 
+        {/* Posts */}
+        <SectionHeader title="Publicaciones" right={`${userPosts.length}`} />
+        {userPostsQuery.isLoading && userPosts.length === 0 ? (
+          <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+            <Text variant="caption" tone="muted">Cargando publicaciones…</Text>
+          </Card>
+        ) : userPosts.length === 0 ? (
+          <Card padding="lg" style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
+            <Icon name="image" size={28} color={colors.text.muted} />
+            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm }}>
+              Aún no hay publicaciones.
+            </Text>
+          </Card>
+        ) : (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {userPosts.map((post) => (
+              <ProfilePostCell key={post.id} post={post} onPress={() => setCommentsPost(post)} />
+            ))}
+          </View>
+        )}
+
         {/* Actions */}
         <SectionHeader title="Cuenta" />
         <RowButton
@@ -234,7 +265,62 @@ export default function Profile() {
           Gmo Training App · v0.1.0
         </Text>
       </ScrollView>
+
+      <CommentSheet
+        visible={!!commentsPost}
+        postId={commentsPost?.id ?? null}
+        postOwnerId={commentsPost?.userId ?? null}
+        currentUserId={profile.id}
+        onClose={() => setCommentsPost(null)}
+      />
     </SafeAreaView>
+  );
+}
+
+function ProfilePostCell({ post, onPress }: { post: Post; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        {
+          width: '48%',
+          aspectRatio: 1,
+          borderRadius: radius.lg,
+          overflow: 'hidden',
+          backgroundColor: colors.bg.elevated,
+          borderWidth: 1,
+          borderColor: colors.border,
+        },
+        pressed && { opacity: 0.8 },
+      ]}
+    >
+      {post.photoUrl ? (
+        <Image source={{ uri: post.photoUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+      ) : (
+        <View style={{ flex: 1, padding: spacing.md, justifyContent: 'space-between' }}>
+          <Icon
+            name={
+              post.type === 'pr' ? 'trophy'
+              : post.type === 'rank_up' ? 'lightning'
+              : post.type === 'streak' ? 'fire'
+              : post.type === 'achievement' ? 'target'
+              : 'dumbbell'
+            }
+            size={20}
+            color={
+              post.type === 'pr' ? colors.accent.DEFAULT
+              : post.type === 'rank_up' ? colors.primary.DEFAULT
+              : post.type === 'streak' ? colors.accent.DEFAULT
+              : post.type === 'achievement' ? colors.info.DEFAULT
+              : colors.primary.DEFAULT
+            }
+          />
+          <Text variant="caption" weight="semibold" numberOfLines={3}>
+            {post.title ?? post.caption ?? ''}
+          </Text>
+        </View>
+      )}
+    </Pressable>
   );
 }
 

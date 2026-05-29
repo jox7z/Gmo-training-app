@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { View, Pressable, ScrollView, RefreshControl, useWindowDimensions, Alert } from 'react-native';
+import { View, Pressable, ScrollView, RefreshControl, useWindowDimensions, Alert, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -8,8 +9,10 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, type RankId } from '@/theme/tokens';
 import { useAppStore, type Unit } from '@/store/app';
+import { useLeaderboard, type LeaderboardEntry } from '@/lib/queries/social';
+import { Avatar } from '@/components/Avatar';
 import { useProgressSummary, useProgressTimeline } from '@/lib/queries/progress';
 import {
   formatDuration,
@@ -46,18 +49,23 @@ export default function ProgressScreen() {
   const bodyMeasurementsQuery = useBodyMeasurements();
   const bodyTimelineQuery = useBodyTimeline('90d');
 
+  const currentRank = rankFromPoints(profile?.rankPoints ?? 0);
+  const leaderboardQuery = useLeaderboard(currentRank.id);
+
   const summary: ProgressSummary | undefined = summaryQuery.data;
 
   const refreshing =
     summaryQuery.isRefetching ||
     timelineQuery.isRefetching ||
     bodyMeasurementsQuery.isRefetching ||
-    bodyTimelineQuery.isRefetching;
+    bodyTimelineQuery.isRefetching ||
+    leaderboardQuery.isRefetching;
   const onRefresh = () => {
     summaryQuery.refetch();
     timelineQuery.refetch();
     bodyMeasurementsQuery.refetch();
     bodyTimelineQuery.refetch();
+    leaderboardQuery.refetch();
   };
 
   return (
@@ -144,6 +152,16 @@ export default function ProgressScreen() {
           timeline={bodyTimelineQuery.data ?? []}
           unit={profile?.unit ?? 'kg'}
           onAdd={() => router.push('/body/new')}
+        />
+
+        <RanksSection currentPoints={profile?.rankPoints ?? 0} />
+
+        <LeaderboardSection
+          rankId={currentRank.id}
+          entries={leaderboardQuery.data ?? []}
+          loading={leaderboardQuery.isLoading}
+          isError={leaderboardQuery.isError}
+          currentUserId={profile?.id}
         />
       </ScrollView>
     </SafeAreaView>
@@ -670,4 +688,253 @@ function WeightTimelineCard({ data, unit }: { data: BodyTimelinePoint[]; unit: U
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// =====================================================
+// RANGOS Y LEADERBOARD
+// =====================================================
+
+function RanksSection({ currentPoints }: { currentPoints: number }) {
+  const current = rankFromPoints(currentPoints);
+  const next = nextRank(currentPoints);
+  const progressToNext = next
+    ? Math.min(1, (currentPoints - current.min) / (next.min - current.min))
+    : 1;
+
+  return (
+    <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text variant="heading">Rangos</Text>
+        <Text variant="caption" tone="muted" numeric>{currentPoints.toLocaleString()} pts</Text>
+      </View>
+
+      {/* Current rank progress card */}
+      <Card padding="lg">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden' }}>
+            <LinearGradient
+              colors={current.gradient}
+              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text weight="black" style={{ color: '#0B0B0B', fontSize: 18 }}>
+                {current.label.charAt(0)}
+              </Text>
+            </LinearGradient>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text weight="bold" style={{ fontSize: 17 }}>{current.label}</Text>
+            {next ? (
+              <Text variant="caption" tone="muted">
+                {currentPoints}/{next.min} pts → {next.label}
+              </Text>
+            ) : (
+              <Text variant="caption" tone="accent">Rango máximo alcanzado</Text>
+            )}
+          </View>
+        </View>
+        {next && (
+          <View
+            style={{
+              height: 6,
+              backgroundColor: colors.bg.elevated,
+              borderRadius: radius.full,
+              marginTop: spacing.md,
+              overflow: 'hidden',
+            }}
+          >
+            <LinearGradient
+              colors={current.gradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                height: '100%',
+                width: `${progressToNext * 100}%`,
+                borderRadius: radius.full,
+              }}
+            />
+          </View>
+        )}
+      </Card>
+
+      {/* All ranks timeline — horizontal scroll */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.xs, paddingRight: spacing.sm }}>
+          {RANKS.map((rank) => {
+            const isCurrent = rank.id === current.id;
+            const isAchieved = currentPoints >= rank.min;
+            return (
+              <View
+                key={rank.id}
+                style={{
+                  width: 72,
+                  alignItems: 'center',
+                  opacity: isAchieved ? 1 : 0.4,
+                }}
+              >
+                <View
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 26,
+                    overflow: 'hidden',
+                    borderWidth: isCurrent ? 2.5 : 1,
+                    borderColor: isCurrent ? rank.color : colors.border,
+                  }}
+                >
+                  <LinearGradient
+                    colors={rank.gradient}
+                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    {isAchieved ? (
+                      <Text weight="black" style={{ color: '#0B0B0B', fontSize: 15 }}>
+                        {rank.label.charAt(0)}
+                      </Text>
+                    ) : (
+                      <Icon name="lock" size={14} color="#0B0B0B" />
+                    )}
+                  </LinearGradient>
+                </View>
+                <Text
+                  variant="caption"
+                  weight={isCurrent ? 'bold' : 'regular'}
+                  style={{ marginTop: spacing.xs, textAlign: 'center', fontSize: 11 }}
+                >
+                  {rank.label}
+                </Text>
+                <Text
+                  variant="caption"
+                  tone={isCurrent ? 'accent' : 'muted'}
+                  style={{ fontSize: 9, textAlign: 'center' }}
+                >
+                  {isCurrent ? 'ACTUAL' : isAchieved ? '✓' : `${rank.min >= 1000 ? `${rank.min / 1000}k` : rank.min}pts`}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+function LeaderboardSection({
+  rankId,
+  entries,
+  loading,
+  isError,
+  currentUserId,
+}: {
+  rankId: RankId;
+  entries: LeaderboardEntry[];
+  loading: boolean;
+  isError: boolean;
+  currentUserId?: string;
+}) {
+  const rankInfo = RANKS.find((r) => r.id === rankId) ?? RANKS[0];
+
+  return (
+    <View style={{ marginTop: spacing.xl, gap: spacing.md, marginBottom: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text variant="heading">Leaderboard</Text>
+        <View
+          style={{
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 4,
+            borderRadius: radius.full,
+            backgroundColor: `${rankInfo.color}22`,
+            borderWidth: 1,
+            borderColor: `${rankInfo.color}44`,
+          }}
+        >
+          <Text variant="caption" weight="bold" style={{ color: rankInfo.color }}>
+            {rankInfo.label}
+          </Text>
+        </View>
+      </View>
+
+      <Card padding="md">
+        {loading ? (
+          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+            <Text variant="caption" tone="muted">Cargando leaderboard…</Text>
+          </View>
+        ) : isError || entries.length === 0 ? (
+          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+            <Icon name="trophy" size={28} color={colors.text.muted} />
+            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
+              Sin datos para este rango
+            </Text>
+          </View>
+        ) : (
+          <View>
+            {entries.map((entry, i) => (
+              <LeaderboardRow
+                key={entry.id}
+                entry={entry}
+                position={i + 1}
+                isMe={entry.id === currentUserId}
+                showDivider={i < entries.length - 1}
+              />
+            ))}
+          </View>
+        )}
+      </Card>
+    </View>
+  );
+}
+
+function LeaderboardRow({
+  entry,
+  position,
+  isMe,
+  showDivider,
+}: {
+  entry: LeaderboardEntry;
+  position: number;
+  isMe: boolean;
+  showDivider: boolean;
+}) {
+  const entryRankColor = RANKS.find((r) => r.id === entry.currentRank)?.color ?? colors.text.muted;
+  const posColor =
+    position === 1 ? '#FFD700'
+    : position === 2 ? '#C0C0C0'
+    : position === 3 ? '#CD7F32'
+    : colors.text.muted;
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.xs,
+        borderBottomWidth: showDivider ? 1 : 0,
+        borderBottomColor: colors.border,
+        backgroundColor: isMe ? colors.primary.muted : 'transparent',
+        borderRadius: isMe ? radius.md : 0,
+      }}
+    >
+      <Text
+        weight="bold"
+        numeric
+        style={{ width: 28, color: posColor, textAlign: 'center', fontSize: 13 }}
+      >
+        {position}
+      </Text>
+      <Avatar
+        uri={entry.avatarUrl}
+        name={entry.displayName}
+        size={36}
+        borderColor={entryRankColor}
+      />
+      <View style={{ flex: 1, marginLeft: spacing.sm }}>
+        <Text weight="semibold" numberOfLines={1}>
+          {entry.displayName}{isMe ? ' (tú)' : ''}
+        </Text>
+        <Text variant="caption" tone="muted">@{entry.username}</Text>
+      </View>
+      <Text variant="caption" weight="bold" numeric style={{ color: entryRankColor }}>
+        {entry.rankPoints.toLocaleString()}
+      </Text>
+    </View>
+  );
 }

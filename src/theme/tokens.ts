@@ -98,12 +98,15 @@ export const shadow = {
 };
 
 export const RANKS = [
-  { id: 'bronze', label: 'Bronze', min: 0, color: '#CD7F32', gradient: ['#A05A23', '#CD7F32'] as [string, string] },
-  { id: 'silver', label: 'Silver', min: 100, color: '#C0C0C0', gradient: ['#8E8E93', '#D1D1D6'] as [string, string] },
-  { id: 'gold', label: 'Gold', min: 300, color: '#FFD700', gradient: ['#B8860B', '#FFD700'] as [string, string] },
-  { id: 'platinum', label: 'Platinum', min: 700, color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] as [string, string] },
-  { id: 'elite', label: 'Elite', min: 1500, color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] as [string, string] },
-  { id: 'legend', label: 'Legend', min: 3000, color: '#FF7A00', gradient: ['#FF3B3B', '#FF7A00'] as [string, string] },
+  { id: 'rookie',   label: 'Rookie',   min: 0,     color: '#9CA3AF', gradient: ['#6B7280', '#9CA3AF'] as [string, string] },
+  { id: 'bronze',   label: 'Bronze',   min: 200,   color: '#CD7F32', gradient: ['#A05A23', '#CD7F32'] as [string, string] },
+  { id: 'silver',   label: 'Silver',   min: 500,   color: '#C0C0C0', gradient: ['#8E8E93', '#D1D1D6'] as [string, string] },
+  { id: 'gold',     label: 'Gold',     min: 1000,  color: '#FFD700', gradient: ['#B8860B', '#FFD700'] as [string, string] },
+  { id: 'platinum', label: 'Platinum', min: 2000,  color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] as [string, string] },
+  { id: 'diamond',  label: 'Diamond',  min: 4000,  color: '#00D4FF', gradient: ['#0066FF', '#00D4FF'] as [string, string] },
+  { id: 'elite',    label: 'Elite',    min: 7000,  color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] as [string, string] },
+  { id: 'titan',    label: 'Titan',    min: 12000, color: '#8B5CF6', gradient: ['#6D28D9', '#8B5CF6'] as [string, string] },
+  { id: 'olympus',  label: 'Olympus',  min: 20000, color: '#FF7A00', gradient: ['#FF3B3B', '#FF7A00'] as [string, string] },
 ] as const;
 
 export type RankInfo = (typeof RANKS)[number];

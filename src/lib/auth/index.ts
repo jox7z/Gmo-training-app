@@ -94,6 +94,13 @@ export async function getCurrentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
+export async function getCurrentUser(): Promise<{ id: string; email: string } | null> {
+  if (!isSupabaseConfigured) return null;
+  const { data } = await supabase.auth.getUser();
+  if (!data.user) return null;
+  return { id: data.user.id, email: data.user.email ?? '' };
+}
+
 export async function isProfileComplete(userId: string): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
   const { data, error } = await supabase.rpc('is_profile_complete', { uid: userId });

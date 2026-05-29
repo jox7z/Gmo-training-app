@@ -22,6 +22,7 @@ export interface NotificationSettings {
 
 export interface UserProfile {
   id: string;
+  email?: string;
   username: string;
   displayName: string;
   fullName?: string;
@@ -84,8 +85,8 @@ const defaultProfile = (id = LOCAL_USER_ID): UserProfile => ({
   level: 'intermediate',
   goal: 'hypertrophy',
   weeklyGoalDays: 4,
-  rankPoints: 120,
-  currentRank: 'silver',
+  rankPoints: 0,
+  currentRank: 'rookie',
   privacy: { profilePublic: true, showActivity: true, showStats: true },
   notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
 });
@@ -210,12 +211,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
 function migrateProfile(p: any): UserProfile {
   const def = defaultProfile(p?.id ?? LOCAL_USER_ID);
-  return {
+  const profile = {
     ...def,
     ...p,
     privacy: { ...def.privacy, ...(p?.privacy ?? {}) },
     notifications: { ...def.notifications, ...(p?.notifications ?? {}) },
   };
+  if ((profile.currentRank as string) === 'legend') profile.currentRank = 'olympus';
+  return profile;
 }
 
 async function persist(state: AppState) {

@@ -3,6 +3,7 @@ import { UserProfile } from '@/store/app';
 
 interface DbProfile {
   id: string;
+  email?: string | null;
   username: string;
   display_name: string;
   weight_kg: number | null;
@@ -18,6 +19,7 @@ interface DbProfile {
 function toApp(row: DbProfile): UserProfile {
   return {
     id: row.id,
+    email: row.email ?? undefined,
     username: row.username,
     displayName: row.display_name,
     fullName: '',
@@ -42,6 +44,7 @@ function toApp(row: DbProfile): UserProfile {
 function toDb(p: UserProfile): DbProfile {
   return {
     id: p.id,
+    ...(p.email ? { email: p.email } : {}),
     username: p.username,
     display_name: p.displayName,
     weight_kg: p.weightKg,

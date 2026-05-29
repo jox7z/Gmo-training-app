@@ -22,6 +22,11 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 SystemUI.setBackgroundColorAsync(colors.bg.base).catch(() => {});
 
 const AUTH_TIMEOUT_MS = 3000;
+const PROFILE_CHECK_TIMEOUT_MS = 5000;
+
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,9 +74,16 @@ export default function RootLayout() {
         clearTimeout(timer);
         console.log('[RootLayout] getSession OK, hasSession =', !!session);
         setHasSession(!!session);
+        // Mark auth checked NOW so the 3-second guard doesn't need to cover
+        // the isProfileComplete RPC — that call gets its own timeout below.
+        setAuthChecked(true);
         if (session) {
           try {
-            const ok = await isProfileComplete(session.user.id);
+            const ok = await withTimeout(
+              isProfileComplete(session.user.id),
+              PROFILE_CHECK_TIMEOUT_MS,
+              false,
+            );
             if (!cancelled) {
               setProfileComplete(ok);
               if (ok) void markOnboarded();
@@ -80,7 +92,6 @@ export default function RootLayout() {
             if (!cancelled) setProfileComplete(false);
           }
         }
-        setAuthChecked(true);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -110,7 +121,11 @@ export default function RootLayout() {
       // Recalcula profileComplete en cada SIGNED_IN / USER_UPDATED / etc.
       // Es la única vía: no se llama por cada cambio de segmento.
       try {
-        const ok = await isProfileComplete(session.user.id);
+        const ok = await withTimeout(
+          isProfileComplete(session.user.id),
+          PROFILE_CHECK_TIMEOUT_MS,
+          false,
+        );
         setProfileComplete(ok);
         if (ok) void markOnboarded();
       } catch {

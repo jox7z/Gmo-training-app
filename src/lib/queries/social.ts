@@ -6,6 +6,7 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { type RankId } from '@/theme/tokens';
 import {
   follow as followRepo,
   unfollow as unfollowRepo,
@@ -158,6 +159,39 @@ export function useFollow() {
       qc.invalidateQueries({ queryKey: ['feed', 'list'] });
       qc.invalidateQueries({ queryKey: ['search', 'users'] });
     },
+  });
+}
+
+export interface LeaderboardEntry {
+  id: string;
+  username: string;
+  displayName: string;
+  currentRank: RankId;
+  rankPoints: number;
+  avatarUrl?: string;
+}
+
+export function useLeaderboard(rankId: RankId | undefined) {
+  return useQuery({
+    queryKey: ['leaderboard', rankId] as const,
+    queryFn: async (): Promise<LeaderboardEntry[]> => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, current_rank, rank_points, avatar_url')
+        .eq('current_rank', rankId!)
+        .order('rank_points', { ascending: false })
+        .limit(20);
+      if (error) throw error;
+      return ((data ?? []) as any[]).map((row) => ({
+        id: row.id,
+        username: row.username,
+        displayName: row.display_name,
+        currentRank: row.current_rank as RankId,
+        rankPoints: row.rank_points,
+        avatarUrl: row.avatar_url ?? undefined,
+      }));
+    },
+    enabled: !!rankId,
   });
 }
 
