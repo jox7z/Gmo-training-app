@@ -5,6 +5,7 @@ import {
   addMeasurement,
   deleteMeasurement,
   type BodyMeasurement,
+  type AddMeasurementResult,
 } from '@/lib/repos/body';
 
 export type BodyPeriod = '7d' | '30d' | '90d' | 'all';
@@ -62,13 +63,15 @@ export function useBodyTimeline(period: BodyPeriod = '90d') {
 
 export function useAddMeasurement() {
   const qc = useQueryClient();
-  return useMutation<string, Error, Omit<BodyMeasurement, 'id'>>({
+  return useMutation<AddMeasurementResult, Error, Omit<BodyMeasurement, 'id'>>({
     mutationFn: (m) => addMeasurement(m),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: bodyKeys.all });
     },
   });
 }
+
+export type { AddMeasurementResult };
 
 export function useDeleteMeasurement() {
   const qc = useQueryClient();

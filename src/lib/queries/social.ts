@@ -13,7 +13,9 @@ import {
   listFollowing,
   listFollowers,
   isFollowing as isFollowingRepo,
+  listGlobalLeaderboard,
   type FollowProfile,
+  type GlobalRankEntry,
 } from '@/lib/repos/social';
 import { listUserPosts, type FeedPage } from '@/lib/repos/posts';
 import { profileCountersKey, type ProfileCounters } from '@/lib/queries/profile';
@@ -192,6 +194,16 @@ export function useLeaderboard(rankId: RankId | undefined) {
       }));
     },
     enabled: !!rankId,
+  });
+}
+
+export type { GlobalRankEntry };
+
+export function useGlobalLeaderboard(limit = 50) {
+  return useQuery({
+    queryKey: ['leaderboard', 'global', limit] as const,
+    queryFn: () => listGlobalLeaderboard(limit),
+    staleTime: 30_000,
   });
 }
 

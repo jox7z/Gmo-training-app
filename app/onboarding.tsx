@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,8 +14,11 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { completeSignup, getCurrentUserId, getCurrentUser, checkUsernameAvailable, AuthError, AuthErrorCode } from '@/lib/auth';
 import { upsertProfile } from '@/lib/repos/profile';
 import { isUsernameValid } from '@/lib/passwordPolicy';
+import { routineOptions, RoutineOption } from '@/lib/routineGenerator';
+import { useRoutinesStore } from '@/store/routines';
+import { saveRoutine } from '@/lib/repos/routines';
 
-const STEPS = ['welcome', 'profile', 'level', 'goal', 'frequency', 'final'] as const;
+const STEPS = ['welcome', 'profile', 'level', 'goal', 'frequency', 'routine', 'final'] as const;
 type Step = (typeof STEPS)[number];
 
 export default function Onboarding() {
@@ -38,6 +41,11 @@ export default function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [usernameOverride, setUsernameOverride] = useState<string | null>(null);
+
+  const options = useMemo(() => routineOptions({ days, goal, level }), [days, goal, level]);
+  const [selectedRoutineIdx, setSelectedRoutineIdx] = useState(0);
+  // Reset selection to 0 whenever options change (days/goal/level changed)
+  useEffect(() => { setSelectedRoutineIdx(0); }, [options]);
 
   // Validación debounced de username contra la RPC. Solo dispara el RPC
   // cuando el formato local ya es válido — evita pedir al backend que
@@ -138,6 +146,18 @@ export default function Onboarding() {
       }
 
       await setProfile(profileData);
+
+      // Upsert chosen routine
+      const chosenOption = options[selectedRoutineIdx] ?? options[0];
+      if (chosenOption) {
+        const { upsertRoutine, setActiveRoutine } = useRoutinesStore.getState();
+        upsertRoutine(chosenOption.routine);
+        setActiveRoutine(chosenOption.routine.id);
+        if (isSupabaseConfigured && userId !== LOCAL_USER_ID) {
+          saveRoutine(userId, chosenOption.routine).catch(() => {});
+        }
+      }
+
       await completeOnboarding();
       router.replace('/(tabs)');
     } finally {
@@ -320,25 +340,42 @@ export default function Onboarding() {
           </Section>
         )}
 
+        {step === 'routine' && (
+          <Section title="Elige tu rutina" subtitle="Puedes editarla después cuando quieras">
+            {options.map((opt, i) => (
+              <ChoiceCard
+                key={opt.routine.id}
+                selected={selectedRoutineIdx === i}
+                onPress={() => setSelectedRoutineIdx(i)}
+                icon={i === 0 ? 'trophy' : i === 1 ? 'dumbbell' : 'lightning'}
+                iconColor={i === 0 ? colors.primary.DEFAULT : i === 1 ? colors.info.DEFAULT : colors.accent.DEFAULT}
+                title={opt.label}
+                desc={opt.summary}
+              />
+            ))}
+          </Section>
+        )}
+
         {step === 'final' && (
           <Section title="¡Todo listo!" subtitle="Tu primer paso comienza ahora.">
             <Card variant="glow" padding="xl" style={{ marginTop: spacing.lg }}>
               <Text variant="heading" tone="brand">Tu plan</Text>
               <Text variant="body" tone="secondary" style={{ marginTop: spacing.sm }}>
                 Empezarás en rango <Text tone="accent" weight="bold">Bronze</Text> con meta de{' '}
-                <Text weight="bold">{days} días/semana</Text>. Usa la rutina sugerida o crea la tuya.
+                <Text weight="bold">{days} días/semana</Text>.
               </Text>
             </Card>
-            <Card padding="lg" style={{ marginTop: spacing.md }}>
-              <Text variant="label" tone="muted">Recomendación</Text>
-              <Text variant="body" style={{ marginTop: 6 }}>
-                {goal === 'strength' && 'Split Upper/Lower 4 días con bajas reps.'}
-                {goal === 'hypertrophy' && days >= 5 && 'PPL (Push/Pull/Legs) con volumen moderado-alto.'}
-                {goal === 'hypertrophy' && days < 5 && 'Upper/Lower o Full Body 3-4 días.'}
-                {goal === 'fat_loss' && 'Full body con énfasis en compuestos + cardio.'}
-                {goal === 'general' && 'Full body 3 días, simple y sostenible.'}
-              </Text>
-            </Card>
+            {(options[selectedRoutineIdx] ?? options[0]) && (
+              <Card padding="lg" style={{ marginTop: spacing.md }}>
+                <Text variant="label" tone="muted">Rutina seleccionada</Text>
+                <Text variant="heading" style={{ marginTop: 4 }}>
+                  {(options[selectedRoutineIdx] ?? options[0]).label}
+                </Text>
+                <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>
+                  {(options[selectedRoutineIdx] ?? options[0]).summary}
+                </Text>
+              </Card>
+            )}
             {usernameOverride !== null && (
               <Input
                 label="Username"

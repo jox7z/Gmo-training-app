@@ -91,6 +91,43 @@ export async function listFollowers(userId: string): Promise<FollowProfile[]> {
   return ((data ?? []) as DbFollowRow[]).map(toFollowProfile);
 }
 
+export interface GlobalRankEntry {
+  id: string;
+  username: string;
+  displayName: string;
+  currentRank: RankId;
+  rankPoints: number;
+  avatarUrl?: string;
+  isFollowing: boolean;
+  isMe: boolean;
+}
+
+interface DbGlobalRankRow {
+  id: string;
+  username: string;
+  display_name: string;
+  current_rank: string;
+  rank_points: number;
+  avatar_url: string | null;
+  is_following: boolean;
+  is_me: boolean;
+}
+
+export async function listGlobalLeaderboard(limit = 50): Promise<GlobalRankEntry[]> {
+  const { data, error } = await supabase.rpc('global_leaderboard', { lim: limit });
+  if (error) throw error;
+  return ((data ?? []) as DbGlobalRankRow[]).map((row) => ({
+    id: row.id,
+    username: row.username,
+    displayName: row.display_name,
+    currentRank: row.current_rank as RankId,
+    rankPoints: row.rank_points,
+    avatarUrl: row.avatar_url ?? undefined,
+    isFollowing: row.is_following,
+    isMe: row.is_me,
+  }));
+}
+
 export async function isFollowing(targetUserId: string): Promise<boolean> {
   const { data: auth } = await supabase.auth.getUser();
   const me = auth.user?.id;

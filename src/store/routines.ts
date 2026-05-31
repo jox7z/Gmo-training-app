@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { uuidv4 } from '@/lib/ids';
 
 export interface RoutineDayExercise {
   id: string;
@@ -42,75 +43,43 @@ interface State {
 const KEY = 'gmo:routines:v1';
 
 export function nid() {
-  return Math.random().toString(36).slice(2, 10);
+  return uuidv4();
 }
 
-const seedRoutine: Routine = {
-  id: 'seed-ppl',
-  name: 'Push / Pull / Legs (PPL)',
-  description: 'Split clásico de 6 días para hipertrofia.',
-  splitType: 'ppl',
-  isAiGenerated: false,
-  createdAt: new Date().toISOString(),
-  days: [
-    {
-      id: nid(),
-      name: 'Push',
-      exercises: [
-        { id: nid(), exerciseId: 'bench-press', targetSets: 4, targetRepsMin: 6, targetRepsMax: 10, restSeconds: 120 },
-        { id: nid(), exerciseId: 'overhead-press', targetSets: 3, targetRepsMin: 8, targetRepsMax: 12, restSeconds: 90 },
-        { id: nid(), exerciseId: 'incline-db-press', targetSets: 3, targetRepsMin: 10, targetRepsMax: 12, restSeconds: 75 },
-        { id: nid(), exerciseId: 'lateral-raise', targetSets: 4, targetRepsMin: 12, targetRepsMax: 15, restSeconds: 60 },
-        { id: nid(), exerciseId: 'triceps-pushdown', targetSets: 3, targetRepsMin: 10, targetRepsMax: 15, restSeconds: 60 },
-      ],
-    },
-    {
-      id: nid(),
-      name: 'Pull',
-      exercises: [
-        { id: nid(), exerciseId: 'deadlift', targetSets: 3, targetRepsMin: 5, targetRepsMax: 6, restSeconds: 180 },
-        { id: nid(), exerciseId: 'pull-up', targetSets: 4, targetRepsMin: 6, targetRepsMax: 10, restSeconds: 120 },
-        { id: nid(), exerciseId: 'barbell-row', targetSets: 3, targetRepsMin: 8, targetRepsMax: 10, restSeconds: 90 },
-        { id: nid(), exerciseId: 'face-pull', targetSets: 3, targetRepsMin: 12, targetRepsMax: 15, restSeconds: 60 },
-        { id: nid(), exerciseId: 'biceps-curl', targetSets: 3, targetRepsMin: 10, targetRepsMax: 12, restSeconds: 60 },
-      ],
-    },
-    {
-      id: nid(),
-      name: 'Legs',
-      exercises: [
-        { id: nid(), exerciseId: 'squat', targetSets: 4, targetRepsMin: 6, targetRepsMax: 8, restSeconds: 180 },
-        { id: nid(), exerciseId: 'romanian-deadlift', targetSets: 3, targetRepsMin: 8, targetRepsMax: 10, restSeconds: 120 },
-        { id: nid(), exerciseId: 'leg-press', targetSets: 3, targetRepsMin: 10, targetRepsMax: 12, restSeconds: 90 },
-        { id: nid(), exerciseId: 'leg-curl', targetSets: 3, targetRepsMin: 12, targetRepsMax: 15, restSeconds: 60 },
-        { id: nid(), exerciseId: 'standing-calf', targetSets: 4, targetRepsMin: 12, targetRepsMax: 15, restSeconds: 45 },
-      ],
-    },
-  ],
-};
-
 export const useRoutinesStore = create<State>((set, get) => ({
-  routines: [seedRoutine],
-  activeRoutineId: 'seed-ppl',
+  routines: [],
+  activeRoutineId: null,
 
   hydrate: async () => {
     const raw = await AsyncStorage.getItem(KEY);
+    let routines: Routine[] = [];
+    let activeRoutineId: string | null = null;
+
     if (raw) {
       const data = JSON.parse(raw);
-      set({
-        routines: data.routines?.length ? data.routines : [seedRoutine],
-        activeRoutineId: data.activeRoutineId ?? 'seed-ppl',
-      });
+      routines = (data.routines ?? []).filter((r: Routine) => r.id !== 'seed-ppl');
+      activeRoutineId = data.activeRoutineId ?? null;
     }
+
+    // Migration: if activeRoutineId was seed-ppl or no longer exists, pick first or null
+    if (activeRoutineId === 'seed-ppl' || !routines.find((r) => r.id === activeRoutineId)) {
+      activeRoutineId = routines.length > 0 ? routines[0].id : null;
+    }
+
+    set({ routines, activeRoutineId });
+    // Re-persist migrated result so seed never reappears
+    AsyncStorage.setItem(KEY, JSON.stringify({ routines, activeRoutineId })).catch(() => {});
   },
 
   upsertRoutine: (r) => {
-    const existing = get().routines.find((x) => x.id === r.id);
+    const existing = get().routines.some((x) => x.id === r.id);
+    // Una sola rutina por usuario: una rutina nueva reemplaza a la anterior;
+    // editar la existente (mismo id) la actualiza en sitio.
     const routines = existing
       ? get().routines.map((x) => (x.id === r.id ? r : x))
-      : [r, ...get().routines];
-    set({ routines });
-    AsyncStorage.setItem(KEY, JSON.stringify({ routines, activeRoutineId: get().activeRoutineId })).catch(() => {});
+      : [r];
+    set({ routines, activeRoutineId: r.id });
+    AsyncStorage.setItem(KEY, JSON.stringify({ routines, activeRoutineId: r.id })).catch(() => {});
   },
 
   deleteRoutine: (id) => {

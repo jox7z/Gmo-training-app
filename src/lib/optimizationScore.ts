@@ -1,5 +1,6 @@
 import { Workout } from '@/store/workouts';
 import { UserProfile } from '@/store/app';
+import { Routine } from '@/store/routines';
 import { exerciseById } from '@/data/exercises';
 
 export interface OptimizationBreakdown {
@@ -160,6 +161,109 @@ function scoreVariety(history: Workout[]): number {
 
   if (total === 0) return 50;
   return Math.round((distinct.size / total) * 100);
+}
+
+// ---------------------------------------------------------------------------
+// Routine-structure optimization score (Goal 3)
+// ---------------------------------------------------------------------------
+
+export interface RoutineScoreBreakdown {
+  balance: number;
+  coverage: number;
+  volume: number;
+  frequency: number;
+  separation: number;
+}
+
+export interface RoutineScore {
+  score: number;
+  breakdown: RoutineScoreBreakdown;
+  weakGroups: string[];
+}
+
+const MAJOR_GROUPS = [
+  'chest', 'back', 'shoulders', 'biceps', 'triceps',
+  'quads', 'hamstrings', 'glutes', 'calves',
+] as const;
+
+export function computeRoutineScore(routine: Routine, profile: UserProfile): RoutineScore {
+  // Build weeklySets per muscle group across all routine days
+  const weeklySets: Record<string, number> = {};
+  for (const day of routine.days) {
+    for (const ex of day.exercises) {
+      const exercise = exerciseById(ex.exerciseId);
+      if (!exercise) continue;
+      const muscle = exercise.muscle;
+      weeklySets[muscle] = (weeklySets[muscle] ?? 0) + ex.targetSets;
+    }
+  }
+
+  const majorCounts = MAJOR_GROUPS.map((g) => weeklySets[g] ?? 0);
+  const trainedIndices = majorCounts.map((c, i) => ({ count: c, i })).filter((x) => x.count > 0);
+  const trainedCounts = trainedIndices.map((x) => x.count);
+
+  // coverage
+  const coverage = Math.round((trainedIndices.length / MAJOR_GROUPS.length) * 100);
+
+  // balance
+  let balance: number;
+  if (trainedCounts.length < 2) {
+    balance = 100;
+  } else {
+    const mean = trainedCounts.reduce((a, b) => a + b, 0) / trainedCounts.length;
+    const cv = mean === 0 ? 0 : stdDev(trainedCounts) / mean;
+    balance = Math.max(0, Math.min(100, Math.round(100 - cv * 80)));
+  }
+
+  // volume: trained groups with sets in [10, 20]
+  let volume: number;
+  if (trainedCounts.length === 0) {
+    volume = 0;
+  } else {
+    const inRange = trainedCounts.filter((c) => c >= 10 && c <= 20).length;
+    volume = Math.round((inRange / trainedCounts.length) * 100);
+  }
+
+  // frequency
+  const frequency = Math.max(0, Math.min(100, Math.round((routine.days.length / profile.weeklyGoalDays) * 100)));
+
+  // separation: violations = major group present on two consecutive ordered days
+  const dayGroupSets: Array<Set<string>> = routine.days.map((day) => {
+    const groups = new Set<string>();
+    for (const ex of day.exercises) {
+      const exercise = exerciseById(ex.exerciseId);
+      if (exercise && (MAJOR_GROUPS as readonly string[]).includes(exercise.muscle)) {
+        groups.add(exercise.muscle);
+      }
+    }
+    return groups;
+  });
+
+  let violations = 0;
+  for (let i = 1; i < dayGroupSets.length; i++) {
+    for (const group of dayGroupSets[i]) {
+      if (dayGroupSets[i - 1].has(group)) violations++;
+    }
+  }
+  const separation = Math.max(0, Math.min(100, Math.round(100 - violations * 15)));
+
+  const score = Math.round(
+    coverage * 0.25 +
+    balance * 0.25 +
+    volume * 0.20 +
+    frequency * 0.15 +
+    separation * 0.15,
+  );
+
+  // weakGroups: 2 MAJOR_GROUPS with lowest weeklySets (including 0)
+  const sorted = [...MAJOR_GROUPS].sort((a, b) => (weeklySets[a] ?? 0) - (weeklySets[b] ?? 0));
+  const weakGroups = sorted.slice(0, 2);
+
+  return {
+    score,
+    breakdown: { coverage, balance, volume, frequency, separation },
+    weakGroups,
+  };
 }
 
 export function computeOptimizationScore(

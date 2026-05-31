@@ -43,11 +43,54 @@ export async function listMeasurements(limit = 50): Promise<BodyMeasurement[]> {
   return ((data ?? []) as DbBodyMeasurement[]).map(toApp);
 }
 
-export async function addMeasurement(m: Omit<BodyMeasurement, 'id'>): Promise<string> {
+export interface AddMeasurementResult {
+  id: string;
+  /** true when an existing row for today was updated instead of inserted */
+  updated: boolean;
+}
+
+export async function addMeasurement(
+  m: Omit<BodyMeasurement, 'id'>,
+): Promise<AddMeasurementResult> {
   const { data: auth } = await supabase.auth.getUser();
   const userId = auth.user?.id;
   if (!userId) throw new Error('No authenticated user');
 
+  // Enforce one measurement per calendar day: check for an existing row today.
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const end = new Date();
+  end.setHours(23, 59, 59, 999);
+
+  const { data: existing } = await supabase
+    .from('body_measurements')
+    .select('id')
+    .eq('user_id', userId)
+    .gte('recorded_at', start.toISOString())
+    .lte('recorded_at', end.toISOString())
+    .order('recorded_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    // UPDATE the existing row for today
+    const { error } = await supabase
+      .from('body_measurements')
+      .update({
+        recorded_at: m.recordedAt,
+        weight_kg: m.weightKg,
+        body_fat_pct: m.bodyFatPct ?? null,
+        muscle_pct: m.musclePct ?? null,
+        water_pct: m.waterPct ?? null,
+        notes: m.notes ?? null,
+      })
+      .eq('id', existing.id);
+
+    if (error) throw error;
+    return { id: existing.id, updated: true };
+  }
+
+  // INSERT new row
   const { data, error } = await supabase
     .from('body_measurements')
     .insert({
@@ -63,7 +106,7 @@ export async function addMeasurement(m: Omit<BodyMeasurement, 'id'>): Promise<st
     .single();
 
   if (error) throw error;
-  return data.id;
+  return { id: data.id, updated: false };
 }
 
 export async function updateMeasurement(

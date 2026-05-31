@@ -2,6 +2,12 @@ import { Goal, Level } from '@/store/app';
 import { Routine, RoutineDay, nid } from '@/store/routines';
 import { EXERCISES } from '@/data/exercises';
 
+export interface RoutineOption {
+  routine: Routine;
+  label: string;
+  summary: string;
+}
+
 interface Input {
   level: Level;
   goal: Goal;
@@ -109,6 +115,69 @@ function labelGoal(goal: Goal): string {
     fat_loss: 'pérdida de grasa',
     general: 'salud general',
   }[goal];
+}
+
+/**
+ * Returns 2-3 candidate routine options for the given day count, goal and level.
+ * Each option has a complete Routine with uuid ids ready to upsert.
+ */
+export function routineOptions(input: { days: number; goal: Goal; level: Level }): RoutineOption[] {
+  const { days, goal, level } = input;
+
+  type SplitDef = { id: string; label: string; dayNames: string[] };
+
+  function makeOption(split: SplitDef): RoutineOption {
+    const routeDays = buildDays(split, goal, level);
+    const routine: Routine = {
+      id: nid(),
+      name: `${split.label}`,
+      description: `Rutina para ${labelGoal(goal)} (${level}).`,
+      splitType: split.id,
+      isAiGenerated: true,
+      aiReasoning: buildReasoning({ level, goal, daysPerWeek: days, weightKg: 75, heightCm: 175 }, split),
+      createdAt: new Date().toISOString(),
+      days: routeDays,
+    };
+    return {
+      routine,
+      label: split.label,
+      summary: `${days} días · ${split.dayNames.map((n) => n.toLowerCase()).join(' / ')}`,
+    };
+  }
+
+  if (days <= 2) {
+    return [
+      makeOption({ id: 'full_body', label: 'Full Body', dayNames: Array(days).fill(null).map((_, i) => `Full Body ${i + 1}`) }),
+    ];
+  }
+
+  if (days === 3) {
+    return [
+      makeOption({ id: 'full_body', label: 'Full Body', dayNames: ['Full Body 1', 'Full Body 2', 'Full Body 3'] }),
+      makeOption({ id: 'upper_lower_fb', label: 'Upper / Lower / Full', dayNames: ['Upper', 'Lower', 'Full Body'] }),
+    ];
+  }
+
+  if (days === 4) {
+    return [
+      makeOption({ id: 'upper_lower', label: 'Upper / Lower', dayNames: ['Upper A', 'Lower A', 'Upper B', 'Lower B'] }),
+      makeOption({ id: 'full_body_4', label: 'Full Body ×4', dayNames: ['Full Body 1', 'Full Body 2', 'Full Body 3', 'Full Body 4'] }),
+    ];
+  }
+
+  if (days === 5) {
+    return [
+      makeOption({ id: 'ppl_upper_lower', label: 'PPL + Upper/Lower', dayNames: ['Push', 'Pull', 'Legs', 'Upper', 'Lower'] }),
+      makeOption({ id: 'upper_lower_5', label: 'Upper/Lower ×5', dayNames: ['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Upper C'] }),
+      makeOption({ id: 'full_body_5', label: 'Full Body ×5', dayNames: ['Full Body 1', 'Full Body 2', 'Full Body 3', 'Full Body 4', 'Full Body 5'] }),
+    ];
+  }
+
+  // 6+ days
+  return [
+    makeOption({ id: 'ppl', label: 'Push / Pull / Legs', dayNames: ['Push A', 'Pull A', 'Legs A', 'Push B', 'Pull B', 'Legs B'] }),
+    makeOption({ id: 'upper_lower_6', label: 'Upper/Lower ×3', dayNames: ['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Upper C', 'Lower C'] }),
+  ];
 }
 
 function buildReasoning(input: Input, split: ReturnType<typeof pickSplit>): string {

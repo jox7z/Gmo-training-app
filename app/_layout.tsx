@@ -10,6 +10,8 @@ import 'react-native-url-polyfill/auto';
 
 import { colors } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
+import { useRoutinesStore } from '@/store/routines';
+import { useWorkoutsStore } from '@/store/workouts';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getProfile } from '@/lib/repos/profile';
 import { isProfileComplete } from '@/lib/auth';
@@ -53,9 +55,13 @@ export default function RootLayout() {
   // cada cambio de segmento (evita un RPC por navegación).
   const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
-  // 1. Hydrate AsyncStorage
+  // 1. Hydrate AsyncStorage (app + routines + workouts — local stores, not gated behind auth)
   useEffect(() => {
-    hydrate().finally(() => SplashScreen.hideAsync().catch(() => {}));
+    const routinesHydrate = useRoutinesStore.getState().hydrate;
+    const workoutsHydrate = useWorkoutsStore.getState().hydrate;
+    Promise.all([hydrate(), routinesHydrate(), workoutsHydrate()]).finally(() =>
+      SplashScreen.hideAsync().catch(() => {}),
+    );
   }, [hydrate]);
 
   // 2. Check initial Supabase session (with safety timeout for Android)
@@ -164,6 +170,7 @@ export default function RootLayout() {
       first === 'profile' ||
       first === 'publish' ||
       first === 'discover' ||
+      first === 'events' ||
       first === 'body';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
@@ -303,6 +310,11 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen name="discover" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="events/[id]" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen
+              name="events/new"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
             <Stack.Screen
               name="profile/[username]"
               options={{ animation: 'slide_from_right' }}

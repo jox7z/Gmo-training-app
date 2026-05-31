@@ -42,7 +42,7 @@ export async function saveWorkout(userId: string, w: Workout): Promise<void> {
     .insert({
       id: w.id,
       user_id: userId,
-      routine_day_id: w.routineDayId ?? null,
+      routine_day_id: null,
       started_at: w.startedAt,
       ended_at: w.endedAt ?? null,
       duration_seconds: w.durationSeconds ?? null,

@@ -183,10 +183,12 @@ export async function listUserPosts(
 export async function publishWorkout(
   workoutId: string,
   caption?: string,
+  photoUrl?: string,
 ): Promise<string> {
   const { data, error } = await supabase.rpc('publish_workout', {
     workout_id: workoutId,
     caption: caption ?? null,
+    photo_url: photoUrl ?? null,
   });
 
   if (error) throw error;
@@ -198,6 +200,7 @@ export interface PublishPRParams {
   weightKg: number;
   reps: number;
   caption?: string;
+  photoUrl?: string;
 }
 
 export async function publishPR(args: PublishPRParams): Promise<string> {
@@ -206,6 +209,7 @@ export async function publishPR(args: PublishPRParams): Promise<string> {
     weight_kg: args.weightKg,
     reps: args.reps,
     caption: args.caption ?? null,
+    photo_url: args.photoUrl ?? null,
   });
 
   if (error) throw error;

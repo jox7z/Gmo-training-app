@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Pressable, FlatList, TextInput, ActivityIndicator } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Pressable, FlatList, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -8,9 +8,21 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import { useSearchUsers, type SearchUserResult } from '@/lib/queries/search';
+import { useGlobalLeaderboard, type GlobalRankEntry } from '@/lib/queries/social';
+import { useEvents, type EventFilter } from '@/lib/queries/events';
+import { type CommunityEvent } from '@/lib/repos/events';
+import { EventCard } from '@/components/EventCard';
+
+type HubTab = 'search' | 'events' | 'ranking';
+
+const TABS: { key: HubTab; label: string; icon: IconName }[] = [
+  { key: 'search', label: 'Buscar', icon: 'search' },
+  { key: 'events', label: 'Eventos', icon: 'calendar' },
+  { key: 'ranking', label: 'Ranking', icon: 'trophy' },
+];
 
 function rankInfo(id: RankId) {
   return RANKS.find((r) => r.id === id) ?? RANKS[0];
@@ -18,35 +30,13 @@ function rankInfo(id: RankId) {
 
 export default function DiscoverScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const [input, setInput] = useState('');
-  const [query, setQuery] = useState('');
-  const inputRef = useRef<TextInput | null>(null);
-
-  // Autofocus al montar (con leve delay para Android).
-  useEffect(() => {
-    const t = setTimeout(() => inputRef.current?.focus(), 250);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Debounce 350ms: `query` solo se actualiza tras pausa de escritura.
-  useEffect(() => {
-    const handle = setTimeout(() => setQuery(input.trim()), 350);
-    return () => clearTimeout(handle);
-  }, [input]);
-
-  const searchQuery = useSearchUsers(query);
-
-  const results = searchQuery.data ?? [];
-  const showEmptyShortQuery = query.length < 2;
-  const showNoResults = !showEmptyShortQuery && !searchQuery.isLoading && results.length === 0;
-  const isSearching = !showEmptyShortQuery && (searchQuery.isLoading || searchQuery.isFetching);
+  const [tab, setTab] = useState<HubTab>('search');
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
-      {/* Header con search */}
+      {/* Header */}
       <View
         style={{
           paddingHorizontal: spacing.lg,
@@ -74,9 +64,105 @@ export default function DiscoverScreen() {
               <Icon name="chevron-left" size={18} color={colors.text.primary} />
             </View>
           </Pressable>
-          <Text variant="heading" style={{ flex: 1 }}>Descubrir</Text>
+          <Text variant="heading" style={{ flex: 1 }}>Comunidad</Text>
         </View>
 
+        {/* Segmented control */}
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: colors.bg.elevated,
+            borderRadius: radius.lg,
+            padding: 4,
+            borderWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          {TABS.map((t) => {
+            const active = tab === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => setTab(t.key)}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  gap: 6,
+                  paddingVertical: 8,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: radius.md,
+                  backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
+                }}
+              >
+                <Icon name={t.icon} size={15} color={active ? '#fff' : colors.text.muted} />
+                <Text weight="bold" style={{ fontSize: 13, color: active ? '#fff' : colors.text.secondary }}>
+                  {t.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      {tab === 'search' && <SearchTab />}
+      {tab === 'events' && <EventsTab />}
+      {tab === 'ranking' && <RankingTab />}
+    </SafeAreaView>
+  );
+}
+
+// =====================================================
+// BUSCAR — secciones agrupadas (Siguiendo / Descubrir)
+// =====================================================
+
+type SearchListItem =
+  | { kind: 'header'; title: string; count: number }
+  | { kind: 'user'; user: SearchUserResult };
+
+function SearchTab() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [input, setInput] = useState('');
+  const [query, setQuery] = useState('');
+  const inputRef = useRef<TextInput | null>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 250);
+    return () => clearTimeout(t);
+  }, []);
+
+  useEffect(() => {
+    const handle = setTimeout(() => setQuery(input.trim()), 350);
+    return () => clearTimeout(handle);
+  }, [input]);
+
+  const searchQuery = useSearchUsers(query);
+  const results = searchQuery.data ?? [];
+  const showEmptyShortQuery = query.length < 2;
+  const showNoResults = !showEmptyShortQuery && !searchQuery.isLoading && results.length === 0;
+  const isSearching = !showEmptyShortQuery && (searchQuery.isLoading || searchQuery.isFetching);
+
+  // Agrupar en "Siguiendo" / "Descubrir".
+  const items = useMemo<SearchListItem[]>(() => {
+    if (showEmptyShortQuery) return [];
+    const following = results.filter((u) => u.isFollowing);
+    const others = results.filter((u) => !u.isFollowing);
+    const out: SearchListItem[] = [];
+    if (following.length > 0) {
+      out.push({ kind: 'header', title: 'Siguiendo', count: following.length });
+      following.forEach((user) => out.push({ kind: 'user', user }));
+    }
+    if (others.length > 0) {
+      out.push({ kind: 'header', title: 'Descubrir', count: others.length });
+      others.forEach((user) => out.push({ kind: 'user', user }));
+    }
+    return out;
+  }, [results, showEmptyShortQuery]);
+
+  return (
+    <>
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
         <View
           style={{
             flexDirection: 'row',
@@ -99,12 +185,7 @@ export default function DiscoverScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
-            style={{
-              flex: 1,
-              color: colors.text.primary,
-              fontSize: 15,
-              paddingVertical: 12,
-            }}
+            style={{ flex: 1, color: colors.text.primary, fontSize: 15, paddingVertical: 12 }}
           />
           {input.length > 0 && (
             <Pressable onPress={() => setInput('')} hitSlop={6}>
@@ -115,17 +196,21 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-      <FlatList<SearchUserResult>
-        data={showEmptyShortQuery ? [] : results}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <ResultRow
-            user={item}
-            onOpen={() =>
-              router.push({ pathname: '/profile/[username]', params: { username: item.username } })
-            }
-          />
-        )}
+      <FlatList<SearchListItem>
+        data={items}
+        keyExtractor={(item, i) => (item.kind === 'header' ? `h-${item.title}` : `u-${item.user.id}-${i}`)}
+        renderItem={({ item }) =>
+          item.kind === 'header' ? (
+            <SectionHeader title={item.title} count={item.count} />
+          ) : (
+            <ResultRow
+              user={item.user}
+              onOpen={() =>
+                router.push({ pathname: '/profile/[username]', params: { username: item.user.username } })
+              }
+            />
+          )
+        }
         contentContainerStyle={{
           padding: spacing.lg,
           paddingBottom: insets.bottom + spacing.lg,
@@ -150,17 +235,28 @@ export default function DiscoverScreen() {
         }
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </>
   );
 }
 
-function ResultRow({
-  user,
-  onOpen,
-}: {
-  user: SearchUserResult;
-  onOpen: () => void;
-}) {
+function SectionHeader({ title, count }: { title: string; count: number }) {
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+        marginBottom: 2,
+      }}
+    >
+      <Text variant="label" tone="secondary">{title}</Text>
+      <Text variant="label" tone="muted">{count}</Text>
+    </View>
+  );
+}
+
+function ResultRow({ user, onOpen }: { user: SearchUserResult; onOpen: () => void }) {
   const info = rankInfo(user.currentRank);
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
@@ -183,12 +279,222 @@ function ResultRow({
   );
 }
 
+// =====================================================
+// EVENTOS
+// =====================================================
+
+const EVENT_FILTERS: { key: EventFilter; label: string }[] = [
+  { key: 'all', label: 'Todos' },
+  { key: 'challenge', label: 'Retos' },
+  { key: 'meetup', label: 'Quedadas' },
+  { key: 'joined', label: 'Inscrito' },
+  { key: 'mine', label: 'Míos' },
+];
+
+function EventsTab() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const [filter, setFilter] = useState<EventFilter>('all');
+  const eventsQuery = useEvents(filter);
+  const events = eventsQuery.data ?? [];
+
+  return (
+    <FlatList<CommunityEvent>
+      data={events}
+      keyExtractor={(e) => e.id}
+      renderItem={({ item }) => (
+        <EventCard event={item} onPress={() => router.push({ pathname: '/events/[id]', params: { id: item.id } })} />
+      )}
+      ListHeaderComponent={
+        <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
+          <Pressable
+            onPress={() => router.push('/events/new')}
+            style={({ pressed }) => [
+              {
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: spacing.sm,
+                paddingVertical: spacing.md,
+                borderRadius: radius.lg,
+                borderWidth: 1.5,
+                borderColor: colors.primary.DEFAULT,
+                backgroundColor: colors.primary.muted,
+              },
+              pressed && { opacity: 0.85 },
+            ]}
+          >
+            <Icon name="plus" size={18} color={colors.primary.DEFAULT} />
+            <Text weight="bold" tone="brand">Crear evento</Text>
+          </Pressable>
+
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              {EVENT_FILTERS.map((f) => {
+                const active = filter === f.key;
+                return (
+                  <Pressable
+                    key={f.key}
+                    onPress={() => setFilter(f.key)}
+                    style={{
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: 8,
+                      borderRadius: radius.full,
+                      borderWidth: 1,
+                      borderColor: active ? colors.primary.DEFAULT : colors.border,
+                      backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
+                    }}
+                  >
+                    <Text
+                      variant="caption"
+                      weight="bold"
+                      style={{ color: active ? colors.primary.DEFAULT : colors.text.secondary }}
+                    >
+                      {f.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      }
+      contentContainerStyle={{
+        padding: spacing.lg,
+        paddingBottom: insets.bottom + spacing.lg,
+        gap: spacing.sm,
+        flexGrow: 1,
+      }}
+      ListEmptyComponent={
+        eventsQuery.isLoading ? (
+          <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary.DEFAULT} />
+          </View>
+        ) : (
+          <EmptyState
+            icon="calendar"
+            title="Sin eventos por aquí"
+            subtitle="Aún no hay eventos en esta categoría. ¡Crea el primero y reúne a la comunidad!"
+          />
+        )
+      }
+      showsVerticalScrollIndicator={false}
+    />
+  );
+}
+
+// =====================================================
+// RANKING GLOBAL
+// =====================================================
+
+function RankingTab() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const leaderboardQuery = useGlobalLeaderboard(50);
+  const entries = leaderboardQuery.data ?? [];
+
+  return (
+    <FlatList<GlobalRankEntry>
+      data={entries}
+      keyExtractor={(e) => e.id}
+      renderItem={({ item, index }) => (
+        <RankingRow
+          entry={item}
+          position={index + 1}
+          onOpen={() =>
+            router.push({ pathname: '/profile/[username]', params: { username: item.username } })
+          }
+        />
+      )}
+      ListHeaderComponent={
+        entries.length > 0 ? (
+          <Text variant="label" tone="secondary" style={{ marginBottom: spacing.sm }}>
+            TOP ATLETAS · POR PUNTOS
+          </Text>
+        ) : null
+      }
+      contentContainerStyle={{
+        padding: spacing.lg,
+        paddingBottom: insets.bottom + spacing.lg,
+        gap: spacing.sm,
+        flexGrow: 1,
+      }}
+      ListEmptyComponent={
+        leaderboardQuery.isLoading ? (
+          <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary.DEFAULT} />
+          </View>
+        ) : (
+          <EmptyState
+            icon="trophy"
+            title="Sin ranking todavía"
+            subtitle="Cuando los atletas acumulen puntos aparecerán aquí en el top global."
+          />
+        )
+      }
+      showsVerticalScrollIndicator={false}
+    />
+  );
+}
+
+function RankingRow({
+  entry,
+  position,
+  onOpen,
+}: {
+  entry: GlobalRankEntry;
+  position: number;
+  onOpen: () => void;
+}) {
+  const info = rankInfo(entry.currentRank);
+  const posColor =
+    position === 1 ? '#FFD700'
+    : position === 2 ? '#C0C0C0'
+    : position === 3 ? '#CD7F32'
+    : colors.text.muted;
+
+  return (
+    <Pressable onPress={onOpen} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
+      <Card
+        padding="md"
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.sm,
+          backgroundColor: entry.isMe ? colors.primary.muted : undefined,
+        }}
+      >
+        <Text weight="black" numeric style={{ width: 30, textAlign: 'center', color: posColor }}>
+          {position}
+        </Text>
+        <Avatar uri={entry.avatarUrl} name={entry.displayName} size={42} borderColor={info.color} />
+        <View style={{ flex: 1 }}>
+          <Text weight="bold" numberOfLines={1}>
+            {entry.displayName}{entry.isMe ? ' (tú)' : ''}
+          </Text>
+          <Text variant="caption" tone="muted" numberOfLines={1}>@{entry.username}</Text>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text weight="bold" numeric style={{ color: info.color }}>
+            {entry.rankPoints.toLocaleString()}
+          </Text>
+          <Text variant="label" tone="muted" style={{ fontSize: 9 }}>{info.label}</Text>
+        </View>
+      </Card>
+    </Pressable>
+  );
+}
+
+// =====================================================
+// SHARED
+// =====================================================
+
 function EmptyState({
   icon,
   title,
   subtitle,
 }: {
-  icon: 'search' | 'users';
+  icon: IconName;
   title: string;
   subtitle: string;
 }) {
@@ -210,11 +516,7 @@ function EmptyState({
         <Icon name={icon} size={28} color={colors.text.secondary} />
       </View>
       <Text variant="heading" style={{ textAlign: 'center' }}>{title}</Text>
-      <Text
-        variant="caption"
-        tone="secondary"
-        style={{ marginTop: spacing.xs, textAlign: 'center' }}
-      >
+      <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
         {subtitle}
       </Text>
     </Card>

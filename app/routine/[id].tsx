@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { colors, spacing, radius } from '@/theme/tokens';
-import { useRoutinesStore, Routine, RoutineDay, nid } from '@/store/routines';
+import { useRoutinesStore, Routine, RoutineDay, RoutineDayExercise, nid } from '@/store/routines';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { saveRoutine } from '@/lib/repos/routines';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -81,6 +81,20 @@ export default function RoutineEditor() {
   const removeExercise = (exId: string) => {
     const days = routine.days.map((d, i) =>
       i === activeDayIdx ? { ...d, exercises: d.exercises.filter((e) => e.id !== exId) } : d,
+    );
+    setRoutine({ ...routine, days });
+  };
+
+  const updateExercise = (exId: string, patch: Partial<RoutineDayExercise>) => {
+    const days = routine.days.map((d, i) =>
+      i === activeDayIdx
+        ? {
+            ...d,
+            exercises: d.exercises.map((e) =>
+              e.id === exId ? { ...e, ...patch } : e,
+            ),
+          }
+        : d,
     );
     setRoutine({ ...routine, days });
   };
@@ -186,18 +200,21 @@ export default function RoutineEditor() {
             const ex = exerciseById(e.exerciseId);
             return (
               <Card key={e.id} padding="md" style={{ marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text weight="semibold">{ex?.name ?? e.exerciseId}</Text>
-                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: 4 }}>
-                      <Badge label={`${e.targetSets} sets`} tone="brand" />
-                      <Badge label={`${e.targetRepsMin}-${e.targetRepsMax} reps`} tone="info" />
-                      <Badge label={`${e.restSeconds}s rest`} tone="muted" />
-                    </View>
-                  </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
+                  <Text weight="semibold" style={{ flex: 1 }}>{ex?.name ?? e.exerciseId}</Text>
                   <Pressable onPress={() => removeExercise(e.id)} hitSlop={12}>
                     <Text tone="danger" variant="heading">✕</Text>
                   </Pressable>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                  <StepperField
+                    label="Sets"
+                    value={e.targetSets}
+                    min={1}
+                    max={20}
+                    step={1}
+                    onChange={(v) => updateExercise(e.id, { targetSets: v })}
+                  />
                 </View>
               </Card>
             );
@@ -221,6 +238,77 @@ export default function RoutineEditor() {
         onSelect={addExercise}
       />
     </Screen>
+  );
+}
+
+function StepperField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  format?: (v: number) => string;
+  onChange: (v: number) => void;
+}) {
+  const dec = () => onChange(Math.max(min, value - step));
+  const inc = () => onChange(Math.min(max, value + step));
+  const display = format ? format(value) : String(value);
+
+  return (
+    <View style={{ alignItems: 'center', minWidth: 72 }}>
+      <Text
+        variant="caption"
+        tone="muted"
+        style={{ marginBottom: 4, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}
+      >
+        {label}
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Pressable
+          onPress={dec}
+          hitSlop={8}
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            backgroundColor: colors.bg.elevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text weight="bold" style={{ fontSize: 14, lineHeight: 16, color: colors.text.primary }}>−</Text>
+        </Pressable>
+        <Text weight="bold" style={{ minWidth: 28, textAlign: 'center', fontSize: 13 }}>
+          {display}
+        </Text>
+        <Pressable
+          onPress={inc}
+          hitSlop={8}
+          style={{
+            width: 26,
+            height: 26,
+            borderRadius: 13,
+            backgroundColor: colors.bg.elevated,
+            borderWidth: 1,
+            borderColor: colors.border,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text weight="bold" style={{ fontSize: 14, lineHeight: 16, color: colors.text.primary }}>+</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 

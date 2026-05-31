@@ -134,7 +134,6 @@ export default function ProgressScreen() {
           <EmptyState />
         ) : (
           <>
-            <StatsGrid summary={summary} unit={profile?.unit ?? 'kg'} />
             <AveragesCard summary={summary} />
             <WorkoutsPerWeekCard
               workoutsPerWeek={summary.workoutsPerWeek}
@@ -165,44 +164,6 @@ export default function ProgressScreen() {
         />
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function StatsGrid({ summary, unit }: { summary: ProgressSummary; unit: 'kg' | 'lb' }) {
-  const items = [
-    { label: 'Tiempo activo', value: formatDuration(summary.totalActiveSeconds), icon: 'clock' as const, tone: colors.primary.DEFAULT },
-    { label: 'Repeticiones', value: summary.totalReps.toLocaleString(), icon: 'muscle' as const, tone: colors.accent.DEFAULT },
-    { label: 'Peso movido', value: formatWeight(summary.totalWeightKg, unit), icon: 'dumbbell' as const, tone: colors.info.DEFAULT },
-    { label: 'Descanso total', value: formatDuration(summary.totalRestSeconds), icon: 'route' as const, tone: colors.warning },
-  ];
-  return (
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-      {items.map((it) => (
-        <Card
-          key={it.label}
-          padding="lg"
-          style={{ width: '47%', flexGrow: 1 }}
-        >
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: `${it.tone}22`,
-              marginBottom: spacing.sm,
-            }}
-          >
-            <Icon name={it.icon} size={18} color={it.tone} />
-          </View>
-          <Text variant="caption" tone="muted">{it.label}</Text>
-          <Text variant="heading" weight="bold" numeric style={{ marginTop: 2 }}>
-            {it.value}
-          </Text>
-        </Card>
-      ))}
-    </View>
   );
 }
 
@@ -416,11 +377,11 @@ function BodySection({
           justifyContent: 'space-between',
         }}
       >
-        <Text variant="heading">Composición corporal</Text>
+        <Text variant="heading">Peso y progreso</Text>
       </View>
 
       <Button
-        title="Registrar medición"
+        title="Registrar peso de hoy"
         leftIcon={<Icon name="scale" size={18} color="#fff" />}
         onPress={onAdd}
         fullWidth

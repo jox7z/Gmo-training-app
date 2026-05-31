@@ -8,10 +8,13 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "tunnel": "expo start --tunnel",
+    "tunnel:clear": "expo start --tunnel -c"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
+    "@expo/ngrok": "^4.1.3",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@shopify/flash-list": "2.0.2",
     "@supabase/supabase-js": "^2.45.4",

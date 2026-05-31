@@ -140,12 +140,13 @@ export function useToggleReaction() {
 interface PublishWorkoutVars {
   workoutId: string;
   caption?: string;
+  photoUrl?: string;
 }
 
 export function usePublishWorkout() {
   const qc = useQueryClient();
   return useMutation<string, Error, PublishWorkoutVars>({
-    mutationFn: ({ workoutId, caption }) => publishWorkout(workoutId, caption),
+    mutationFn: ({ workoutId, caption, photoUrl }) => publishWorkout(workoutId, caption, photoUrl),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });

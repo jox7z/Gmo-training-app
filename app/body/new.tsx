@@ -95,8 +95,11 @@ export default function NewBodyMeasurement() {
         notes: notes.trim() || undefined,
       },
       {
-        onSuccess: () => {
-          toast.show({ message: 'Medición guardada', tone: 'success' });
+        onSuccess: (result) => {
+          toast.show({
+            message: result.updated ? 'Peso actualizado' : 'Medición guardada',
+            tone: 'success',
+          });
           close();
         },
         onError: (err) =>

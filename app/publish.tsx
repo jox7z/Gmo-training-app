@@ -30,7 +30,6 @@ import {
   usePublishPR,
 } from '@/lib/queries/feed';
 import { uploadPostPhoto } from '@/lib/storage/photos';
-import { setPostPhoto } from '@/lib/repos/posts';
 import { EXERCISES } from '@/data/exercises';
 import { useToast } from '@/components/ui/Toast';
 
@@ -145,7 +144,7 @@ function ManualComposer({
       return;
     }
     const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       quality: 0.85,
       allowsEditing: false,
     });
@@ -342,7 +341,7 @@ function WorkoutComposer({
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { onError('Necesitamos permiso para acceder a tus fotos.'); return; }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85, allowsEditing: false });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsEditing: false });
     if (res.canceled || !res.assets?.[0]) return;
     setPhotoUri(res.assets[0].uri);
   };
@@ -363,14 +362,9 @@ function WorkoutComposer({
       }
     }
     publish.mutate(
-      { workoutId: workout.id, caption: caption.trim() || undefined },
+      { workoutId: workout.id, caption: caption.trim() || undefined, photoUrl },
       {
-        onSuccess: async (postId) => {
-          if (photoUrl && postId) {
-            try { await setPostPhoto(postId, photoUrl); } catch {}
-          }
-          onSuccess('Entreno compartido');
-        },
+        onSuccess: () => onSuccess('Entreno compartido'),
         onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
       },
     );
@@ -557,7 +551,7 @@ function PrComposer({
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { onError('Necesitamos permiso para acceder a tus fotos.'); return; }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.85, allowsEditing: false });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsEditing: false });
     if (res.canceled || !res.assets?.[0]) return;
     setPhotoUri(res.assets[0].uri);
   };
@@ -578,14 +572,9 @@ function PrComposer({
       }
     }
     publish.mutate(
-      { exerciseId, weightKg: weightNum, reps: repsNum, caption: caption.trim() || undefined },
+      { exerciseId, weightKg: weightNum, reps: repsNum, caption: caption.trim() || undefined, photoUrl },
       {
-        onSuccess: async (postId) => {
-          if (photoUrl && postId) {
-            try { await setPostPhoto(postId, photoUrl); } catch {}
-          }
-          onSuccess('PR publicado');
-        },
+        onSuccess: () => onSuccess('PR publicado'),
         onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
       },
     );

@@ -25,7 +25,8 @@
       "Bash(kill %1)",
       "Bash(wait)",
       "Bash(node -e \"const pkg = require\\('./node_modules/expo-file-system/package.json'\\); console.log\\(pkg.version\\); console.log\\(JSON.stringify\\(Object.keys\\(pkg.exports || {}\\)\\)\\)\")",
-      "Bash(node -e \"const t = require\\('react-native-pager-view'\\); console.log\\(Object.keys\\(t\\)\\)\")"
+      "Bash(node -e \"const t = require\\('react-native-pager-view'\\); console.log\\(Object.keys\\(t\\)\\)\")",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

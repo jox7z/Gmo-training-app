@@ -44,7 +44,9 @@ function toApp(row: DbProfile): UserProfile {
 function toDb(p: UserProfile): DbProfile {
   return {
     id: p.id,
-    ...(p.email ? { email: p.email } : {}),
+    // NOTE: la tabla `profiles` desplegada no tiene columna `email` (el email
+    // vive en auth.users). Enviarlo provocaba un 400 en el upsert y el falso
+    // error "No pudimos guardar tu perfil" al terminar el onboarding.
     username: p.username,
     display_name: p.displayName,
     weight_kg: p.weightKg,

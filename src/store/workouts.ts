@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { uuidv4 } from '@/lib/ids';
 
 export interface SetEntry {
   id: string;
@@ -55,7 +56,7 @@ interface State {
 const KEY = 'gmo:workouts:v1';
 
 function nid() {
-  return Math.random().toString(36).slice(2, 10);
+  return uuidv4();
 }
 
 function calcVolume(w: Workout) {
