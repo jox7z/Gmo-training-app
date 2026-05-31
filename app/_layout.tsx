@@ -171,6 +171,7 @@ export default function RootLayout() {
       first === 'publish' ||
       first === 'discover' ||
       first === 'events' ||
+      first === 'notifications' ||
       first === 'body';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
@@ -310,6 +311,7 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen name="discover" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="events/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen
               name="events/new"

@@ -36,7 +36,7 @@ interface DbWorkoutSetRow {
   rest_after_seconds: number | null;
 }
 
-export async function saveWorkout(userId: string, w: Workout): Promise<void> {
+async function insertWorkoutRows(userId: string, w: Workout): Promise<void> {
   const { data: wRow, error: wErr } = await supabase
     .from('workouts')
     .insert({
@@ -86,6 +86,26 @@ export async function saveWorkout(userId: string, w: Workout): Promise<void> {
       if (sErr) throw sErr;
     }
   }
+}
+
+export async function saveWorkout(userId: string, w: Workout): Promise<void> {
+  return insertWorkoutRows(userId, w);
+}
+
+/**
+ * Idempotent: checks if the workout already exists in the DB before
+ * inserting. Safe to call multiple times (e.g. before publishing).
+ */
+export async function ensureWorkoutSynced(userId: string, w: Workout): Promise<void> {
+  const { data } = await supabase
+    .from('workouts')
+    .select('id')
+    .eq('id', w.id)
+    .maybeSingle();
+
+  if (data) return; // already synced
+
+  return insertWorkoutRows(userId, w);
 }
 
 export async function getWorkouts(userId: string): Promise<Workout[]> {

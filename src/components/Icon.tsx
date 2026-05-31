@@ -85,15 +85,35 @@ function renderIcon(name: IconName, c: string, filled = false) {
       );
 
     case 'muscle':
+      // Flexed bicep (Lucide "biceps-flexed"). El path anterior parecía
+      // una llama; este es un brazo flexionado reconocible.
       return (
-        <Path
-          d="M7 13.5c0 2.8 2.2 5.5 5 5.5s5-2.7 5-5.5c0-1.5-.6-3-1.8-4.5L14 8c-.4-1.3-2-3-2-3s-1.6 1.7-2 3l-1.2 1c-1.2 1.5-1.8 3-1.8 4.5z"
-          fill={filled ? c : 'none'}
-          stroke={c}
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <>
+          <Path
+            d="M12.409 13.017A5 5 0 0 1 22 15c0 3.866-4 7-9 7-4.077 0-8.153-.82-10.371-2.462-.426-.316-.631-.832-.62-1.362C2.118 12.723 2.627 2 4.4 2c1.42 0 2.108 5.06 2.471 7.957"
+            fill={filled ? c : 'none'}
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M15 14a5 5 0 0 0-7.584 2"
+            fill="none"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M9.964 6.825C8.019 7.977 9.5 13 8 15"
+            fill="none"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </>
       );
 
     case 'close':

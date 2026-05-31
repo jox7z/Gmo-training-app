@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, View, Pressable, Alert, TextInput, Dimensions } from 'react-native';
+import { Animated, View, Pressable, Alert, TextInput, Dimensions, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Stat } from '@/components/ui/Stat';
 import { colors, spacing, radius, fontSize } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
 import { useWorkoutsStore, Workout } from '@/store/workouts';
@@ -12,8 +15,11 @@ import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { exerciseById } from '@/data/exercises';
 import { formatDuration, toDisplay, fromDisplay } from '@/lib/units';
 import { Icon } from '@/components/Icon';
-import { saveWorkout } from '@/lib/repos/workouts';
+import { saveWorkout, ensureWorkoutSynced } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
+import { usePublishWorkout } from '@/lib/queries/feed';
+import { useToast } from '@/components/ui/Toast';
+import { findPreviousSession, comparePerExercise, detectPRs } from '@/lib/workoutCompare';
 
 const REST_GREEN_FROM = 120;
 const REST_GREEN_TO = 300;
@@ -439,7 +445,14 @@ export default function ActiveWorkout() {
     return (
       <Summary
         workout={summaryWorkout}
+        profile={profile}
         onClose={() => router.replace('/(tabs)')}
+        onPublishWithCaption={() =>
+          router.replace({
+            pathname: '/publish',
+            params: { mode: 'workout', workoutId: summaryWorkout.id },
+          })
+        }
       />
     );
   }
@@ -1067,8 +1080,22 @@ function BigNumeric({
 
 // ---- Summary screen ----
 
-function Summary({ workout, onClose }: { workout: Workout; onClose: () => void }) {
+function Summary({
+  workout,
+  profile,
+  onClose,
+  onPublishWithCaption,
+}: {
+  workout: Workout;
+  profile: ReturnType<typeof useAppStore.getState>['profile'];
+  onClose: () => void;
+  onPublishWithCaption: () => void;
+}) {
   const insets = useSafeAreaInsets();
+  const toast = useToast();
+  const history = useWorkoutsStore((s) => s.history);
+  const publishWorkout = usePublishWorkout();
+  const [publishing, setPublishing] = useState(false);
 
   // Success animation: ring scales+pulses in
   const ringScale   = useRef(new Animated.Value(0.4)).current;
@@ -1078,112 +1105,252 @@ function Summary({ workout, onClose }: { workout: Workout; onClose: () => void }
 
   useEffect(() => {
     Animated.sequence([
-      // Ring appears
       Animated.parallel([
-        Animated.spring(ringScale, {
-          toValue: 1,
-          friction: 5,
-          tension: 80,
-          useNativeDriver: true,
-        }),
-        Animated.timing(ringOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }),
+        Animated.spring(ringScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
+        Animated.timing(ringOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       ]),
-      // Check pops in
-      Animated.spring(checkScale, {
-        toValue: 1,
-        friction: 4,
-        tension: 100,
-        useNativeDriver: true,
-      }),
-      // Text fades in
-      Animated.timing(textOpacity, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }),
+      Animated.spring(checkScale, { toValue: 1, friction: 4, tension: 100, useNativeDriver: true }),
+      Animated.timing(textOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
     ]).start();
   }, []);
+
+  const previousSession = findPreviousSession(history, workout);
+  const comparisons = comparePerExercise(workout, previousSession);
+  const prs = detectPRs(history, workout);
+
+  const totalSets = workout.exercises.reduce(
+    (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
+    0,
+  );
+
+  const prevVolume = previousSession?.totalVolumeKg ?? null;
+  const volumeDelta =
+    prevVolume !== null ? workout.totalVolumeKg - prevVolume : null;
+
+  const unit = profile?.unit ?? 'kg';
+
+  const handleQuickPublish = async () => {
+    if (!isSupabaseConfigured || profile?.id === LOCAL_USER_ID) {
+      toast.show({ message: 'Inicia sesión para publicar entrenos.', tone: 'danger' });
+      return;
+    }
+    if (!profile) return;
+    setPublishing(true);
+    try {
+      await ensureWorkoutSynced(profile.id, workout);
+    } catch {
+      toast.show({ message: 'No se pudo sincronizar el entreno.', tone: 'danger' });
+      setPublishing(false);
+      return;
+    }
+    publishWorkout.mutate(
+      { workoutId: workout.id },
+      {
+        onSuccess: () => {
+          toast.show({ message: 'Entreno publicado', tone: 'success' });
+          onClose();
+        },
+        onError: (err) => {
+          toast.show({ message: err?.message ?? 'No se pudo publicar.', tone: 'danger' });
+          setPublishing(false);
+        },
+      },
+    );
+  };
 
   const duration = formatDuration(workout.durationSeconds ?? 0);
 
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.bg.base,
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingTop: insets.top + spacing['3xl'],
-        paddingBottom: insets.bottom + spacing['2xl'],
-        paddingHorizontal: spacing.lg,
-      }}
-    >
-      {/* Hero: animated ring + check */}
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <Animated.View
-          style={{
-            width: 120,
-            height: 120,
-            borderRadius: 60,
-            borderWidth: 2,
-            borderColor: colors.success,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: ringOpacity,
-            transform: [{ scale: ringScale }],
-            marginBottom: spacing['2xl'],
-          }}
-        >
-          <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-            <Icon name="check" size={48} color={colors.success} />
-          </Animated.View>
-        </Animated.View>
-
-        <Animated.View style={{ opacity: textOpacity, alignItems: 'center' }}>
-          <Text
+    <View style={{ flex: 1, backgroundColor: colors.bg.base }}>
+      <ScrollView
+        contentContainerStyle={{
+          paddingTop: insets.top + spacing['2xl'],
+          paddingBottom: insets.bottom + spacing['3xl'],
+          paddingHorizontal: spacing.lg,
+        }}
+      >
+        {/* ---- Hero header ---- */}
+        <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>
+          <Animated.View
             style={{
-              fontSize: fontSize['4xl'],
-              fontWeight: '900',
-              color: colors.text.primary,
-              textAlign: 'center',
-              letterSpacing: -1,
+              width: 96,
+              height: 96,
+              borderRadius: 48,
+              borderWidth: 2,
+              borderColor: colors.success,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: ringOpacity,
+              transform: [{ scale: ringScale }],
+              marginBottom: spacing.lg,
             }}
           >
-            ¡Bien hecho!
-          </Text>
-          <Text
-            variant="heading"
-            tone="muted"
-            numeric
-            style={{ marginTop: spacing.lg }}
-          >
-            {duration}
-          </Text>
-          <Text
-            variant="caption"
-            tone="muted"
-            style={{ marginTop: spacing.xs }}
-          >
-            tiempo total
-          </Text>
-        </Animated.View>
-      </View>
+            <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+              <Icon name="check" size={40} color={colors.success} />
+            </Animated.View>
+          </Animated.View>
 
-      {/* Bottom area */}
-      <View style={{ width: '100%', gap: spacing.md }}>
-        <Text
-          variant="caption"
-          tone="muted"
-          style={{ textAlign: 'center', marginBottom: spacing.xs }}
-        >
-          Verás el detalle en Progreso
-        </Text>
-        <GhostButton label="Listo" onPress={onClose} />
-      </View>
+          <Animated.View style={{ opacity: textOpacity, alignItems: 'center' }}>
+            <Text
+              style={{
+                fontSize: fontSize['3xl'],
+                fontWeight: '900',
+                color: colors.text.primary,
+                textAlign: 'center',
+                letterSpacing: -1,
+              }}
+            >
+              ¡Bien hecho!
+            </Text>
+            <Text variant="heading" tone="muted" numeric style={{ marginTop: spacing.sm }}>
+              {duration}
+            </Text>
+            <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs }}>
+              tiempo total
+            </Text>
+          </Animated.View>
+        </View>
+
+        {/* ---- Global stats ---- */}
+        <Card padding="lg" style={{ marginBottom: spacing.lg }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg }}>
+            <View style={{ flex: 1, minWidth: 80 }}>
+              <Stat label="Volumen" value={Math.round(workout.totalVolumeKg)} unit="kg" tone="accent" />
+            </View>
+            <View style={{ flex: 1, minWidth: 80 }}>
+              <Stat label="Sets" value={totalSets} unit="" tone="info" />
+            </View>
+            <View style={{ flex: 1, minWidth: 80 }}>
+              <Stat label="Reps" value={workout.totalReps} unit="" />
+            </View>
+            {workout.avgRestSeconds !== undefined && (
+              <View style={{ flex: 1, minWidth: 80 }}>
+                <Stat label="Desc. prom" value={Math.round(workout.avgRestSeconds)} unit="s" />
+              </View>
+            )}
+          </View>
+
+          {/* Volume vs previous session */}
+          {volumeDelta !== null && (
+            <View
+              style={{
+                marginTop: spacing.md,
+                paddingTop: spacing.md,
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+              }}
+            >
+              <Text
+                variant="caption"
+                style={{ color: volumeDelta >= 0 ? colors.success : colors.danger }}
+                weight="bold"
+              >
+                {volumeDelta >= 0 ? '▲' : '▼'} {Math.abs(Math.round(volumeDelta))} kg volumen vs sesión anterior
+              </Text>
+            </View>
+          )}
+          {volumeDelta === null && previousSession === null && (
+            <View
+              style={{
+                marginTop: spacing.md,
+                paddingTop: spacing.md,
+                borderTopWidth: 1,
+                borderTopColor: colors.border,
+              }}
+            >
+              <Text variant="caption" tone="muted">Primera sesión registrada</Text>
+            </View>
+          )}
+        </Card>
+
+        {/* ---- Per-exercise detail ---- */}
+        {workout.exercises.map((ex, i) => {
+          const comp = comparisons[i];
+          const completedSets = ex.sets.filter((s) => s.isCompleted && !s.isWarmup);
+          const isPR = prs.has(ex.exerciseId);
+
+          return (
+            <Card key={ex.id} padding="md" style={{ marginBottom: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <Text weight="bold" style={{ flex: 1 }} numberOfLines={1}>
+                  {ex.exerciseName}
+                </Text>
+                {isPR && (
+                  <View
+                    style={{
+                      backgroundColor: colors.accent.soft,
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 2,
+                      borderRadius: radius.full,
+                      borderWidth: 1,
+                      borderColor: colors.accent.DEFAULT,
+                    }}
+                  >
+                    <Text
+                      variant="caption"
+                      weight="bold"
+                      style={{ color: colors.accent.DEFAULT }}
+                    >
+                      PR
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Sets list */}
+              <View style={{ gap: 4 }}>
+                {completedSets.map((s, j) => (
+                  <Text key={j} variant="caption" tone="secondary" numeric>
+                    {j + 1}. {s.reps} reps × {toDisplay(s.weightKg, unit).toFixed(unit === 'kg' ? 1 : 0).replace(/\.0$/, '')} {unit}
+                  </Text>
+                ))}
+              </View>
+
+              {/* Comparison deltas */}
+              {comp && (comp.volumeDelta !== null || comp.topWeightDelta !== null) && (
+                <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
+                  {comp.volumeDelta !== null && (
+                    <Text
+                      variant="caption"
+                      style={{ color: comp.volumeDelta >= 0 ? colors.success : colors.danger }}
+                    >
+                      {comp.volumeDelta >= 0 ? '▲' : '▼'} {Math.abs(Math.round(comp.volumeDelta))} kg vol
+                    </Text>
+                  )}
+                  {comp.topWeightDelta !== null && (
+                    <Text
+                      variant="caption"
+                      style={{ color: comp.topWeightDelta >= 0 ? colors.success : colors.danger }}
+                    >
+                      {comp.topWeightDelta >= 0 ? '▲' : '▼'} {Math.abs(Number(toDisplay(comp.topWeightDelta, unit).toFixed(1).replace(/\.0$/, '')))} {unit} top
+                    </Text>
+                  )}
+                </View>
+              )}
+            </Card>
+          );
+        })}
+
+        {/* ---- Actions ---- */}
+        <View style={{ gap: spacing.md, marginTop: spacing.lg }}>
+          <Button
+            title={publishing || publishWorkout.isPending ? 'Publicando…' : 'Publicar'}
+            onPress={handleQuickPublish}
+            loading={publishing || publishWorkout.isPending}
+            fullWidth
+          />
+          <Button
+            title="Publicar con foto / caption"
+            variant="secondary"
+            onPress={onPublishWithCaption}
+            fullWidth
+          />
+          <GhostButton label="Listo" onPress={onClose} />
+        </View>
+      </ScrollView>
     </View>
   );
 }

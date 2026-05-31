@@ -24,6 +24,7 @@ import {
   type Post,
   type ReactionKind,
 } from '@/lib/queries/feed';
+import { useUnreadCount } from '@/lib/queries/notifications';
 
 function CoachFab({ onPress }: { onPress: () => void }) {
   return (
@@ -171,12 +172,12 @@ export default function FeedHome() {
     [feedQuery.data],
   );
 
-  // Latest finished workout within 24h (for composer "share workout" shortcut)
+  // Latest finished workout within 7 days (for composer "share workout" shortcut)
   const recentWorkout = useMemo(() => {
     const candidate = history.find((w) => {
       const end = w.endedAt ?? w.startedAt;
       const age = Date.now() - new Date(end).getTime();
-      return age >= 0 && age < 24 * 3600 * 1000;
+      return age >= 0 && age < 7 * 24 * 3600 * 1000;
     });
     return candidate ?? null;
   }, [history]);
@@ -262,7 +263,7 @@ export default function FeedHome() {
     if (!recentWorkout) return;
     router.push({
       pathname: '/publish',
-      params: { mode: 'workout', workoutId: recentWorkout.id },
+      params: { mode: 'workout' },
     });
   }, [router, recentWorkout]);
   const goSharePR = useCallback(
@@ -271,7 +272,10 @@ export default function FeedHome() {
   );
 
   const goDiscover = useCallback(() => router.push('/discover'), [router]);
+  const goNotifications = useCallback(() => router.push('/notifications'), [router]);
   const goCoach = useCallback(() => router.push('/coach'), [router]);
+
+  const { data: unreadCount = 0 } = useUnreadCount();
 
   const isInitialLoading = feedQuery.isLoading && posts.length === 0;
   const hasError = !!feedQuery.error && posts.length === 0;
@@ -302,6 +306,47 @@ export default function FeedHome() {
             {profile?.displayName ?? 'Atleta'}
           </Text>
         </View>
+        {/* Bell icon with unread badge */}
+        <Pressable onPress={goNotifications} hitSlop={8}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: colors.bg.elevated,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Icon name="bell" size={18} color={colors.text.primary} />
+            {unreadCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  minWidth: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: colors.danger,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 3,
+                }}
+              >
+                <Text
+                  variant="label"
+                  style={{ color: '#fff', fontSize: 9, lineHeight: 12 }}
+                >
+                  {unreadCount > 99 ? '99+' : String(unreadCount)}
+                </Text>
+              </View>
+            )}
+          </View>
+        </Pressable>
+
         <Pressable onPress={goDiscover} hitSlop={8}>
           <View
             style={{

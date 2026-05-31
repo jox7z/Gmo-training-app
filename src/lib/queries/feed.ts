@@ -131,8 +131,12 @@ export function useToggleReaction() {
         qc.setQueryData(feedKeys.list(), ctx.previous);
       }
     },
+    // No refetch inmediato: el update optimista ya refleja el toggle y el
+    // RPC devuelve el mismo resultado. Invalidar con refetch activo
+    // re-traía toda la lista infinita y reseteaba el scroll del FlashList.
+    // Marcamos stale sin refetch; el próximo pull-to-refresh reconcilia.
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
     },
   });
 }

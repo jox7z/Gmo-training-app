@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Pressable, ScrollView, RefreshControl, useWindowDimensions, Alert, Image } from 'react-native';
+import { View, Pressable, ScrollView, RefreshControl, useWindowDimensions, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
+import { WeightChart } from '@/components/WeightChart';
+import { WeightDetailModal } from '@/components/WeightDetailModal';
 import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, type RankId } from '@/theme/tokens';
 import { useAppStore, type Unit } from '@/store/app';
 import { useLeaderboard, type LeaderboardEntry } from '@/lib/queries/social';
@@ -26,8 +28,8 @@ import {
   useDeleteMeasurement,
   type BodyMeasurement,
   type BodyTimelinePoint,
+  type BodyPeriod,
 } from '@/lib/queries/body';
-import { toDisplay } from '@/lib/units';
 import { useToast } from '@/components/ui/Toast';
 
 const PERIODS: { value: ProgressPeriod; label: string }[] = [
@@ -43,11 +45,13 @@ export default function ProgressScreen() {
   const profile = useAppStore((s) => s.profile);
 
   const [period, setPeriod] = useState<ProgressPeriod>('30d');
+  const [bodyPeriod, setBodyPeriod] = useState<BodyPeriod>('90d');
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const summaryQuery = useProgressSummary(period);
   const timelineQuery = useProgressTimeline(period);
   const bodyMeasurementsQuery = useBodyMeasurements();
-  const bodyTimelineQuery = useBodyTimeline('90d');
+  const bodyTimelineQuery = useBodyTimeline(bodyPeriod);
 
   const currentRank = rankFromPoints(profile?.rankPoints ?? 0);
   const leaderboardQuery = useLeaderboard(currentRank.id);
@@ -150,7 +154,17 @@ export default function ProgressScreen() {
           measurements={bodyMeasurementsQuery.data ?? []}
           timeline={bodyTimelineQuery.data ?? []}
           unit={profile?.unit ?? 'kg'}
+          bodyPeriod={bodyPeriod}
+          onBodyPeriodChange={setBodyPeriod}
           onAdd={() => router.push('/body/new')}
+          onOpenDetail={() => setShowDetailModal(true)}
+        />
+
+        <WeightDetailModal
+          visible={showDetailModal}
+          onClose={() => setShowDetailModal(false)}
+          unit={profile?.unit ?? 'kg'}
+          initialPeriod={bodyPeriod}
         />
 
         <RanksSection currentPoints={profile?.rankPoints ?? 0} />
@@ -354,16 +368,29 @@ function ProgressSkeleton() {
 // COMPOSICIÓN CORPORAL
 // =====================================================
 
+const BODY_PERIODS: { value: BodyPeriod; label: string }[] = [
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+  { value: 'all', label: 'Todo' },
+];
+
 function BodySection({
   measurements,
   timeline,
   unit,
+  bodyPeriod,
+  onBodyPeriodChange,
   onAdd,
+  onOpenDetail,
 }: {
   measurements: BodyMeasurement[];
   timeline: BodyTimelinePoint[];
   unit: Unit;
+  bodyPeriod: BodyPeriod;
+  onBodyPeriodChange: (p: BodyPeriod) => void;
   onAdd: () => void;
+  onOpenDetail: () => void;
 }) {
   const latest = measurements[0];
   const recent = measurements.slice(0, 5);
@@ -378,6 +405,59 @@ function BodySection({
         }}
       >
         <Text variant="heading">Peso y progreso</Text>
+        <Pressable onPress={onOpenDetail} hitSlop={8}>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: colors.bg.elevated,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Icon name="chart" size={18} color={colors.primary.DEFAULT} />
+          </View>
+        </Pressable>
+      </View>
+
+      {/* Filtro de período para el chart de peso */}
+      <View
+        style={{
+          flexDirection: 'row',
+          backgroundColor: colors.bg.elevated,
+          borderRadius: radius.lg,
+          padding: 4,
+          borderWidth: 1,
+          borderColor: colors.border,
+        }}
+      >
+        {BODY_PERIODS.map((p) => {
+          const active = bodyPeriod === p.value;
+          return (
+            <Pressable
+              key={p.value}
+              onPress={() => onBodyPeriodChange(p.value)}
+              style={{
+                flex: 1,
+                paddingVertical: 6,
+                alignItems: 'center',
+                borderRadius: radius.md,
+                backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
+              }}
+            >
+              <Text
+                weight="bold"
+                tone={active ? 'primary' : 'secondary'}
+                style={{ fontSize: 12 }}
+              >
+                {p.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       <Button
@@ -558,90 +638,24 @@ function SmallTag({ label }: { label: string }) {
 }
 
 function WeightTimelineCard({ data, unit }: { data: BodyTimelinePoint[]; unit: Unit }) {
-  const { width } = useWindowDimensions();
-  const chartWidth = width - spacing.lg * 4;
-  const chartHeight = 160;
-  const axisPad = 32;
-  const innerW = chartWidth - axisPad;
-  const innerH = chartHeight - 28;
-
+  // Los datos llegan ordenados ascendentemente desde el RPC (0018).
+  // WeightChart los reordena internamente por fecha, por seguridad.
   const sorted = useMemo(
     () => [...data].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt)),
     [data],
   );
 
-  const range = useMemo(() => {
-    if (sorted.length === 0) return { min: 0, max: 1 };
-    const weights = sorted.map((p) => toDisplay(p.weightKg, unit));
-    const min = Math.min(...weights);
-    const max = Math.max(...weights);
-    if (min === max) return { min: min - 1, max: max + 1 };
-    const pad = (max - min) * 0.15;
-    return { min: min - pad, max: max + pad };
-  }, [sorted, unit]);
-
-  if (sorted.length < 2) {
-    return (
-      <Card padding="lg">
-        <Text variant="label" tone="secondary">EVOLUCIÓN DEL PESO</Text>
-        <View style={{ alignItems: 'center', paddingVertical: spacing.xl }}>
-          <Icon name="chart" size={28} color={colors.text.muted} />
-          <Text
-            variant="caption"
-            tone="muted"
-            style={{ marginTop: spacing.sm, textAlign: 'center' }}
-          >
-            Registra al menos 2 mediciones para ver tu evolución.
-          </Text>
-        </View>
-      </Card>
-    );
-  }
-
-  const xFor = (i: number) =>
-    axisPad + (sorted.length === 1 ? innerW / 2 : (i / (sorted.length - 1)) * innerW);
-  const yFor = (w: number) => {
-    const t = (w - range.min) / (range.max - range.min);
-    return chartHeight - 16 - t * innerH;
-  };
-
-  const points = sorted.map((p, i) => ({
-    x: xFor(i),
-    y: yFor(toDisplay(p.weightKg, unit)),
-    raw: p,
-  }));
-  const pathD = points
-    .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`)
-    .join(' ');
-
   return (
     <Card padding="lg">
       <Text variant="label" tone="secondary">EVOLUCIÓN DEL PESO ({unit})</Text>
       <View style={{ marginTop: spacing.md }}>
-        <Svg width={chartWidth} height={chartHeight}>
-          <SvgText x={0} y={14} fontSize={10} fill={colors.text.muted}>
-            {range.max.toFixed(1)}
-          </SvgText>
-          <SvgText x={0} y={chartHeight - 16} fontSize={10} fill={colors.text.muted}>
-            {range.min.toFixed(1)}
-          </SvgText>
-          <Line
-            x1={axisPad}
-            x2={chartWidth}
-            y1={chartHeight - 16}
-            y2={chartHeight - 16}
-            stroke={colors.border}
-            strokeWidth={1}
-          />
-          <Path d={pathD} stroke={colors.primary.DEFAULT} strokeWidth={2} fill="none" />
-          {points.map((pt, i) => (
-            <Circle key={i} cx={pt.x} cy={pt.y} r={3} fill={colors.primary.DEFAULT} />
-          ))}
-        </Svg>
+        <WeightChart data={data} unit={unit} />
       </View>
-      <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-        {formatDate(sorted[0].recordedAt)} → {formatDate(sorted[sorted.length - 1].recordedAt)}
-      </Text>
+      {sorted.length >= 2 && (
+        <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
+          {formatDate(sorted[0].recordedAt)} → {formatDate(sorted[sorted.length - 1].recordedAt)}
+        </Text>
+      )}
     </Card>
   );
 }

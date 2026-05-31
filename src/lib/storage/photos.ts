@@ -16,6 +16,15 @@ async function readFileAsArrayBuffer(fileUri: string): Promise<ArrayBuffer> {
   return decode(b64);
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, msg: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(msg)), ms),
+    ),
+  ]);
+}
+
 /**
  * Uploads a local photo (file:// URI from expo-image-picker) to the
  * post-photos bucket and returns its public URL. Path layout matches
@@ -29,12 +38,13 @@ export async function uploadPostPhoto(userId: string, fileUri: string): Promise<
   const path = `${userId}/${Date.now()}-${randomId()}.jpg`;
   const arrayBuffer = await readFileAsArrayBuffer(fileUri);
 
-  const { error: uploadError } = await supabase.storage
-    .from(POST_BUCKET)
-    .upload(path, arrayBuffer, {
-      contentType: 'image/jpeg',
-      upsert: false,
-    });
+  const { error: uploadError } = await withTimeout(
+    supabase.storage
+      .from(POST_BUCKET)
+      .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: false }),
+    30_000,
+    'La subida de la foto tardó demasiado, intenta de nuevo.',
+  );
 
   if (uploadError) throw uploadError;
 
@@ -50,12 +60,13 @@ export async function uploadAvatar(userId: string, fileUri: string): Promise<str
   const path = `${userId}/${Date.now()}-${randomId()}.jpg`;
   const arrayBuffer = await readFileAsArrayBuffer(fileUri);
 
-  const { error: uploadError } = await supabase.storage
-    .from(AVATAR_BUCKET)
-    .upload(path, arrayBuffer, {
-      contentType: 'image/jpeg',
-      upsert: false,
-    });
+  const { error: uploadError } = await withTimeout(
+    supabase.storage
+      .from(AVATAR_BUCKET)
+      .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: false }),
+    30_000,
+    'La subida de la foto tardó demasiado, intenta de nuevo.',
+  );
 
   if (uploadError) throw uploadError;
 

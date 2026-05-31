@@ -17,6 +17,7 @@ export const bodyKeys = {
 };
 
 export interface BodyTimelinePoint {
+  /** Día en formato YYYY-MM-DD (columna measured_on del RPC). */
   recordedAt: string;
   weightKg: number;
   bodyFatPct?: number;
@@ -25,7 +26,7 @@ export interface BodyTimelinePoint {
 }
 
 interface DbBodyTimelineRow {
-  recorded_at: string;
+  measured_on: string;
   weight_kg: number | string;
   body_fat_pct: number | string | null;
   muscle_pct: number | string | null;
@@ -34,7 +35,9 @@ interface DbBodyTimelineRow {
 
 function toTimelinePoint(row: DbBodyTimelineRow): BodyTimelinePoint {
   return {
-    recordedAt: row.recorded_at,
+    // Exponemos measured_on como recordedAt para mantener compatibilidad
+    // con los consumidores existentes del chart (date string YYYY-MM-DD).
+    recordedAt: row.measured_on,
     weightKg: Number(row.weight_kg),
     bodyFatPct: row.body_fat_pct === null ? undefined : Number(row.body_fat_pct),
     musclePct: row.muscle_pct === null ? undefined : Number(row.muscle_pct),
@@ -63,7 +66,7 @@ export function useBodyTimeline(period: BodyPeriod = '90d') {
 
 export function useAddMeasurement() {
   const qc = useQueryClient();
-  return useMutation<AddMeasurementResult, Error, Omit<BodyMeasurement, 'id'>>({
+  return useMutation<AddMeasurementResult, Error, Omit<BodyMeasurement, 'id' | 'measuredOn'>>({
     mutationFn: (m) => addMeasurement(m),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: bodyKeys.all });

@@ -7,7 +7,6 @@ import {
   Platform,
   Image,
   ScrollView,
-  ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,18 +22,35 @@ import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
-import { useWorkoutsStore } from '@/store/workouts';
+import { useWorkoutsStore, Workout } from '@/store/workouts';
 import {
   usePublishManualPost,
   usePublishWorkout,
   usePublishPR,
 } from '@/lib/queries/feed';
 import { uploadPostPhoto } from '@/lib/storage/photos';
+import { ensureWorkoutSynced } from '@/lib/repos/workouts';
 import { EXERCISES } from '@/data/exercises';
 import { useToast } from '@/components/ui/Toast';
 
 type Mode = 'manual' | 'workout' | 'pr';
 const MAX_CAPTION = 500;
+
+const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
+
+function last7Days(history: Workout[]): Workout[] {
+  const now = Date.now();
+  return history
+    .filter((w) => {
+      const t = new Date(w.endedAt ?? w.startedAt).getTime();
+      return t >= now - SEVEN_DAYS_MS && t <= now;
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.endedAt ?? b.startedAt).getTime() -
+        new Date(a.endedAt ?? a.startedAt).getTime(),
+    );
+}
 
 export default function PublishModal() {
   const router = useRouter();
@@ -45,12 +61,8 @@ export default function PublishModal() {
 
   const profile = useAppStore((s) => s.profile);
   const history = useWorkoutsStore((s) => s.history);
-  const workout = useMemo(
-    () => (mode === 'workout' && params.workoutId
-      ? history.find((w) => w.id === params.workoutId) ?? null
-      : null),
-    [history, mode, params.workoutId],
-  );
+
+  const recentWorkouts = useMemo(() => last7Days(history), [history]);
 
   const close = () => {
     if (router.canGoBack()) router.back();
@@ -62,6 +74,13 @@ export default function PublishModal() {
     : mode === 'pr' ? 'Publicar PR'
     : 'Nueva publicación';
 
+  const handleSuccess = (msg: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    toast.show({ message: msg, tone: 'success' });
+    close();
+  };
+  const handleError = (msg: string) => toast.show({ message: msg, tone: 'danger' });
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }}>
       <StatusBar style="light" />
@@ -71,9 +90,32 @@ export default function PublishModal() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {mode === 'manual' && <ManualComposer profileDisplayName={profile?.displayName ?? 'Atleta'} avatarUrl={profile?.avatarUrl} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} userId={profile?.id ?? null} />}
-        {mode === 'workout' && <WorkoutComposer workout={workout} userId={profile?.id ?? null} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} onClose={close} />}
-        {mode === 'pr' && <PrComposer userId={profile?.id ?? null} onSuccess={(msg) => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {}); toast.show({ message: msg, tone: 'success' }); close(); }} onError={(msg) => toast.show({ message: msg, tone: 'danger' })} />}
+        {mode === 'manual' && (
+          <ManualComposer
+            profileDisplayName={profile?.displayName ?? 'Atleta'}
+            avatarUrl={profile?.avatarUrl}
+            onSuccess={handleSuccess}
+            onError={handleError}
+            userId={profile?.id ?? null}
+          />
+        )}
+        {mode === 'workout' && (
+          <WorkoutComposer
+            recentWorkouts={recentWorkouts}
+            defaultWorkoutId={params.workoutId ?? recentWorkouts[0]?.id ?? null}
+            userId={profile?.id ?? null}
+            onSuccess={handleSuccess}
+            onError={handleError}
+            onClose={close}
+          />
+        )}
+        {mode === 'pr' && (
+          <PrComposer
+            userId={profile?.id ?? null}
+            onSuccess={handleSuccess}
+            onError={handleError}
+          />
+        )}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -145,7 +187,7 @@ function ManualComposer({
     }
     const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.85,
+      quality: 0.6,
       allowsEditing: false,
     });
     if (res.canceled || !res.assets?.[0]) return;
@@ -285,49 +327,142 @@ function ManualComposer({
 }
 
 // =====================================================
+// WORKOUT SUMMARY CARD (shared mini-component)
+// =====================================================
+function WorkoutCard({ workout }: { workout: Workout }) {
+  const sets = workout.exercises.reduce(
+    (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
+    0,
+  );
+  const volume = Math.round(workout.totalVolumeKg);
+  const durationMin = Math.round((workout.durationSeconds ?? 0) / 60);
+
+  return (
+    <Card padding="lg">
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <View
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            backgroundColor: colors.primary.muted,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Icon name="dumbbell" size={20} color={colors.primary.DEFAULT} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text weight="bold" numberOfLines={1}>
+            {workout.routineName ?? 'Entrenamiento libre'}
+          </Text>
+          <Text variant="caption" tone="muted">
+            {new Date(workout.startedAt).toLocaleString([], {
+              weekday: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: spacing.md,
+          marginTop: spacing.lg,
+          paddingTop: spacing.md,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Stat label="Tiempo" value={durationMin} unit="min" tone="brand" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Stat label="Sets" value={sets} unit="" tone="info" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Stat label="Volumen" value={volume} unit="kg" tone="accent" />
+        </View>
+      </View>
+
+      <View style={{ marginTop: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        {workout.exercises.slice(0, 4).map((e) => (
+          <View
+            key={e.id}
+            style={{
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 4,
+              borderRadius: radius.full,
+              backgroundColor: colors.bg.elevated,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Text variant="caption" tone="secondary">{e.exerciseName}</Text>
+          </View>
+        ))}
+        {workout.exercises.length > 4 && (
+          <View
+            style={{
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 4,
+              borderRadius: radius.full,
+              backgroundColor: colors.bg.elevated,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Text variant="caption" tone="muted">
+              +{workout.exercises.length - 4} más
+            </Text>
+          </View>
+        )}
+      </View>
+    </Card>
+  );
+}
+
+// =====================================================
 // WORKOUT
 // =====================================================
 function WorkoutComposer({
-  workout,
+  recentWorkouts,
+  defaultWorkoutId,
   userId,
   onSuccess,
   onError,
   onClose,
 }: {
-  workout: ReturnType<typeof useWorkoutsStore.getState>['history'][number] | null;
+  recentWorkouts: Workout[];
+  defaultWorkoutId: string | null;
   userId: string | null;
   onSuccess: (msg: string) => void;
   onError: (msg: string) => void;
   onClose: () => void;
 }) {
+  const [selectedId, setSelectedId] = useState<string | null>(
+    defaultWorkoutId ?? recentWorkouts[0]?.id ?? null,
+  );
+  const [showSelector, setShowSelector] = useState(false);
   const [caption, setCaption] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const publish = usePublishWorkout();
 
-  const stats = useMemo(() => {
-    if (!workout) return { sets: 0, volume: 0, durationMin: 0 };
-    const sets = workout.exercises.reduce(
-      (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
-      0,
-    );
-    return {
-      sets,
-      volume: Math.round(workout.totalVolumeKg),
-      durationMin: Math.round((workout.durationSeconds ?? 0) / 60),
-    };
-  }, [workout]);
+  const workout = recentWorkouts.find((w) => w.id === selectedId) ?? null;
 
-  if (!workout) {
+  if (recentWorkouts.length === 0) {
     return (
       <View style={{ flex: 1, padding: spacing.lg, justifyContent: 'center' }}>
         <Card padding="xl" style={{ alignItems: 'center' }}>
-          <Icon name="close" size={32} color={colors.text.muted} />
+          <Icon name="dumbbell" size={32} color={colors.text.muted} />
           <Text variant="heading" style={{ marginTop: spacing.md }}>
-            Workout no encontrado
+            Sin entrenos recientes
           </Text>
           <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
-            El entreno que intentas publicar ya no está disponible.
+            No tienes entrenos registrados en los últimos 7 días.
           </Text>
           <Button title="Cerrar" variant="secondary" onPress={onClose} style={{ marginTop: spacing.lg }} fullWidth />
         </Card>
@@ -341,20 +476,28 @@ function WorkoutComposer({
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { onError('Necesitamos permiso para acceder a tus fotos.'); return; }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsEditing: false });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, allowsEditing: false });
     if (res.canceled || !res.assets?.[0]) return;
     setPhotoUri(res.assets[0].uri);
   };
 
   const submit = async () => {
-    if (overLimit || publish.isPending || uploading) return;
+    if (!workout || overLimit || publish.isPending || uploading) return;
+    // Ensure the workout is synced to Supabase before publishing
+    if (userId) {
+      try {
+        await ensureWorkoutSynced(userId, workout);
+      } catch (e) {
+        onError((e as Error)?.message ?? 'No se pudo sincronizar el entreno.');
+        return;
+      }
+    }
     let photoUrl: string | undefined;
     if (photoUri && userId) {
       try {
         setUploading(true);
         photoUrl = await uploadPostPhoto(userId, photoUri);
       } catch (e) {
-        setUploading(false);
         onError((e as Error)?.message ?? 'No se pudo subir la foto.');
         return;
       } finally {
@@ -372,89 +515,65 @@ function WorkoutComposer({
 
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
-      <Card padding="lg">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: colors.primary.muted,
+      {/* Selected workout card */}
+      {workout && <WorkoutCard workout={workout} />}
+
+      {/* Change workout button */}
+      {recentWorkouts.length > 1 && (
+        <Pressable
+          onPress={() => setShowSelector((v) => !v)}
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row',
               alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="dumbbell" size={20} color={colors.primary.DEFAULT} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text weight="bold" numberOfLines={1}>
-              {workout.routineName ?? 'Entrenamiento libre'}
-            </Text>
-            <Text variant="caption" tone="muted">
-              {new Date(workout.startedAt).toLocaleString([], {
-                weekday: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </Text>
-          </View>
-        </View>
-
-        <View
-          style={{
-            flexDirection: 'row',
-            gap: spacing.md,
-            marginTop: spacing.lg,
-            paddingTop: spacing.md,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-          }}
+              gap: spacing.sm,
+              paddingVertical: spacing.sm,
+              paddingHorizontal: spacing.md,
+              marginTop: spacing.md,
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.bg.elevated,
+              alignSelf: 'flex-start',
+            },
+            pressed && { opacity: 0.7 },
+          ]}
         >
-          <View style={{ flex: 1 }}>
-            <Stat label="Tiempo" value={stats.durationMin} unit="min" tone="brand" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Stat label="Sets" value={stats.sets} unit="" tone="info" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Stat label="Volumen" value={stats.volume} unit="kg" tone="accent" />
-          </View>
-        </View>
+          <Icon name="chevron-right" size={14} color={colors.text.secondary} />
+          <Text variant="caption" tone="secondary" weight="semibold">
+            {showSelector ? 'Ocultar entrenos' : 'Cambiar entreno'}
+          </Text>
+        </Pressable>
+      )}
 
-        <View style={{ marginTop: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {workout.exercises.slice(0, 4).map((e) => (
-            <View
-              key={e.id}
-              style={{
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 4,
-                borderRadius: radius.full,
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text variant="caption" tone="secondary">{e.exerciseName}</Text>
-            </View>
-          ))}
-          {workout.exercises.length > 4 && (
-            <View
-              style={{
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 4,
-                borderRadius: radius.full,
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text variant="caption" tone="muted">
-                +{workout.exercises.length - 4} más
-              </Text>
-            </View>
-          )}
+      {/* Selector list */}
+      {showSelector && (
+        <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+          {recentWorkouts.map((w) => {
+            const isSelected = w.id === selectedId;
+            return (
+              <Pressable
+                key={w.id}
+                onPress={() => {
+                  setSelectedId(w.id);
+                  setShowSelector(false);
+                }}
+                style={({ pressed }) => [
+                  {
+                    borderRadius: radius.lg,
+                    borderWidth: 1,
+                    borderColor: isSelected ? colors.primary.DEFAULT : colors.border,
+                    overflow: 'hidden',
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <WorkoutCard workout={w} />
+              </Pressable>
+            );
+          })}
         </View>
-      </Card>
+      )}
 
       <View style={{ marginTop: spacing.lg }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
@@ -511,7 +630,7 @@ function WorkoutComposer({
         title={uploading ? 'Subiendo foto…' : 'Publicar entreno'}
         onPress={submit}
         loading={publish.isPending || uploading}
-        disabled={overLimit || publish.isPending || uploading}
+        disabled={!workout || overLimit || publish.isPending || uploading}
         fullWidth
         style={{ marginTop: spacing.xl }}
       />
@@ -551,7 +670,7 @@ function PrComposer({
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { onError('Necesitamos permiso para acceder a tus fotos.'); return; }
-    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85, allowsEditing: false });
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, allowsEditing: false });
     if (res.canceled || !res.assets?.[0]) return;
     setPhotoUri(res.assets[0].uri);
   };

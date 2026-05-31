@@ -26,7 +26,12 @@
       "Bash(wait)",
       "Bash(node -e \"const pkg = require\\('./node_modules/expo-file-system/package.json'\\); console.log\\(pkg.version\\); console.log\\(JSON.stringify\\(Object.keys\\(pkg.exports || {}\\)\\)\\)\")",
       "Bash(node -e \"const t = require\\('react-native-pager-view'\\); console.log\\(Object.keys\\(t\\)\\)\")",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(supabase --version)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(grep -rA20 \"create table.*body_measurements\" supabase/migrations/)",
+      "Bash(grep -rA40 \"function public.body_timeline\" supabase/migrations/)",
+      "Bash(awk '/function public.body_timeline/,/grant execute on function public.body_timeline/' supabase/migrations/0010_body_search_and_photos_public.sql)"
     ]
   }
 }
