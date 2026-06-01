@@ -75,6 +75,8 @@ export default function Onboarding() {
     return () => clearTimeout(handle);
   }, [username]);
 
+  useEffect(() => { setUsernameOverride(null); }, [username]);
+
   const idx = STEPS.indexOf(step);
   const next = () => setStep(STEPS[Math.min(STEPS.length - 1, idx + 1)]);
   const back = () => setStep(STEPS[Math.max(0, idx - 1)]);

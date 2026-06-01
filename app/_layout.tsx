@@ -14,6 +14,7 @@ import { useRoutinesStore } from '@/store/routines';
 import { useWorkoutsStore } from '@/store/workouts';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getProfile } from '@/lib/repos/profile';
+import { getWorkouts } from '@/lib/repos/workouts';
 import { isProfileComplete } from '@/lib/auth';
 import { ToastProvider } from '@/components/ui/Toast';
 
@@ -84,11 +85,22 @@ export default function RootLayout() {
         // the isProfileComplete RPC — that call gets its own timeout below.
         setAuthChecked(true);
         if (session) {
+          queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
           try {
+            const ws = await getWorkouts(session.user.id);
+            useWorkoutsStore.getState().mergeHistory(ws);
+          } catch {}
+          // Garantizar que profile.id siempre coincide con el usuario autenticado.
+          const stored = useAppStore.getState().profile;
+          if (stored && stored.id !== session.user.id) {
+            void useAppStore.getState().setProfile({ ...stored, id: session.user.id });
+          }
+          try {
+            const localOnboarded = useAppStore.getState().onboarded;
             const ok = await withTimeout(
               isProfileComplete(session.user.id),
               PROFILE_CHECK_TIMEOUT_MS,
-              false,
+              localOnboarded,
             );
             if (!cancelled) {
               setProfileComplete(ok);
@@ -127,10 +139,11 @@ export default function RootLayout() {
       // Recalcula profileComplete en cada SIGNED_IN / USER_UPDATED / etc.
       // Es la única vía: no se llama por cada cambio de segmento.
       try {
+        const localOnboarded = useAppStore.getState().onboarded;
         const ok = await withTimeout(
           isProfileComplete(session.user.id),
           PROFILE_CHECK_TIMEOUT_MS,
-          false,
+          localOnboarded,
         );
         setProfileComplete(ok);
         if (ok) void markOnboarded();
@@ -139,11 +152,24 @@ export default function RootLayout() {
       }
       try {
         const remote = await getProfile(session.user.id);
-        if (remote) await setProfile(remote);
-        else await hydrate();
+        if (remote) {
+          await setProfile(remote);
+        } else {
+          await hydrate();
+          // Si hydrate devuelve un perfil con id stale, corregirlo al usuario actual.
+          const stored = useAppStore.getState().profile;
+          if (stored && stored.id !== session.user.id) {
+            await setProfile({ ...stored, id: session.user.id });
+          }
+        }
       } catch {
         await hydrate().catch(() => {});
       }
+      queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
+      try {
+        const ws = await getWorkouts(session.user.id);
+        useWorkoutsStore.getState().mergeHistory(ws);
+      } catch {}
     });
     return () => subscription.unsubscribe();
   }, [hydrate, setProfile, markOnboarded]);

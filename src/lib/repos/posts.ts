@@ -17,11 +17,17 @@ export interface PostUser {
 }
 
 export interface PostReactions {
+  props: number;
+  respect: number;
+  fire: number;
   muscle: number;
   heart: number;
 }
 
 export interface MyReactions {
+  props: boolean;
+  respect: boolean;
+  fire: boolean;
   muscle: boolean;
   heart: boolean;
 }
@@ -57,7 +63,9 @@ export interface Comment {
   createdAt: string;
 }
 
-export type ReactionKind = 'muscle' | 'heart';
+export type ReactionKind = 'props' | 'respect' | 'fire' | 'muscle' | 'heart';
+
+export const REACTION_KINDS: ReactionKind[] = ['props', 'respect', 'fire', 'muscle', 'heart'];
 
 interface DbFeedRow {
   id: string;
@@ -76,6 +84,9 @@ interface DbFeedRow {
   display_name: string;
   avatar_url: string | null;
   current_rank: string;
+  props_count: number;
+  respect_count: number;
+  fire_count: number;
   muscle_count: number;
   heart_count: number;
   my_reactions: ReactionKind[];
@@ -113,10 +124,16 @@ function toPost(row: DbFeedRow): Post {
     metadata: (row.metadata ?? {}) as Record<string, any>,
     createdAt: row.created_at,
     reactions: {
-      muscle: row.muscle_count,
-      heart: row.heart_count,
+      props: row.props_count ?? 0,
+      respect: row.respect_count ?? 0,
+      fire: row.fire_count ?? 0,
+      muscle: row.muscle_count ?? 0,
+      heart: row.heart_count ?? 0,
     },
     myReactions: {
+      props: row.my_reactions.includes('props'),
+      respect: row.my_reactions.includes('respect'),
+      fire: row.my_reactions.includes('fire'),
       muscle: row.my_reactions.includes('muscle'),
       heart: row.my_reactions.includes('heart'),
     },

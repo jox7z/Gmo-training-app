@@ -154,6 +154,7 @@ export function usePublishWorkout() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });
+      qc.invalidateQueries({ queryKey: ['userPosts'] });
     },
   });
 }
@@ -165,6 +166,7 @@ export function usePublishPR() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });
+      qc.invalidateQueries({ queryKey: ['userPosts'] });
     },
   });
 }
@@ -181,6 +183,7 @@ export function usePublishManualPost() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });
+      qc.invalidateQueries({ queryKey: ['userPosts'] });
     },
   });
 }

@@ -18,7 +18,8 @@ import { useUserPosts } from '@/lib/queries/social';
 import { useWorkoutsStore, type Workout } from '@/store/workouts';
 import { useToast } from '@/components/ui/Toast';
 import { CommentSheet } from '@/components/feed/CommentSheet';
-import type { Post } from '@/lib/repos/posts';
+import type { Post, PostReactions } from '@/lib/repos/posts';
+import { topReactions, totalReactions } from '@/components/feed/reactions';
 
 const BADGES: { id: string; label: string; icon: IconName; color: string; earned: boolean }[] = [
   { id: 'first',   label: 'Primer workout', icon: 'medal',   color: '#CD7F32',            earned: true  },
@@ -299,6 +300,37 @@ const POST_TYPE_MAP: Record<Post['type'], { icon: IconName; color: string; label
   manual:      { icon: 'image',     color: colors.text.secondary,  label: 'Post'          },
 };
 
+function PostReactionsInline({ reactions }: { reactions: PostReactions }) {
+  const total = totalReactions(reactions);
+  const top = topReactions(reactions, 3);
+  if (total === 0) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <View style={{ flexDirection: 'row' }}>
+        {top.map((r, idx) => (
+          <View
+            key={r.key}
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.bg.elevated,
+              marginLeft: idx === 0 ? 0 : -6,
+              borderWidth: 1.5,
+              borderColor: colors.bg.card,
+            }}
+          >
+            <Text style={{ fontSize: 11, lineHeight: 14 }}>{r.emoji}</Text>
+          </View>
+        ))}
+      </View>
+      <Text variant="caption" tone="muted" numeric>{total}</Text>
+    </View>
+  );
+}
+
 function PublicationCard({ post, onPress }: { post: Post; onPress: () => void }) {
   const { icon, color, label } = POST_TYPE_MAP[post.type] ?? POST_TYPE_MAP.manual;
 
@@ -332,12 +364,7 @@ function PublicationCard({ post, onPress }: { post: Post; onPress: () => void })
           pressed && { opacity: 0.7 },
         ]}
       >
-        {post.reactions.muscle > 0 && (
-          <Text variant="caption" tone="muted" numeric>💪 {post.reactions.muscle}</Text>
-        )}
-        {post.reactions.heart > 0 && (
-          <Text variant="caption" tone="muted" numeric>❤️ {post.reactions.heart}</Text>
-        )}
+        <PostReactionsInline reactions={post.reactions} />
         <Text variant="caption" tone="muted" style={{ marginLeft: 'auto' }}>
           {post.commentCount > 0 ? `💬 ${post.commentCount} comentarios` : '💬 Ver comentarios'}
         </Text>

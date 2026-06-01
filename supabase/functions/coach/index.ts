@@ -83,9 +83,7 @@ serve(async (req) => {
       .maybeSingle();
 
     if (cached) {
-      await supabase.from('ai_response_cache')
-        .update({ hit_count: (await getHitCount(supabase, promptHash)) + 1 })
-        .eq('prompt_hash', promptHash);
+      await supabase.rpc('increment_cache_hit', { p_hash: promptHash });
       await logUsage(supabase, user.id, cached.model ?? 'cache', 0, 0, 'ok');
       return json({ reply: cached.response, cached: true, provider: cached.model });
     }
@@ -160,7 +158,9 @@ async function callGemini(messages: ChatMessage[]): Promise<string> {
   );
   if (!res.ok) throw new Error(`gemini ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error(`gemini empty response (finishReason=${data.candidates?.[0]?.finishReason ?? 'unknown'})`);
+  return text;
 }
 
 async function callAnthropic(messages: ChatMessage[]): Promise<string> {
@@ -185,7 +185,9 @@ async function callAnthropic(messages: ChatMessage[]): Promise<string> {
   });
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  return data.content?.[0]?.text ?? '';
+  const text = data.content?.[0]?.text;
+  if (!text) throw new Error('anthropic returned empty content');
+  return text;
 }
 
 async function callOpenAI(messages: ChatMessage[]): Promise<string> {
@@ -203,7 +205,9 @@ async function callOpenAI(messages: ChatMessage[]): Promise<string> {
   });
   if (!res.ok) throw new Error(`openai ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error('openai returned empty content');
+  return text;
 }
 
 // ---------- Helpers ----------
@@ -254,7 +258,3 @@ async function logUsage(
   });
 }
 
-async function getHitCount(supabase: ReturnType<typeof createClient>, hash: string): Promise<number> {
-  const { data } = await supabase.from('ai_response_cache').select('hit_count').eq('prompt_hash', hash).maybeSingle();
-  return (data?.hit_count as number) ?? 0;
-}

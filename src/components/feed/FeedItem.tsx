@@ -10,6 +10,14 @@ import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
 import { colors, radius, spacing, shadow, RANKS, RankId } from '@/theme/tokens';
 import type { Post, ReactionKind } from '@/lib/repos/posts';
+import { ReactionPicker } from './ReactionPicker';
+import {
+  REACTIONS,
+  DEFAULT_REACTION,
+  activeReaction,
+  totalReactions,
+  topReactions,
+} from './reactions';
 
 interface Props {
   post: Post;
@@ -20,11 +28,6 @@ interface Props {
   onShare: (post: Post) => void;
   onOpenProfile: (post: Post) => void;
 }
-
-const REACTIONS: { key: ReactionKind; icon: IconName; color: string }[] = [
-  { key: 'muscle', icon: 'muscle', color: colors.primary.DEFAULT },
-  { key: 'heart', icon: 'heart', color: colors.danger },
-];
 
 function rankInfo(id: RankId) {
   return RANKS.find((r) => r.id === id) ?? RANKS[0];
@@ -46,90 +49,55 @@ function formatRelative(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function ReactionPill({
-  icon,
-  color,
-  count,
-  active,
-  onPress,
-}: {
-  icon: IconName;
-  color: string;
-  count: number;
-  active: boolean;
-  onPress: () => void;
-}) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-
-  const handlePress = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 1.3, duration: 100, useNativeDriver: true }),
-      Animated.timing(scaleAnim, { toValue: 1.0, duration: 100, useNativeDriver: true }),
-    ]).start();
-    onPress();
-  }, [scaleAnim, onPress]);
-
-  return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <Pressable
-        hitSlop={6}
-        onPress={handlePress}
-        style={({ pressed }) => [
-          {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 6,
-            paddingHorizontal: spacing.md,
-            paddingVertical: 8,
-            borderRadius: radius.full,
-            borderWidth: 1,
-            borderColor: active ? color : colors.border,
-            backgroundColor: active ? `${color}22` : 'transparent',
-          },
-          pressed && { opacity: 0.7 },
-        ]}
-      >
-        <Icon name={icon} size={14} color={active ? color : colors.text.muted} filled={active} />
-        <Text
-          variant="caption"
-          weight="semibold"
-          numeric
-          style={{ color: active ? color : colors.text.secondary }}
-        >
-          {count}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-}
-
 function ActionButton({
   icon,
+  emoji,
   label,
   onPress,
+  onLongPress,
+  innerRef,
+  color,
+  filled,
+  weight = 'semibold',
 }: {
-  icon: IconName;
+  icon?: IconName;
+  emoji?: string;
   label: string;
   onPress: () => void;
+  onLongPress?: () => void;
+  innerRef?: React.Ref<View>;
+  color?: string;
+  filled?: boolean;
+  weight?: 'regular' | 'medium' | 'semibold' | 'bold';
 }) {
+  const tone = color ?? colors.text.muted;
   return (
     <Pressable
       hitSlop={6}
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={250}
       style={({ pressed }) => [
         {
+          flex: 1,
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'center',
           gap: 6,
-          paddingHorizontal: spacing.sm,
-          paddingVertical: 8,
+          paddingVertical: 10,
+          borderRadius: radius.md,
         },
-        pressed && { opacity: 0.6 },
+        pressed && { backgroundColor: colors.bg.elevated, opacity: 0.85 },
       ]}
     >
-      <Icon name={icon} size={16} color={colors.text.muted} />
-      <Text variant="caption" tone="secondary" weight="semibold" numeric>
+      <View ref={innerRef} collapsable={false}>
+        {emoji ? (
+          <Text style={{ fontSize: 18, lineHeight: 22 }}>{emoji}</Text>
+        ) : icon ? (
+          <Icon name={icon} size={18} color={tone} filled={!!filled} />
+        ) : null}
+      </View>
+      <Text variant="caption" weight={weight} style={{ color: tone }} numeric>
         {label}
       </Text>
     </Pressable>
@@ -340,6 +308,50 @@ function Body({ post }: { post: Post }) {
   }
 }
 
+/**
+ * Resumen tipo "icon icon icon · N" (Facebook). Solo se muestra si hay
+ * alguna reacción. Tappable para mostrar (en el futuro) quién reaccionó.
+ */
+function ReactionSummary({ post }: { post: Post }) {
+  const total = totalReactions(post.reactions);
+  const top = useMemo(() => topReactions(post.reactions, 3), [post.reactions]);
+  if (total === 0) return null;
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        marginTop: spacing.md,
+      }}
+    >
+      <View style={{ flexDirection: 'row' }}>
+        {top.map((r, idx) => (
+          <View
+            key={r.key}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.bg.elevated,
+              marginLeft: idx === 0 ? 0 : -8,
+              borderWidth: 2,
+              borderColor: colors.bg.card,
+            }}
+          >
+            <Text style={{ fontSize: 13, lineHeight: 16 }}>{r.emoji}</Text>
+          </View>
+        ))}
+      </View>
+      <Text variant="caption" tone="secondary" weight="semibold" numeric>
+        {total}
+      </Text>
+    </View>
+  );
+}
+
 export function FeedItem({
   post,
   isMine,
@@ -354,6 +366,42 @@ export function FeedItem({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // ── Reactions ──────────────────────────────────────────────
+  const reactBtnRef = useRef<View>(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const active = useMemo(() => activeReaction(post.myReactions), [post.myReactions]);
+
+  const openPicker = useCallback(() => {
+    reactBtnRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchor({ x, y, width, height });
+      setPickerVisible(true);
+    });
+  }, []);
+
+  const handleReactTap = useCallback(() => {
+    // Tap corto: si hay una activa, la quita. Si no, aplica props por defecto.
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const kind = active ? active.key : DEFAULT_REACTION;
+    onToggleReaction(post.id, kind);
+  }, [active, post.id, onToggleReaction]);
+
+  const handlePickerSelect = useCallback(
+    (kind: ReactionKind) => {
+      setPickerVisible(false);
+      // Si el usuario ya tenía una reacción diferente, la quita primero.
+      if (active && active.key !== kind) {
+        onToggleReaction(post.id, active.key);
+        // Luego añade la nueva (mismo tick; el optimistic update maneja bien
+        // las dos llamadas).
+        onToggleReaction(post.id, kind);
+      } else {
+        onToggleReaction(post.id, kind);
+      }
+    },
+    [active, post.id, onToggleReaction],
+  );
+
   const askDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     setMenuOpen(false);
@@ -364,6 +412,10 @@ export function FeedItem({
     setConfirmOpen(false);
     onDelete(post);
   };
+
+  const reactColor = active ? active.color : colors.text.muted;
+  const reactEmoji = active ? active.emoji : '👊';
+  const reactLabel = active ? active.shortLabel : 'Reaccionar';
 
   return (
     <Pressable
@@ -424,57 +476,58 @@ export function FeedItem({
           <Body post={post} />
         </View>
 
-        {/* Caption (skip duplicate for manual since photo is the body) */}
+        {/* Caption */}
         {post.caption ? (
           <Text variant="body" style={{ marginTop: spacing.md }}>
             {post.caption}
           </Text>
         ) : null}
 
-        {/* Reactions */}
+        {/* Reactions summary */}
+        <ReactionSummary post={post} />
+
+        {/* Action bar */}
         <View
           style={{
             flexDirection: 'row',
-            gap: spacing.sm,
-            marginTop: spacing.lg,
-            paddingTop: spacing.md,
+            alignItems: 'center',
+            marginTop: spacing.md,
+            paddingTop: spacing.sm,
             borderTopWidth: 1,
             borderTopColor: colors.border,
           }}
         >
-          {REACTIONS.map((r) => (
-            <ReactionPill
-              key={r.key}
-              icon={r.icon}
-              color={r.color}
-              count={post.reactions[r.key]}
-              active={post.myReactions[r.key]}
-              onPress={() => onToggleReaction(post.id, r.key)}
-            />
-          ))}
-        </View>
-
-        {/* Comments + Share actions */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-around',
-            marginTop: spacing.sm,
-            paddingTop: spacing.sm,
-          }}
-        >
+          <ActionButton
+            innerRef={reactBtnRef}
+            emoji={reactEmoji}
+            label={reactLabel}
+            onPress={handleReactTap}
+            onLongPress={openPicker}
+            color={reactColor}
+            filled={!!active}
+            weight={active ? 'bold' : 'semibold'}
+          />
           <ActionButton
             icon="chat"
-            label={`${post.commentCount} comentarios`}
+            label={post.commentCount > 0 ? `${post.commentCount}` : 'Comentar'}
             onPress={() => onOpenComments(post)}
           />
           <ActionButton
             icon="share"
-            label={post.shareCount > 0 ? `${post.shareCount} compartidos` : 'Compartir'}
+            label={post.shareCount > 0 ? `${post.shareCount}` : 'Compartir'}
             onPress={() => onShare(post)}
           />
         </View>
       </Card>
+
+      {/* Reaction picker overlay */}
+      <ReactionPicker
+        visible={pickerVisible}
+        anchor={anchor}
+        activeKind={active?.key ?? null}
+        onSelect={handlePickerSelect}
+        onDismiss={() => setPickerVisible(false)}
+      />
 
       {/* Owner menu */}
       <Modal

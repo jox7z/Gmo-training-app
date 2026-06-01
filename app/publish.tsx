@@ -36,14 +36,14 @@ import { useToast } from '@/components/ui/Toast';
 type Mode = 'manual' | 'workout' | 'pr';
 const MAX_CAPTION = 500;
 
-const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000;
+const THIRTY_DAYS_MS = 30 * 24 * 3600 * 1000;
 
-function last7Days(history: Workout[]): Workout[] {
+function last30Days(history: Workout[]): Workout[] {
   const now = Date.now();
   return history
     .filter((w) => {
       const t = new Date(w.endedAt ?? w.startedAt).getTime();
-      return t >= now - SEVEN_DAYS_MS && t <= now;
+      return t >= now - THIRTY_DAYS_MS && t <= now;
     })
     .sort(
       (a, b) =>
@@ -62,7 +62,7 @@ export default function PublishModal() {
   const profile = useAppStore((s) => s.profile);
   const history = useWorkoutsStore((s) => s.history);
 
-  const recentWorkouts = useMemo(() => last7Days(history), [history]);
+  const recentWorkouts = useMemo(() => last30Days(history), [history]);
 
   const close = () => {
     if (router.canGoBack()) router.back();
@@ -462,7 +462,7 @@ function WorkoutComposer({
             Sin entrenos recientes
           </Text>
           <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
-            No tienes entrenos registrados en los últimos 7 días.
+            No tienes entrenos registrados en los últimos 30 días.
           </Text>
           <Button title="Cerrar" variant="secondary" onPress={onClose} style={{ marginTop: spacing.lg }} fullWidth />
         </Card>

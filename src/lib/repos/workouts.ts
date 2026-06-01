@@ -89,7 +89,12 @@ async function insertWorkoutRows(userId: string, w: Workout): Promise<void> {
 }
 
 export async function saveWorkout(userId: string, w: Workout): Promise<void> {
-  return insertWorkoutRows(userId, w);
+  try {
+    return await insertWorkoutRows(userId, w);
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code === '23505') return;
+    throw err;
+  }
 }
 
 /**
@@ -103,9 +108,14 @@ export async function ensureWorkoutSynced(userId: string, w: Workout): Promise<v
     .eq('id', w.id)
     .maybeSingle();
 
-  if (data) return; // already synced
+  if (data) return;
 
-  return insertWorkoutRows(userId, w);
+  try {
+    return await insertWorkoutRows(userId, w);
+  } catch (err: unknown) {
+    if ((err as { code?: string })?.code === '23505') return;
+    throw err;
+  }
 }
 
 export async function getWorkouts(userId: string): Promise<Workout[]> {

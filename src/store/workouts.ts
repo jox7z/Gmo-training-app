@@ -44,6 +44,7 @@ interface State {
   history: Workout[];
   active: Workout | null;
   hydrate: () => Promise<void>;
+  mergeHistory: (remote: Workout[]) => void;
   startWorkout: (init: { routineDayId?: string; routineName?: string; exercises: WorkoutExercise[] }) => void;
   cancelWorkout: () => void;
   finishWorkout: (extras: { feeling?: Workout['feeling']; photoUri?: string; published?: boolean }) => Workout | null;
@@ -112,6 +113,17 @@ export const useWorkoutsStore = create<State>((set, get) => ({
   hydrate: async () => {
     const raw = await AsyncStorage.getItem(KEY);
     if (raw) set(JSON.parse(raw));
+  },
+
+  mergeHistory: (remote) => {
+    const current = get().history;
+    const ids = new Set(current.map((w) => w.id));
+    const toAdd = remote.filter((w) => !ids.has(w.id));
+    if (!toAdd.length) return;
+    const merged = [...toAdd, ...current].sort(
+      (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+    );
+    set({ history: merged });
   },
 
   startWorkout: ({ routineDayId, routineName, exercises }) => {
