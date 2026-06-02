@@ -10,6 +10,7 @@ import {
   publishWorkout,
   publishPR,
   publishManualPost,
+  publishStreak,
   listComments,
   addComment,
   deleteComment,
@@ -180,6 +181,23 @@ export function usePublishManualPost() {
   const qc = useQueryClient();
   return useMutation<string, Error, PublishManualPostVars>({
     mutationFn: ({ caption, photoUrl }) => publishManualPost(caption, photoUrl),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: profileCountersKey });
+      qc.invalidateQueries({ queryKey: ['userPosts'] });
+    },
+  });
+}
+
+interface PublishStreakVars {
+  caption?: string;
+  photoUrl?: string;
+}
+
+export function usePublishStreak() {
+  const qc = useQueryClient();
+  return useMutation<string, Error, PublishStreakVars>({
+    mutationFn: ({ caption, photoUrl }) => publishStreak(caption, photoUrl),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });

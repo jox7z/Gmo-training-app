@@ -296,6 +296,16 @@ export async function toggleReaction(
   return !!data;
 }
 
+export async function publishStreak(caption?: string, photoUrl?: string): Promise<string> {
+  const { data, error } = await supabase.rpc('publish_streak', {
+    caption: caption ?? null,
+    photo_url: photoUrl ?? null,
+  });
+
+  if (error) throw error;
+  return data as string;
+}
+
 export async function deletePost(postId: string): Promise<void> {
   const { error } = await supabase.from('posts').delete().eq('id', postId);
   if (error) throw error;

@@ -163,11 +163,28 @@ export default function Profile() {
             <Text weight="black" style={{ color: '#0B0B0B', letterSpacing: 1 }}>{rank.label.toUpperCase()}</Text>
           </View>
           {streakWeeks > 0 && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: spacing.xs }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
               <Icon name="fire" size={13} color={colors.accent.DEFAULT} />
               <Text variant="caption" tone="accent" weight="bold">
                 {streakWeeks} {streakWeeks === 1 ? 'semana' : 'semanas'} seguidas
               </Text>
+              <Pressable
+                onPress={() => router.push({ pathname: '/publish', params: { mode: 'streak' } })}
+                hitSlop={6}
+                style={({ pressed }) => [
+                  {
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 3,
+                    borderRadius: radius.full,
+                    backgroundColor: colors.accent.soft,
+                    borderWidth: 1,
+                    borderColor: colors.accent.DEFAULT,
+                  },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
+                <Text variant="caption" tone="accent" weight="bold">Compartir</Text>
+              </Pressable>
             </View>
           )}
           {!!profile.bio && (

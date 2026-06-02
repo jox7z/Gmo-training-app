@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, View, Pressable, Image, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -128,6 +128,9 @@ function WorkoutBody({ post }: { post: Post }) {
   const chips: string[] = Array.isArray(post.metadata?.exercises)
     ? (post.metadata.exercises as any[]).slice(0, 3).map((e) => String(e?.name ?? e))
     : [];
+  const prs: Array<{ exercise_name: string; weight_kg: number; reps: number }> =
+    Array.isArray(post.metadata?.prs) ? post.metadata.prs : [];
+
   return (
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
@@ -156,12 +159,84 @@ function WorkoutBody({ post }: { post: Post }) {
           ))}
         </View>
       )}
+      {prs.length > 0 && (
+        <View style={{ marginTop: spacing.sm, gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Icon name="trophy" size={12} color="#FFD700" />
+            <Text variant="caption" style={{ color: '#FFD700' }} weight="bold">
+              {prs.length === 1 ? 'Nuevo PR' : `${prs.length} nuevos PRs`}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {prs.map((pr, i) => (
+              <View
+                key={i}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 4,
+                  borderRadius: radius.full,
+                  backgroundColor: 'rgba(255,215,0,0.1)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,215,0,0.4)',
+                }}
+              >
+                <Text variant="caption" style={{ color: '#FFD700' }} weight="semibold">
+                  {pr.exercise_name} · {pr.weight_kg}kg × {pr.reps}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
       {post.photoUrl ? (
         <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
           <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
         </View>
       ) : null}
     </View>
+  );
+}
+
+const GOLD = '#FFD700';
+
+function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
+  const glow = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glow, { toValue: 1, duration: 1600, useNativeDriver: false }),
+        Animated.timing(glow, { toValue: 0, duration: 1600, useNativeDriver: false }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [glow]);
+
+  const borderColor = glow.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['rgba(255,215,0,0.35)', 'rgba(255,215,0,0.95)'],
+  });
+  const shadowOpacity = glow.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.65] });
+
+  return (
+    <Animated.View
+      style={{
+        borderRadius: radius.lg + 2,
+        borderWidth: 1.5,
+        borderColor,
+        shadowColor: GOLD,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity,
+        shadowRadius: 14,
+        elevation: 10,
+      }}
+    >
+      {children}
+    </Animated.View>
   );
 }
 
@@ -178,17 +253,18 @@ function PrBody({ post }: { post: Post }) {
             borderRadius: 18,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: colors.accent.soft,
-            ...shadow.glowAccent,
+            backgroundColor: 'rgba(255,215,0,0.15)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,215,0,0.5)',
           }}
         >
-          <Icon name="trophy" size={18} color={colors.accent.DEFAULT} />
+          <Icon name="trophy" size={18} color={GOLD} />
         </View>
-        <Text variant="label" tone="accent">Nuevo PR</Text>
+        <Text variant="label" style={{ color: GOLD }}>Nuevo PR</Text>
       </View>
       <Text variant="title" style={{ marginTop: spacing.sm }}>{post.title}</Text>
       {(weight || reps) && (
-        <Text variant="metric" tone="accent" style={{ marginTop: spacing.xs }}>
+        <Text variant="metric" style={{ color: GOLD, marginTop: spacing.xs }}>
           {weight ? `${weight}kg` : ''}{weight && reps ? ' × ' : ''}{reps ? `${reps}` : ''}
         </Text>
       )}
@@ -218,17 +294,15 @@ function RankUpBody({ post }: { post: Post }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Icon name="lightning" size={20} color="#0B0B0B" />
           <Text weight="black" style={{ color: '#0B0B0B' }}>
-            Subió a {info.label}
+            {info.label.toUpperCase()}
           </Text>
         </View>
         <Text variant="title" style={{ color: '#0B0B0B', marginTop: spacing.sm }}>
           {post.title}
         </Text>
-        {post.subtitle ? (
-          <Text variant="caption" weight="semibold" style={{ color: '#0B0B0B', opacity: 0.8, marginTop: 2 }}>
-            {post.subtitle}
-          </Text>
-        ) : null}
+        <Text variant="caption" weight="bold" style={{ color: '#0B0B0B', opacity: 0.75, marginTop: spacing.xs }}>
+          {post.subtitle ?? '¡Dale sus felicitaciones!'}
+        </Text>
       </LinearGradient>
     </View>
   );
@@ -417,6 +491,103 @@ export function FeedItem({
   const reactEmoji = active ? active.emoji : '👊';
   const reactLabel = active ? active.shortLabel : 'Reaccionar';
 
+  const cardInner = (
+    <>
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Pressable
+          onPress={() => onOpenProfile(post)}
+          hitSlop={6}
+          style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
+        >
+          <Avatar
+            uri={post.user.avatarUrl}
+            name={post.user.displayName}
+            size={44}
+            borderColor={info.color}
+          />
+          <View style={{ marginLeft: spacing.md, flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Text weight="bold" numberOfLines={1} style={{ flexShrink: 1 }}>
+                {post.user.displayName}
+              </Text>
+              <Badge label={info.label} tone="muted" />
+            </View>
+            <Text variant="caption" tone="muted" numberOfLines={1}>
+              @{post.user.username} · {relative}
+            </Text>
+          </View>
+        </Pressable>
+
+        {isMine && (
+          <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text weight="black" tone="muted" style={{ fontSize: 18, lineHeight: 18 }}>
+                ⋯
+              </Text>
+            </View>
+          </Pressable>
+        )}
+      </View>
+
+      {/* Body */}
+      <View style={{ marginTop: spacing.md }}>
+        <Body post={post} />
+      </View>
+
+      {/* Caption */}
+      {post.caption ? (
+        <Text variant="body" style={{ marginTop: spacing.md }}>
+          {post.caption}
+        </Text>
+      ) : null}
+
+      {/* Reactions summary */}
+      <ReactionSummary post={post} />
+
+      {/* Action bar */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginTop: spacing.md,
+          paddingTop: spacing.sm,
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        }}
+      >
+        <ActionButton
+          innerRef={reactBtnRef}
+          emoji={reactEmoji}
+          label={reactLabel}
+          onPress={handleReactTap}
+          onLongPress={openPicker}
+          color={reactColor}
+          filled={!!active}
+          weight={active ? 'bold' : 'semibold'}
+        />
+        <ActionButton
+          icon="chat"
+          label={post.commentCount > 0 ? `${post.commentCount}` : 'Comentar'}
+          onPress={() => onOpenComments(post)}
+        />
+        <ActionButton
+          icon="share"
+          label={post.shareCount > 0 ? `${post.shareCount}` : 'Compartir'}
+          onPress={() => onShare(post)}
+        />
+      </View>
+    </>
+  );
+
   return (
     <Pressable
       onLongPress={() => {
@@ -424,101 +595,15 @@ export function FeedItem({
         askDelete();
       }}
       delayLongPress={350}
+      style={{ marginBottom: spacing.md }}
     >
-      <Card padding="lg" style={{ marginBottom: spacing.md }}>
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable
-            onPress={() => onOpenProfile(post)}
-            hitSlop={6}
-            style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
-          >
-            <Avatar
-              uri={post.user.avatarUrl}
-              name={post.user.displayName}
-              size={44}
-              borderColor={info.color}
-            />
-            <View style={{ marginLeft: spacing.md, flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Text weight="bold" numberOfLines={1} style={{ flexShrink: 1 }}>
-                  {post.user.displayName}
-                </Text>
-                <Badge label={info.label} tone="muted" />
-              </View>
-              <Text variant="caption" tone="muted" numberOfLines={1}>
-                @{post.user.username} · {relative}
-              </Text>
-            </View>
-          </Pressable>
-
-          {isMine && (
-            <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Text weight="black" tone="muted" style={{ fontSize: 18, lineHeight: 18 }}>
-                  ⋯
-                </Text>
-              </View>
-            </Pressable>
-          )}
-        </View>
-
-        {/* Body */}
-        <View style={{ marginTop: spacing.md }}>
-          <Body post={post} />
-        </View>
-
-        {/* Caption */}
-        {post.caption ? (
-          <Text variant="body" style={{ marginTop: spacing.md }}>
-            {post.caption}
-          </Text>
-        ) : null}
-
-        {/* Reactions summary */}
-        <ReactionSummary post={post} />
-
-        {/* Action bar */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            marginTop: spacing.md,
-            paddingTop: spacing.sm,
-            borderTopWidth: 1,
-            borderTopColor: colors.border,
-          }}
-        >
-          <ActionButton
-            innerRef={reactBtnRef}
-            emoji={reactEmoji}
-            label={reactLabel}
-            onPress={handleReactTap}
-            onLongPress={openPicker}
-            color={reactColor}
-            filled={!!active}
-            weight={active ? 'bold' : 'semibold'}
-          />
-          <ActionButton
-            icon="chat"
-            label={post.commentCount > 0 ? `${post.commentCount}` : 'Comentar'}
-            onPress={() => onOpenComments(post)}
-          />
-          <ActionButton
-            icon="share"
-            label={post.shareCount > 0 ? `${post.shareCount}` : 'Compartir'}
-            onPress={() => onShare(post)}
-          />
-        </View>
-      </Card>
+      {post.type === 'pr' ? (
+        <PrGoldenWrapper>
+          <Card padding="lg">{cardInner}</Card>
+        </PrGoldenWrapper>
+      ) : (
+        <Card padding="lg">{cardInner}</Card>
+      )}
 
       {/* Reaction picker overlay */}
       <ReactionPicker

@@ -27,13 +27,14 @@ import {
   usePublishManualPost,
   usePublishWorkout,
   usePublishPR,
+  usePublishStreak,
 } from '@/lib/queries/feed';
 import { uploadPostPhoto } from '@/lib/storage/photos';
 import { ensureWorkoutSynced } from '@/lib/repos/workouts';
 import { EXERCISES } from '@/data/exercises';
 import { useToast } from '@/components/ui/Toast';
 
-type Mode = 'manual' | 'workout' | 'pr';
+type Mode = 'manual' | 'workout' | 'pr' | 'streak';
 const MAX_CAPTION = 500;
 
 const THIRTY_DAYS_MS = 30 * 24 * 3600 * 1000;
@@ -57,9 +58,13 @@ export default function PublishModal() {
   const toast = useToast();
   const params = useLocalSearchParams<{ mode?: string; workoutId?: string }>();
   const mode: Mode =
-    params.mode === 'workout' ? 'workout' : params.mode === 'pr' ? 'pr' : 'manual';
+    params.mode === 'workout' ? 'workout'
+    : params.mode === 'pr' ? 'pr'
+    : params.mode === 'streak' ? 'streak'
+    : 'manual';
 
   const profile = useAppStore((s) => s.profile);
+  const streakWeeks = useAppStore((s) => s.streakWeeks);
   const history = useWorkoutsStore((s) => s.history);
 
   const recentWorkouts = useMemo(() => last30Days(history), [history]);
@@ -72,6 +77,7 @@ export default function PublishModal() {
   const title =
     mode === 'workout' ? 'Compartir entreno'
     : mode === 'pr' ? 'Publicar PR'
+    : mode === 'streak' ? 'Compartir racha'
     : 'Nueva publicación';
 
   const handleSuccess = (msg: string) => {
@@ -112,6 +118,13 @@ export default function PublishModal() {
         {mode === 'pr' && (
           <PrComposer
             userId={profile?.id ?? null}
+            onSuccess={handleSuccess}
+            onError={handleError}
+          />
+        )}
+        {mode === 'streak' && (
+          <StreakComposer
+            streakWeeks={streakWeeks}
             onSuccess={handleSuccess}
             onError={handleError}
           />
@@ -826,6 +839,120 @@ function PrComposer({
         onPress={submit}
         loading={publish.isPending || uploading}
         disabled={!valid || publish.isPending || uploading}
+        fullWidth
+        style={{ marginTop: spacing.xl }}
+      />
+    </ScrollView>
+  );
+}
+
+// =====================================================
+// STREAK
+// =====================================================
+function StreakComposer({
+  streakWeeks,
+  onSuccess,
+  onError,
+}: {
+  streakWeeks: number;
+  onSuccess: (msg: string) => void;
+  onError: (msg: string) => void;
+}) {
+  const [caption, setCaption] = useState('');
+  const publish = usePublishStreak();
+
+  const remaining = MAX_CAPTION - caption.length;
+  const overLimit = remaining < 0;
+
+  if (streakWeeks < 1) {
+    return (
+      <View style={{ flex: 1, padding: spacing.lg, justifyContent: 'center' }}>
+        <Card padding="xl" style={{ alignItems: 'center' }}>
+          <Icon name="fire" size={32} color={colors.text.muted} />
+          <Text variant="heading" style={{ marginTop: spacing.md }}>Sin racha activa</Text>
+          <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
+            Completa tu primera semana de entrenos para iniciar una racha.
+          </Text>
+        </Card>
+      </View>
+    );
+  }
+
+  const submit = () => {
+    if (overLimit || publish.isPending) return;
+    publish.mutate(
+      { caption: caption.trim() || undefined },
+      {
+        onSuccess: () => onSuccess('Racha compartida'),
+        onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
+      },
+    );
+  };
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
+      {/* Streak preview card */}
+      <Card padding="lg" style={{ marginBottom: spacing.lg }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 26,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: colors.accent.soft,
+              borderWidth: 1,
+              borderColor: colors.accent.DEFAULT,
+            }}
+          >
+            <Icon name="fire" size={26} color={colors.accent.DEFAULT} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="title" tone="accent" weight="black">
+              {streakWeeks} {streakWeeks === 1 ? 'semana' : 'semanas'} seguidas
+            </Text>
+            <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>
+              ¡Sigue así, no pares!
+            </Text>
+          </View>
+        </View>
+      </Card>
+
+      {/* Caption */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+        <Text variant="label" tone="secondary">Mensaje (opcional)</Text>
+        <Text variant="caption" tone={overLimit ? 'danger' : remaining <= 30 ? 'accent' : 'muted'} numeric>
+          {remaining}
+        </Text>
+      </View>
+      <View
+        style={{
+          borderWidth: 1,
+          borderColor: overLimit ? colors.danger : colors.border,
+          backgroundColor: colors.bg.elevated,
+          borderRadius: radius.lg,
+          padding: spacing.md,
+          minHeight: 100,
+        }}
+      >
+        <TextInput
+          value={caption}
+          onChangeText={setCaption}
+          placeholder="Consistencia es la clave…"
+          placeholderTextColor={colors.text.muted}
+          multiline
+          textAlignVertical="top"
+          style={{ color: colors.text.primary, fontSize: 15, minHeight: 80 }}
+          maxLength={MAX_CAPTION + 50}
+        />
+      </View>
+
+      <Button
+        title="Compartir racha"
+        onPress={submit}
+        loading={publish.isPending}
+        disabled={overLimit || publish.isPending}
         fullWidth
         style={{ marginTop: spacing.xl }}
       />
