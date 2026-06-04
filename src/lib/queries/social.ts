@@ -155,11 +155,12 @@ export function useFollow() {
     onSettled: (_data, _err, targetUserId) => {
       qc.invalidateQueries({ queryKey: socialKeys.isFollowing(targetUserId) });
       qc.invalidateQueries({ queryKey: profileCountersKey });
-      qc.invalidateQueries({ queryKey: ['followers'] });
-      qc.invalidateQueries({ queryKey: ['following'] });
-      qc.invalidateQueries({ queryKey: ['discover'] });
-      qc.invalidateQueries({ queryKey: ['feed', 'list'] });
-      qc.invalidateQueries({ queryKey: ['search', 'users'] });
+      // Invalidar sin refetch inmediato para no resetear el scroll de listas visibles
+      qc.invalidateQueries({ queryKey: ['followers'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['following'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['discover'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['feed', 'list'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['search', 'users'], refetchType: 'none' });
     },
   });
 }
@@ -263,11 +264,12 @@ export function useUnfollow() {
     onSettled: (_data, _err, targetUserId) => {
       qc.invalidateQueries({ queryKey: socialKeys.isFollowing(targetUserId) });
       qc.invalidateQueries({ queryKey: profileCountersKey });
-      qc.invalidateQueries({ queryKey: ['followers'] });
-      qc.invalidateQueries({ queryKey: ['following'] });
-      qc.invalidateQueries({ queryKey: ['discover'] });
-      qc.invalidateQueries({ queryKey: ['feed', 'list'] });
-      qc.invalidateQueries({ queryKey: ['search', 'users'] });
+      // Invalidar sin refetch inmediato para no resetear el scroll de listas visibles
+      qc.invalidateQueries({ queryKey: ['followers'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['following'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['discover'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['feed', 'list'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['search', 'users'], refetchType: 'none' });
     },
   });
 }

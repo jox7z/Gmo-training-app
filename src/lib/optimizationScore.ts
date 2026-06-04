@@ -20,7 +20,11 @@ export interface OptimizationScore {
 export const MUSCLE_LABELS: Record<string, string> = {
   chest: 'Pecho',
   back: 'Espalda',
+  // Legacy alias — keeps old data readable
   shoulders: 'Hombros',
+  front_delt: 'Hombro frontal',
+  lateral_delt: 'Hombro lateral',
+  rear_delt: 'Hombro posterior',
   biceps: 'Bíceps',
   triceps: 'Tríceps',
   quads: 'Cuádriceps',
@@ -126,7 +130,7 @@ function scoreProgression(history: Workout[]): number {
         const t = new Date(w.startedAt).getTime();
         return t >= from && t < to;
       })
-      .reduce((acc, w) => acc + w.totalVolumeKg, 0);
+      .reduce((acc, w) => acc + w.totalReps, 0);
   });
 
   if (weeks.filter((v) => v > 0).length < 2) return 50;
@@ -182,21 +186,110 @@ export interface RoutineScore {
 }
 
 const MAJOR_GROUPS = [
-  'chest', 'back', 'shoulders', 'biceps', 'triceps',
+  'chest', 'back', 'front_delt', 'lateral_delt', 'rear_delt', 'biceps', 'triceps',
   'quads', 'hamstrings', 'glutes', 'calves',
 ] as const;
 
-export function computeRoutineScore(routine: Routine, profile: UserProfile): RoutineScore {
-  // Build weeklySets per muscle group across all routine days
-  const weeklySets: Record<string, number> = {};
+export const UPPER_MUSCLES = ['chest', 'back', 'front_delt', 'lateral_delt', 'rear_delt', 'biceps', 'triceps'] as const;
+export const LOWER_MUSCLES = ['quads', 'hamstrings', 'glutes', 'calves'] as const;
+
+export const MIN_WEEKLY_SETS = 8;
+export const OPTIMAL_MAX_SETS = 20;
+
+export type MuscleStatus = 'untrained' | 'low' | 'optimal' | 'high';
+
+export interface MuscleAssessment {
+  muscle: string;
+  label: string;
+  weeklySets: number;
+  frequency: number;
+  perSession: number;
+  status: MuscleStatus;
+  hint: string;
+}
+
+/** Single-pass helper: builds weeklySets and frequency per muscle. */
+function buildRoutineMuscleStats(routine: Routine): {
+  setsByMuscle: Record<string, number>;
+  daysByMuscle: Record<string, number>;
+} {
+  const setsByMuscle: Record<string, number> = {};
+  const daysByMuscle: Record<string, number> = {};
+
   for (const day of routine.days) {
+    const musclesThisDay = new Set<string>();
     for (const ex of day.exercises) {
       const exercise = exerciseById(ex.exerciseId);
       if (!exercise) continue;
       const muscle = exercise.muscle;
-      weeklySets[muscle] = (weeklySets[muscle] ?? 0) + ex.targetSets;
+      setsByMuscle[muscle] = (setsByMuscle[muscle] ?? 0) + ex.targetSets;
+      musclesThisDay.add(muscle);
+    }
+    for (const m of musclesThisDay) {
+      daysByMuscle[m] = (daysByMuscle[m] ?? 0) + 1;
     }
   }
+
+  return { setsByMuscle, daysByMuscle };
+}
+
+export function analyzeRoutineMuscles(routine: Routine): MuscleAssessment[] {
+  const { setsByMuscle, daysByMuscle } = buildRoutineMuscleStats(routine);
+
+  const items: MuscleAssessment[] = [];
+  for (const muscle of MAJOR_GROUPS) {
+    const weeklySets = setsByMuscle[muscle] ?? 0;
+    if (weeklySets === 0) continue; // only muscles present in routine
+
+    const frequency = daysByMuscle[muscle] ?? 0;
+    const perSession = Math.round(weeklySets / Math.max(1, frequency));
+
+    let status: MuscleStatus;
+    if (weeklySets === 0) status = 'untrained';
+    else if (weeklySets < MIN_WEEKLY_SETS) status = 'low';
+    else if (weeklySets <= OPTIMAL_MAX_SETS) status = 'optimal';
+    else status = 'high';
+
+    let hint: string;
+    if (status === 'low') {
+      hint = 'Por debajo de 8 series/semana: sube volumen.';
+    } else if (status === 'high') {
+      hint = 'Mucho volumen: revisa si no acumulas fatiga.';
+    } else if (weeklySets >= 10 && frequency <= 1) {
+      hint = 'Reparte en 2 sesiones: bajas las series por día y mejoras el estímulo.';
+    } else if (frequency === 1) {
+      hint = 'Frecuencia 1: válida, pero 2 suele dar mejores resultados.';
+    } else if (frequency === 2) {
+      hint = 'Frecuencia ideal.';
+    } else {
+      hint = 'Frecuencia alta: viable solo si recuperas bien.';
+    }
+
+    items.push({
+      muscle,
+      label: MUSCLE_LABELS[muscle] ?? muscle,
+      weeklySets,
+      frequency,
+      perSession,
+      status,
+      hint,
+    });
+  }
+
+  // Sort: untrained first, then low, high, optimal; within same status by weeklySets asc
+  const order: MuscleStatus[] = ['untrained', 'low', 'high', 'optimal'];
+  items.sort((a, b) => {
+    const oa = order.indexOf(a.status);
+    const ob = order.indexOf(b.status);
+    if (oa !== ob) return oa - ob;
+    return a.weeklySets - b.weeklySets;
+  });
+
+  return items;
+}
+
+export function computeRoutineScore(routine: Routine, profile: UserProfile): RoutineScore {
+  const { setsByMuscle: weeklySets } = buildRoutineMuscleStats(routine);
 
   const majorCounts = MAJOR_GROUPS.map((g) => weeklySets[g] ?? 0);
   const trainedIndices = majorCounts.map((c, i) => ({ count: c, i })).filter((x) => x.count > 0);

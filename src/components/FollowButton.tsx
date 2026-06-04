@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Text } from '@/components/ui/Text';
@@ -11,15 +11,28 @@ interface Props {
   isFollowing: boolean;
   /** 'sm' → botón compacto (listas), 'md' → botón normal (perfil). Default: 'md'. */
   size?: 'sm' | 'md';
+  /** Notifica el nuevo estado de forma optimista (para que la pantalla refleje el cambio sin esperar al refetch). */
+  onChange?: (next: boolean) => void;
+  /** Revierte el estado optimista si la mutación falla (recibe el valor a restaurar). */
+  onChangeFailed?: (restored: boolean) => void;
 }
 
-export function FollowButton({ userId, isFollowing, size = 'md' }: Props) {
+export function FollowButton({ userId, isFollowing, size = 'md', onChange, onChangeFailed }: Props) {
   const follow = useFollow();
   const unfollow = useUnfollow();
   const toast = useToast();
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const isSm = size === 'sm';
   const busy = follow.isPending || unfollow.isPending;
+
+  // Estado optimista local: el botón refleja el cambio al instante aunque la
+  // lista que lo contiene no se refetchee (las mutaciones usan refetchType:'none'
+  // para no resetear el scroll). Se reconcilia cuando cambia el prop real.
+  const [override, setOverride] = useState<boolean | null>(null);
+  useEffect(() => {
+    setOverride(null);
+  }, [isFollowing]);
+  const effective = override ?? isFollowing;
 
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -29,15 +42,25 @@ export function FollowButton({ userId, isFollowing, size = 'md' }: Props) {
       Animated.timing(scaleAnim, { toValue: 1.0, duration: 60, useNativeDriver: true }),
     ]).start();
 
-    if (isFollowing) {
+    const next = !effective;
+    setOverride(next);
+    onChange?.(next);
+
+    if (effective) {
       unfollow.mutate(userId, {
-        onError: (err) =>
-          toast.show({ message: err?.message ?? 'No se pudo dejar de seguir', tone: 'danger' }),
+        onError: (err) => {
+          setOverride(null);
+          toast.show({ message: err?.message ?? 'No se pudo dejar de seguir', tone: 'danger' });
+          onChangeFailed?.(true);
+        },
       });
     } else {
       follow.mutate(userId, {
-        onError: (err) =>
-          toast.show({ message: err?.message ?? 'No se pudo seguir', tone: 'danger' }),
+        onError: (err) => {
+          setOverride(null);
+          toast.show({ message: err?.message ?? 'No se pudo seguir', tone: 'danger' });
+          onChangeFailed?.(false);
+        },
       });
     }
   };
@@ -55,7 +78,8 @@ export function FollowButton({ userId, isFollowing, size = 'md' }: Props) {
             borderWidth: 1.5,
             alignItems: 'center' as const,
             justifyContent: 'center' as const,
-            backgroundColor: isFollowing ? 'transparent' : colors.primary.DEFAULT,
+            minWidth: isSm ? 96 : 120,
+            backgroundColor: effective ? 'transparent' : colors.primary.DEFAULT,
             borderColor: colors.primary.DEFAULT,
           },
           pressed && !busy && { opacity: 0.8 },
@@ -66,10 +90,10 @@ export function FollowButton({ userId, isFollowing, size = 'md' }: Props) {
           weight="semibold"
           style={{
             fontSize: isSm ? 12 : 14,
-            color: isFollowing ? colors.primary.DEFAULT : '#0B0B0B',
+            color: effective ? colors.primary.DEFAULT : '#0B0B0B',
           }}
         >
-          {isFollowing ? 'Siguiendo' : 'Seguir'}
+          {effective ? 'Siguiendo' : 'Seguir'}
         </Text>
       </Pressable>
     </Animated.View>

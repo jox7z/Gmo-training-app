@@ -1,7 +1,9 @@
 export type MuscleGroup =
   | 'chest'
   | 'back'
-  | 'shoulders'
+  | 'front_delt'
+  | 'lateral_delt'
+  | 'rear_delt'
   | 'biceps'
   | 'triceps'
   | 'quads'
@@ -29,9 +31,9 @@ export const EXERCISES: Exercise[] = [
   { id: 'lat-pulldown', name: 'Jalón al pecho', muscle: 'back', equipment: 'cable', isCompound: true, instructions: 'Tira la barra hacia el pecho, codos abajo.' },
   { id: 'face-pull', name: 'Face pull', muscle: 'back', equipment: 'cable', isCompound: false, instructions: 'Tira hacia la cara separando manos.' },
   { id: 'deadlift', name: 'Peso muerto', muscle: 'full_body', equipment: 'barbell', isCompound: true, instructions: 'Caderas atrás, espalda neutra, levanta empujando el suelo.' },
-  { id: 'overhead-press', name: 'Press militar', muscle: 'shoulders', equipment: 'barbell', isCompound: true, instructions: 'Empuja la barra encima de la cabeza, glúteos contraídos.' },
-  { id: 'lateral-raise', name: 'Elevaciones laterales', muscle: 'shoulders', equipment: 'dumbbell', isCompound: false, instructions: 'Eleva mancuernas a los lados hasta altura de hombros.' },
-  { id: 'rear-delt-fly', name: 'Pájaros (rear delt)', muscle: 'shoulders', equipment: 'dumbbell', isCompound: false, instructions: 'Inclínate, eleva mancuernas hacia los lados.' },
+  { id: 'overhead-press', name: 'Press militar', muscle: 'front_delt', equipment: 'barbell', isCompound: true, instructions: 'Empuja la barra encima de la cabeza, glúteos contraídos.' },
+  { id: 'lateral-raise', name: 'Elevaciones laterales', muscle: 'lateral_delt', equipment: 'dumbbell', isCompound: false, instructions: 'Eleva mancuernas a los lados hasta altura de hombros.' },
+  { id: 'rear-delt-fly', name: 'Pájaros (rear delt)', muscle: 'rear_delt', equipment: 'dumbbell', isCompound: false, instructions: 'Inclínate, eleva mancuernas hacia los lados.' },
   { id: 'biceps-curl', name: 'Curl de bíceps', muscle: 'biceps', equipment: 'dumbbell', isCompound: false, instructions: 'Codos pegados al torso, sube controlado.' },
   { id: 'hammer-curl', name: 'Curl martillo', muscle: 'biceps', equipment: 'dumbbell', isCompound: false, instructions: 'Agarre neutro, sube hasta el hombro.' },
   { id: 'triceps-pushdown', name: 'Press tríceps polea', muscle: 'triceps', equipment: 'cable', isCompound: false, instructions: 'Codos pegados al torso, extiende los brazos.' },

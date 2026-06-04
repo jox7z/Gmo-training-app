@@ -1,8 +1,8 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
-import { View } from 'react-native';
+import { AppState, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -20,6 +20,15 @@ import { ToastProvider } from '@/components/ui/Toast';
 
 console.log('[RootLayout] module load. Supabase configured?', isSupabaseConfigured);
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// React Query focus tracking via AppState: refetch stale queries when
+// the app comes back to foreground (replaces the web window-focus event).
+focusManager.setEventListener((handleFocus) => {
+  const sub = AppState.addEventListener('change', (state) => {
+    handleFocus(state === 'active');
+  });
+  return () => sub.remove();
+});
 // Set the native root window background so Android doesn't flash/show white
 // while React mounts or when a screen renders an empty state.
 SystemUI.setBackgroundColorAsync(colors.bg.base).catch(() => {});
@@ -36,6 +45,8 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 60_000,
       retry: 1,
+      refetchOnReconnect: true,
+      refetchOnWindowFocus: true,
     },
   },
 });

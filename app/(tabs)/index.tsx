@@ -24,6 +24,7 @@ import {
   type Post,
   type ReactionKind,
 } from '@/lib/queries/feed';
+import { useFeedRealtime } from '@/lib/queries/useFeedRealtime';
 import { useUnreadCount } from '@/lib/queries/notifications';
 
 function CoachFab({ onPress }: { onPress: () => void }) {
@@ -165,12 +166,18 @@ export default function FeedHome() {
   const deletePost = useDeletePost();
   const incrementShare = useIncrementShare();
 
+  useFeedRealtime();
+
   const [commentsPost, setCommentsPost] = useState<Post | null>(null);
 
-  const posts: Post[] = useMemo(
-    () => feedQuery.data?.pages.flatMap((p) => p.posts) ?? [],
-    [feedQuery.data],
-  );
+  const posts: Post[] = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Post[] = [];
+    for (const p of feedQuery.data?.pages.flatMap((pg) => pg.posts) ?? []) {
+      if (!seen.has(p.id)) { seen.add(p.id); out.push(p); }
+    }
+    return out;
+  }, [feedQuery.data]);
 
   // Latest finished workout within 7 days (for composer "share workout" shortcut)
   const recentWorkout = useMemo(() => {
@@ -182,15 +189,15 @@ export default function FeedHome() {
     return candidate ?? null;
   }, [history]);
 
+  const { refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = feedQuery;
+
   const onRefresh = useCallback(() => {
-    feedQuery.refetch();
-  }, [feedQuery]);
+    refetch();
+  }, [refetch]);
 
   const onEndReached = useCallback(() => {
-    if (feedQuery.hasNextPage && !feedQuery.isFetchingNextPage) {
-      feedQuery.fetchNextPage();
-    }
-  }, [feedQuery]);
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const handleToggleReaction = useCallback(
     (postId: string, reaction: ReactionKind) => {
@@ -388,7 +395,7 @@ export default function FeedHome() {
         <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
           <FeedErrorState
             message={feedQuery.error?.message}
-            onRetry={() => feedQuery.refetch()}
+            onRetry={onRefresh}
           />
         </View>
       ) : (
@@ -423,7 +430,7 @@ export default function FeedHome() {
           }
           ListEmptyComponent={isEmpty ? <FeedEmptyState onDiscover={goDiscover} /> : null}
           ListFooterComponent={
-            feedQuery.isFetchingNextPage ? (
+            isFetchingNextPage ? (
               <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
                 <ActivityIndicator color={colors.primary.DEFAULT} />
               </View>
@@ -431,7 +438,7 @@ export default function FeedHome() {
           }
           refreshControl={
             <RefreshControl
-              refreshing={feedQuery.isRefetching && !feedQuery.isFetchingNextPage}
+              refreshing={feedQuery.isRefetching && !isFetchingNextPage}
               onRefresh={onRefresh}
               tintColor={colors.primary.DEFAULT}
             />

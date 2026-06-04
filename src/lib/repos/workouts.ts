@@ -8,7 +8,6 @@ interface DbWorkoutRow {
   started_at: string;
   ended_at: string | null;
   duration_seconds: number | null;
-  total_volume_kg: number | string;
   total_reps: number | null;
   total_rest_seconds: number | null;
   total_active_seconds: number | null;
@@ -46,7 +45,6 @@ async function insertWorkoutRows(userId: string, w: Workout): Promise<void> {
       started_at: w.startedAt,
       ended_at: w.endedAt ?? null,
       duration_seconds: w.durationSeconds ?? null,
-      total_volume_kg: w.totalVolumeKg,
       total_reps: w.totalReps,
       total_rest_seconds: w.totalRestSeconds,
       total_active_seconds: w.totalActiveSeconds,
@@ -137,7 +135,6 @@ export async function getWorkouts(userId: string): Promise<Workout[]> {
     startedAt: row.started_at,
     endedAt: row.ended_at ?? undefined,
     durationSeconds: row.duration_seconds ?? undefined,
-    totalVolumeKg: Number(row.total_volume_kg),
     totalReps: row.total_reps ?? 0,
     totalRestSeconds: row.total_rest_seconds ?? 0,
     totalActiveSeconds: row.total_active_seconds ?? 0,

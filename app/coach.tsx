@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { View, Pressable, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -10,8 +11,11 @@ import { colors, spacing, radius } from '@/theme/tokens';
 import { askCoach, CoachMessage, CoachContext, WorkoutSummary } from '@/lib/coach';
 import { useAppStore } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
-import { computeOptimizationScore } from '@/lib/optimizationScore';
+import { useRoutinesStore } from '@/store/routines';
+import { computeOptimizationScore, analyzeRoutineMuscles } from '@/lib/optimizationScore';
 import { Icon } from '@/components/Icon';
+import { useToast } from '@/components/ui/Toast';
+import { useCoachUsage, coachKeys } from '@/lib/queries/coach';
 
 const SUGGESTIONS = [
   '¿Cómo hago bien la sentadilla?',
@@ -20,11 +24,49 @@ const SUGGESTIONS = [
   'Tengo dolor en la rodilla, ¿qué hago?',
 ];
 
+type ProviderKind = 'gemini' | 'anthropic' | 'openai' | 'cache' | 'local-mock';
+
+interface BadgeConfig {
+  label: string;
+  color: string;
+  dotColor: string;
+}
+
+function resolveBadge(provider: ProviderKind | undefined, cached: boolean | undefined, rateLimited: boolean): BadgeConfig {
+  if (rateLimited) {
+    return { label: 'Límite', color: colors.danger, dotColor: colors.danger };
+  }
+  if (provider === 'local-mock') {
+    return { label: 'Local', color: colors.text.muted, dotColor: colors.text.muted };
+  }
+  if (cached) {
+    return { label: 'Caché', color: colors.info.DEFAULT, dotColor: colors.info.DEFAULT };
+  }
+  const providerLabel: Record<string, string> = {
+    gemini: 'Gemini',
+    anthropic: 'Claude',
+    openai: 'GPT',
+  };
+  if (provider && providerLabel[provider]) {
+    return {
+      label: `Nube · ${providerLabel[provider]}`,
+      color: colors.success,
+      dotColor: colors.success,
+    };
+  }
+  // Initial / unknown state
+  return { label: 'Nube', color: colors.text.secondary, dotColor: colors.text.muted };
+}
+
 export default function Coach() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const qc = useQueryClient();
+  const toast = useToast();
   const profile = useAppStore((s) => s.profile);
   const history = useWorkoutsStore((s) => s.history);
+  const routines = useRoutinesStore((s) => s.routines);
+  const activeRoutineId = useRoutinesStore((s) => s.activeRoutineId);
 
   const coachContext = useMemo<CoachContext>(() => {
     const opt = profile
@@ -34,7 +76,7 @@ export default function Coach() {
     const recentWorkouts: WorkoutSummary[] = history.slice(0, 5).map((w) => ({
       date: w.startedAt.slice(0, 10),
       durationMin: Math.round((w.durationSeconds ?? 0) / 60),
-      volumeKg: w.totalVolumeKg,
+      totalReps: w.totalReps,
       exercises: w.exercises.map((e) => e.exerciseName),
     }));
 
@@ -49,8 +91,16 @@ export default function Coach() {
       if (!trainedDays.has(k)) trainingGaps.push(k);
     }
 
-    return { ...opt, recentWorkouts, trainingGaps };
-  }, [history, profile]);
+    const activeRoutine = routines.find((r) => r.id === activeRoutineId) ?? routines[0] ?? null;
+    const muscleSummary = activeRoutine
+      ? analyzeRoutineMuscles(activeRoutine)
+          .filter((m) => m.status === 'low' || m.status === 'untrained')
+          .slice(0, 4)
+          .map((m) => ({ label: m.label, weeklySets: m.weeklySets, status: m.status }))
+      : undefined;
+
+    return { ...opt, recentWorkouts, trainingGaps, muscleSummary };
+  }, [history, profile, routines, activeRoutineId]);
 
   const [messages, setMessages] = useState<CoachMessage[]>([
     {
@@ -64,6 +114,14 @@ export default function Coach() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
+  // Provider badge state
+  const [lastProvider, setLastProvider] = useState<ProviderKind | undefined>(undefined);
+  const [lastCached, setLastCached] = useState<boolean | undefined>(undefined);
+  const [rateLimited, setRateLimited] = useState(false);
+
+  const { data: usageData } = useCoachUsage();
+  const badge = resolveBadge(lastProvider, lastCached, rateLimited);
+
   useEffect(() => {
     scrollRef.current?.scrollToEnd({ animated: true });
   }, [messages, loading]);
@@ -75,23 +133,42 @@ export default function Coach() {
     const next = [...messages, userMsg];
     setMessages(next);
     setInput('');
+    setRateLimited(false);
     setLoading(true);
     try {
       const res = await askCoach(next, coachContext);
+      setLastProvider(res.provider as ProviderKind | undefined);
+      setLastCached(res.cached);
       setMessages((m) => [
         ...m,
         { id: Math.random().toString(36).slice(2), role: 'assistant', content: res.reply, createdAt: Date.now() },
       ]);
+      // Refresh usage counter after successful call.
+      qc.invalidateQueries({ queryKey: coachKeys.usage });
     } catch (e: any) {
-      setMessages((m) => [
-        ...m,
-        {
-          id: Math.random().toString(36).slice(2),
-          role: 'assistant',
-          content: `Error contactando al coach: ${e?.message ?? 'desconocido'}. Reintenta en unos segundos.`,
-          createdAt: Date.now(),
-        },
-      ]);
+      if (e?.isRateLimit) {
+        setRateLimited(true);
+        toast.show({ message: 'Límite alcanzado, reintenta en ~30 min', tone: 'danger', durationMs: 4000 });
+        setMessages((m) => [
+          ...m,
+          {
+            id: Math.random().toString(36).slice(2),
+            role: 'assistant',
+            content: 'Has alcanzado el límite de consultas por hora (30). Podrás volver a preguntar en unos minutos.',
+            createdAt: Date.now(),
+          },
+        ]);
+      } else {
+        setMessages((m) => [
+          ...m,
+          {
+            id: Math.random().toString(36).slice(2),
+            role: 'assistant',
+            content: `Error contactando al coach: ${e?.message ?? 'desconocido'}. Reintenta en unos segundos.`,
+            createdAt: Date.now(),
+          },
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -130,9 +207,14 @@ export default function Coach() {
           <View>
             <Text weight="bold">Coach IA</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <Icon name="dot" size={8} color={colors.success} />
-                <Text variant="caption" tone="success">Online</Text>
-              </View>
+              <Icon name="dot" size={8} color={badge.dotColor} />
+              <Text variant="caption" style={{ color: badge.color }}>{badge.label}</Text>
+              {usageData && (
+                <Text variant="caption" tone="muted">
+                  {' '}· {usageData.used}/{usageData.limit} esta hora
+                </Text>
+              )}
+            </View>
           </View>
         </View>
         <View style={{ width: 24 }} />

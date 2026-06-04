@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, View, Pressable, Alert, TextInput, Dimensions, ScrollView } from 'react-native';
+import { Animated, View, Pressable, Alert, TextInput, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -13,13 +13,12 @@ import { useRoutinesStore } from '@/store/routines';
 import { useWorkoutsStore, Workout } from '@/store/workouts';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { exerciseById } from '@/data/exercises';
-import { formatDuration, toDisplay, fromDisplay } from '@/lib/units';
+import { formatDuration, toDisplay, fromDisplay, formatWeight } from '@/lib/units';
 import { Icon } from '@/components/Icon';
 import { saveWorkout, ensureWorkoutSynced } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { usePublishWorkout } from '@/lib/queries/feed';
 import { useToast } from '@/components/ui/Toast';
-import { findPreviousSession, comparePerExercise, detectPRs } from '@/lib/workoutCompare';
+import { findPreviousSession, comparePerExercise, detectPRs, summarizeProgress } from '@/lib/workoutCompare';
 
 const REST_GREEN_FROM = 120;
 const REST_GREEN_TO = 300;
@@ -39,6 +38,13 @@ const SET_SPLASH_PHRASES = [
   '¡Tú puedes!',
   'Máximo esfuerzo',
 ];
+
+const PROGRESS_PHRASES = {
+  pr:    '¡Nuevo récord personal!',
+  weight:'¡Más fuerte que antes!',
+  reps:  '¡Una rep más!',
+  any:   '¡Sigue mejorando!',
+};
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -315,6 +321,7 @@ export default function ActiveWorkout() {
       routineName: `${routine.name} · ${day.name}`,
       exercises: day.exercises.map((e) => {
         const ex = exerciseById(e.exerciseId);
+        const isBodyweight = ex?.equipment === 'bodyweight';
         return {
           id: '',
           exerciseId: e.exerciseId,
@@ -323,7 +330,7 @@ export default function ActiveWorkout() {
           sets: Array.from({ length: e.targetSets }, () => ({
             id: Math.random().toString(36).slice(2),
             reps: e.targetRepsMin,
-            weightKg: 20,
+            weightKg: isBodyweight ? 0 : 20,
             isCompleted: false,
           })),
         };
@@ -784,6 +791,8 @@ function SetPhase({
   );
 }
 
+const LOG_ACCESSORY_ID = 'log-keyboard-accessory';
+
 function LogPhase({
   set,
   unit,
@@ -804,8 +813,38 @@ function LogPhase({
   const displayWeight = toDisplay(set.weightKg, unit);
 
   return (
-    <>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
+      {/* iOS: toolbar with "Listo" above decimal-pad */}
+      {Platform.OS === 'ios' && (
+        <InputAccessoryView nativeID={LOG_ACCESSORY_ID}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'flex-end',
+              backgroundColor: colors.bg.elevated,
+              borderTopWidth: 1,
+              borderTopColor: colors.border,
+              paddingHorizontal: spacing.lg,
+              paddingVertical: spacing.sm,
+            }}
+          >
+            <Pressable onPress={Keyboard.dismiss} hitSlop={8}>
+              <Text style={{ color: colors.primary.DEFAULT, fontWeight: '600', fontSize: fontSize.md }}>
+                Listo
+              </Text>
+            </Pressable>
+          </View>
+        </InputAccessoryView>
+      )}
+
+      <Pressable
+        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
+        onPress={Keyboard.dismiss}
+      >
         <Text
           style={{
             fontSize: fontSize.sm,
@@ -830,6 +869,7 @@ function LogPhase({
             step={unit === 'kg' ? 2.5 : 5}
             decimals={unit === 'kg' ? 1 : 0}
             onChange={onWeightChange}
+            accessoryId={LOG_ACCESSORY_ID}
           />
           <View
             style={{
@@ -845,11 +885,12 @@ function LogPhase({
             step={1}
             decimals={0}
             onChange={onRepsChange}
+            accessoryId={LOG_ACCESSORY_ID}
           />
         </View>
-      </View>
+      </Pressable>
       <GhostButton label="Guardar serie" onPress={onSave} />
-    </>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -983,12 +1024,14 @@ function BigNumeric({
   step,
   decimals,
   onChange,
+  accessoryId,
 }: {
   label: string;
   value: number;
   step: number;
   decimals: number;
   onChange: (v: number) => void;
+  accessoryId?: string;
 }) {
   const [text, setText] = useState(value.toFixed(decimals).replace(/\.0$/, ''));
   const [editing, setEditing] = useState(false);
@@ -1026,6 +1069,10 @@ function BigNumeric({
         }}
         onChangeText={setText}
         keyboardType="decimal-pad"
+        returnKeyType="done"
+        blurOnSubmit
+        onSubmitEditing={Keyboard.dismiss}
+        inputAccessoryViewID={Platform.OS === 'ios' ? accessoryId : undefined}
         style={{
           color: colors.text.primary,
           fontSize: 60,
@@ -1094,69 +1141,47 @@ function Summary({
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const history = useWorkoutsStore((s) => s.history);
-  const publishWorkout = usePublishWorkout();
-  const [publishing, setPublishing] = useState(false);
+  const [publishing] = useState(false);
 
   // Success animation: ring scales+pulses in
   const ringScale   = useRef(new Animated.Value(0.4)).current;
   const ringOpacity = useRef(new Animated.Value(0)).current;
   const checkScale  = useRef(new Animated.Value(0)).current;
   const textOpacity = useRef(new Animated.Value(0)).current;
+  const progressOpacity = useRef(new Animated.Value(0)).current;
+  const progressScale   = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
-    Animated.sequence([
+    const anim = Animated.sequence([
       Animated.parallel([
         Animated.spring(ringScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
         Animated.timing(ringOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
       ]),
       Animated.spring(checkScale, { toValue: 1, friction: 4, tension: 100, useNativeDriver: true }),
       Animated.timing(textOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-    ]).start();
+      Animated.parallel([
+        Animated.timing(progressOpacity, { toValue: 1, duration: 350, useNativeDriver: true }),
+        Animated.spring(progressScale, { toValue: 1, friction: 5, tension: 90, useNativeDriver: true }),
+      ]),
+    ]);
+    anim.start();
+    return () => anim.stop();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const previousSession = findPreviousSession(history, workout);
   const comparisons = comparePerExercise(workout, previousSession);
   const prs = detectPRs(history, workout);
+  const progress = summarizeProgress(comparisons, prs);
+  const hasProgress = progress.improvedCount > 0 || progress.prCount > 0;
 
   const totalSets = workout.exercises.reduce(
     (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
     0,
   );
 
-  const prevVolume = previousSession?.totalVolumeKg ?? null;
-  const volumeDelta =
-    prevVolume !== null ? workout.totalVolumeKg - prevVolume : null;
-
   const unit = profile?.unit ?? 'kg';
 
-  const handleQuickPublish = async () => {
-    if (!isSupabaseConfigured || profile?.id === LOCAL_USER_ID) {
-      toast.show({ message: 'Inicia sesión para publicar entrenos.', tone: 'danger' });
-      return;
-    }
-    if (!profile) return;
-    setPublishing(true);
-    try {
-      await ensureWorkoutSynced(profile.id, workout);
-    } catch {
-      toast.show({ message: 'No se pudo sincronizar el entreno.', tone: 'danger' });
-      setPublishing(false);
-      return;
-    }
-    publishWorkout.mutate(
-      { workoutId: workout.id },
-      {
-        onSuccess: () => {
-          toast.show({ message: 'Entreno publicado', tone: 'success' });
-          onClose();
-        },
-        onError: (err) => {
-          toast.show({ message: err?.message ?? 'No se pudo publicar.', tone: 'danger' });
-          setPublishing(false);
-        },
-      },
-    );
-  };
 
   const duration = formatDuration(workout.durationSeconds ?? 0);
 
@@ -1215,9 +1240,6 @@ function Summary({
         <Card padding="lg" style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg }}>
             <View style={{ flex: 1, minWidth: 80 }}>
-              <Stat label="Volumen" value={Math.round(workout.totalVolumeKg)} unit="kg" tone="accent" />
-            </View>
-            <View style={{ flex: 1, minWidth: 80 }}>
               <Stat label="Sets" value={totalSets} unit="" tone="info" />
             </View>
             <View style={{ flex: 1, minWidth: 80 }}>
@@ -1230,29 +1252,7 @@ function Summary({
             )}
           </View>
 
-          {/* Volume vs previous session */}
-          {volumeDelta !== null && (
-            <View
-              style={{
-                marginTop: spacing.md,
-                paddingTop: spacing.md,
-                borderTopWidth: 1,
-                borderTopColor: colors.border,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.sm,
-              }}
-            >
-              <Text
-                variant="caption"
-                style={{ color: volumeDelta >= 0 ? colors.success : colors.danger }}
-                weight="bold"
-              >
-                {volumeDelta >= 0 ? '▲' : '▼'} {Math.abs(Math.round(volumeDelta))} kg volumen vs sesión anterior
-              </Text>
-            </View>
-          )}
-          {volumeDelta === null && previousSession === null && (
+          {previousSession === null && (
             <View
               style={{
                 marginTop: spacing.md,
@@ -1265,6 +1265,52 @@ function Summary({
             </View>
           )}
         </Card>
+
+        {/* ---- Progress congratulations ---- */}
+        {hasProgress && (
+          <Animated.View
+            style={{
+              opacity: progressOpacity,
+              transform: [{ scale: progressScale }],
+              marginBottom: spacing.lg,
+              borderRadius: radius.lg + 2,
+              ...(progress.prCount > 0 ? {
+                borderWidth: 1.5,
+                borderColor: 'rgba(255,215,0,0.75)',
+                shadowColor: '#FFD700',
+                shadowOffset: { width: 0, height: 0 },
+                shadowOpacity: 0.45,
+                shadowRadius: 12,
+                elevation: 8,
+              } : {}),
+            }}
+          >
+            <Card padding="lg">
+              <View style={{ alignItems: 'center', gap: spacing.sm }}>
+                <Text
+                  style={{
+                    fontSize: fontSize.xl,
+                    fontWeight: '800',
+                    color: progress.prCount > 0 ? '#FFD700' : colors.success,
+                    textAlign: 'center',
+                    letterSpacing: -0.3,
+                  }}
+                >
+                  {progress.prCount > 0
+                    ? PROGRESS_PHRASES.pr
+                    : progress.gainedWeight
+                    ? PROGRESS_PHRASES.weight
+                    : PROGRESS_PHRASES.reps}
+                </Text>
+                <Text variant="caption" tone="muted" style={{ textAlign: 'center' }}>
+                  {progress.prCount > 0
+                    ? `${progress.prCount} ${progress.prCount === 1 ? 'récord nuevo' : 'récords nuevos'}`
+                    : `${progress.improvedCount} ${progress.improvedCount === 1 ? 'ejercicio mejorado' : 'ejercicios mejorados'}`}
+                </Text>
+              </View>
+            </Card>
+          </Animated.View>
+        )}
 
         {/* ---- Per-exercise detail ---- */}
         {workout.exercises.map((ex, i) => {
@@ -1304,30 +1350,20 @@ function Summary({
               <View style={{ gap: 4 }}>
                 {completedSets.map((s, j) => (
                   <Text key={j} variant="caption" tone="secondary" numeric>
-                    {j + 1}. {s.reps} reps × {toDisplay(s.weightKg, unit).toFixed(unit === 'kg' ? 1 : 0).replace(/\.0$/, '')} {unit}
+                    {j + 1}. {s.reps} reps · {formatWeight(s.weightKg, unit)}
                   </Text>
                 ))}
               </View>
 
               {/* Comparison deltas */}
-              {comp && (comp.volumeDelta !== null || comp.topWeightDelta !== null) && (
+              {comp && comp.topWeightDelta !== null && (
                 <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm }}>
-                  {comp.volumeDelta !== null && (
-                    <Text
-                      variant="caption"
-                      style={{ color: comp.volumeDelta >= 0 ? colors.success : colors.danger }}
-                    >
-                      {comp.volumeDelta >= 0 ? '▲' : '▼'} {Math.abs(Math.round(comp.volumeDelta))} kg vol
-                    </Text>
-                  )}
-                  {comp.topWeightDelta !== null && (
-                    <Text
-                      variant="caption"
-                      style={{ color: comp.topWeightDelta >= 0 ? colors.success : colors.danger }}
-                    >
-                      {comp.topWeightDelta >= 0 ? '▲' : '▼'} {Math.abs(Number(toDisplay(comp.topWeightDelta, unit).toFixed(1).replace(/\.0$/, '')))} {unit} top
-                    </Text>
-                  )}
+                  <Text
+                    variant="caption"
+                    style={{ color: comp.topWeightDelta >= 0 ? colors.success : colors.danger }}
+                  >
+                    {comp.topWeightDelta >= 0 ? '▲' : '▼'} {Math.abs(Number(toDisplay(comp.topWeightDelta, unit).toFixed(1).replace(/\.0$/, '')))} {unit} top
+                  </Text>
                 </View>
               )}
             </Card>
@@ -1337,15 +1373,9 @@ function Summary({
         {/* ---- Actions ---- */}
         <View style={{ gap: spacing.md, marginTop: spacing.lg }}>
           <Button
-            title={publishing || publishWorkout.isPending ? 'Publicando…' : 'Publicar'}
-            onPress={handleQuickPublish}
-            loading={publishing || publishWorkout.isPending}
-            fullWidth
-          />
-          <Button
-            title="Publicar con foto / caption"
-            variant="secondary"
+            title="Publicar entreno"
             onPress={onPublishWithCaption}
+            loading={publishing}
             fullWidth
           />
           <GhostButton label="Listo" onPress={onClose} />

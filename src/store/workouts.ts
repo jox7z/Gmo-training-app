@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuidv4 } from '@/lib/ids';
+import { exerciseById } from '@/data/exercises';
 
 export interface SetEntry {
   id: string;
@@ -29,7 +30,6 @@ export interface Workout {
   startedAt: string;
   endedAt?: string;
   durationSeconds?: number;
-  totalVolumeKg: number;
   totalReps: number;
   totalRestSeconds: number;
   totalActiveSeconds: number;
@@ -58,14 +58,6 @@ const KEY = 'gmo:workouts:v1';
 
 function nid() {
   return uuidv4();
-}
-
-function calcVolume(w: Workout) {
-  return w.exercises.reduce(
-    (acc, ex) =>
-      acc + ex.sets.filter((s) => s.isCompleted && !s.isWarmup).reduce((a, s) => a + s.reps * s.weightKg, 0),
-    0,
-  );
 }
 
 function calcTotalReps(w: Workout): number {
@@ -133,7 +125,6 @@ export const useWorkoutsStore = create<State>((set, get) => ({
         routineDayId,
         routineName,
         startedAt: new Date().toISOString(),
-        totalVolumeKg: 0,
         totalReps: 0,
         totalRestSeconds: 0,
         totalActiveSeconds: 0,
@@ -153,7 +144,6 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       ...a,
       endedAt: ended.toISOString(),
       durationSeconds: duration,
-      totalVolumeKg: calcVolume(a),
       totalReps: calcTotalReps(a),
       totalRestSeconds: calcTotalRestSeconds(a),
       totalActiveSeconds: calcTotalActiveSeconds(a),
@@ -192,15 +182,18 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     const a = get().active;
     if (!a) return;
     const exercises = [...a.exercises];
-    const sets = [...exercises[exIdx].sets];
+    const ex = exercises[exIdx];
+    const sets = [...ex.sets];
     const last = sets[sets.length - 1];
+    const isBodyweight = exerciseById(ex.exerciseId)?.equipment === 'bodyweight';
+    const defaultWeight = isBodyweight ? 0 : 20;
     sets.push({
       id: nid(),
       reps: last?.reps ?? 8,
-      weightKg: last?.weightKg ?? 20,
+      weightKg: last?.weightKg ?? defaultWeight,
       isCompleted: false,
     });
-    exercises[exIdx] = { ...exercises[exIdx], sets };
+    exercises[exIdx] = { ...ex, sets };
     set({ active: { ...a, exercises } });
   },
 

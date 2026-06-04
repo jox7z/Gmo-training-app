@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, View, Pressable, Image, Modal } from 'react-native';
+import { Animated, View, Pressable, Image, Modal, ScrollView, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
@@ -8,15 +8,12 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
-import { colors, radius, spacing, shadow, RANKS, RankId } from '@/theme/tokens';
+import { BicepIcon } from '@/components/BicepIcon';
+import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import type { Post, ReactionKind } from '@/lib/repos/posts';
-import { ReactionPicker } from './ReactionPicker';
 import {
-  REACTIONS,
   DEFAULT_REACTION,
-  activeReaction,
   totalReactions,
-  topReactions,
 } from './reactions';
 
 interface Props {
@@ -97,9 +94,11 @@ function ActionButton({
           <Icon name={icon} size={18} color={tone} filled={!!filled} />
         ) : null}
       </View>
-      <Text variant="caption" weight={weight} style={{ color: tone }} numeric>
-        {label}
-      </Text>
+      {label ? (
+        <Text variant="caption" weight={weight} style={{ color: tone }} numeric>
+          {label}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -124,6 +123,94 @@ function ManualBody({ post }: { post: Post }) {
   );
 }
 
+function PrChips({ prs }: { prs: Array<{ exercise_name: string; weight_kg: number; reps: number }> }) {
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+      {prs.map((pr, i) => (
+        <View
+          key={i}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 4,
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 4,
+            borderRadius: radius.full,
+            backgroundColor: 'rgba(255,215,0,0.1)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,215,0,0.4)',
+          }}
+        >
+          <Text variant="caption" style={{ color: '#FFD700' }} weight="semibold">
+            {pr.exercise_name} · {pr.weight_kg > 0 ? `${pr.weight_kg}kg × ${pr.reps} reps` : `Peso corporal · ${pr.reps} reps`}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: number; reps: number }> }) {
+  const { width: screenWidth } = useWindowDimensions();
+  // Card padding is lg on both sides; 2 * lg accounts for card horizontal padding
+  const slideWidth = screenWidth - spacing.lg * 4;
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  return (
+    <View>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          const interval = slideWidth + spacing.sm;
+          const idx = Math.round(e.nativeEvent.contentOffset.x / interval);
+          setActiveIdx(idx);
+        }}
+        decelerationRate="fast"
+        snapToInterval={slideWidth + spacing.sm}
+        contentContainerStyle={{ gap: spacing.sm }}
+      >
+        {prs.map((pr, i) => (
+          <View
+            key={i}
+            style={{
+              width: slideWidth,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: spacing.md,
+              borderRadius: radius.lg,
+              backgroundColor: 'rgba(255,215,0,0.1)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,215,0,0.4)',
+            }}
+          >
+            <Text variant="caption" style={{ color: '#FFD700' }} weight="bold" numberOfLines={1}>
+              {pr.exercise_name}
+            </Text>
+            <Text variant="caption" style={{ color: '#FFD700', marginTop: 2 }} weight="semibold">
+              {pr.weight_kg > 0 ? `${pr.weight_kg}kg × ${pr.reps} reps` : `Peso corporal · ${pr.reps} reps`}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+
+      {/* Dots de página */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: spacing.sm }}>
+        {prs.map((_, i) => (
+          <View
+            key={i}
+            style={{
+              width: i === activeIdx ? 16 : 6,
+              height: 6,
+              borderRadius: 3,
+              backgroundColor: i === activeIdx ? '#FFD700' : 'rgba(255,215,0,0.3)',
+            }}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function WorkoutBody({ post }: { post: Post }) {
   const chips: string[] = Array.isArray(post.metadata?.exercises)
     ? (post.metadata.exercises as any[]).slice(0, 3).map((e) => String(e?.name ?? e))
@@ -135,7 +222,7 @@ function WorkoutBody({ post }: { post: Post }) {
     <View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
         <Icon name="dumbbell" size={18} color={colors.primary.DEFAULT} />
-        <Text variant="heading" tone="brand">{post.title}</Text>
+        <Text variant="heading" tone="brand" numberOfLines={2} style={{ flexShrink: 1 }}>{post.title}</Text>
       </View>
       {post.subtitle ? (
         <Text variant="caption" tone="secondary">{post.subtitle}</Text>
@@ -167,28 +254,11 @@ function WorkoutBody({ post }: { post: Post }) {
               {prs.length === 1 ? 'Nuevo PR' : `${prs.length} nuevos PRs`}
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {prs.map((pr, i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: 4,
-                  borderRadius: radius.full,
-                  backgroundColor: 'rgba(255,215,0,0.1)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,215,0,0.4)',
-                }}
-              >
-                <Text variant="caption" style={{ color: '#FFD700' }} weight="semibold">
-                  {pr.exercise_name} · {pr.weight_kg}kg × {pr.reps}
-                </Text>
-              </View>
-            ))}
-          </View>
+          {prs.length > 2 ? (
+            <PrCarousel prs={prs} />
+          ) : (
+            <PrChips prs={prs} />
+          )}
         </View>
       )}
       {post.photoUrl ? (
@@ -202,7 +272,7 @@ function WorkoutBody({ post }: { post: Post }) {
 
 const GOLD = '#FFD700';
 
-function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
+export function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
   const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -262,10 +332,14 @@ function PrBody({ post }: { post: Post }) {
         </View>
         <Text variant="label" style={{ color: GOLD }}>Nuevo PR</Text>
       </View>
-      <Text variant="title" style={{ marginTop: spacing.sm }}>{post.title}</Text>
-      {(weight || reps) && (
+      <Text variant="title" numberOfLines={2} style={{ marginTop: spacing.sm, flexShrink: 1 }}>{post.title}</Text>
+      {(weight !== undefined || reps) && (
         <Text variant="metric" style={{ color: GOLD, marginTop: spacing.xs }}>
-          {weight ? `${weight}kg` : ''}{weight && reps ? ' × ' : ''}{reps ? `${reps}` : ''}
+          {weight !== undefined && weight > 0
+            ? reps ? `${weight}kg × ${reps} reps` : `${weight}kg`
+            : weight !== undefined
+            ? reps ? `Peso corporal · ${reps} reps` : 'Peso corporal'
+            : reps ? `${reps} reps` : ''}
         </Text>
       )}
       {post.subtitle ? (
@@ -325,7 +399,7 @@ function StreakBody({ post }: { post: Post }) {
         <Icon name="fire" size={22} color={colors.accent.DEFAULT} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text variant="heading" tone="accent">
+        <Text variant="heading" tone="accent" numberOfLines={2} style={{ flexShrink: 1 }}>
           {weeks ? `${weeks} semanas seguidas` : post.title}
         </Text>
         {post.subtitle ? (
@@ -383,12 +457,10 @@ function Body({ post }: { post: Post }) {
 }
 
 /**
- * Resumen tipo "icon icon icon · N" (Facebook). Solo se muestra si hay
- * alguna reacción. Tappable para mostrar (en el futuro) quién reaccionó.
+ * Resumen de reacciones: bíceps + total. Solo se muestra si hay al menos 1.
  */
 function ReactionSummary({ post }: { post: Post }) {
   const total = totalReactions(post.reactions);
-  const top = useMemo(() => topReactions(post.reactions, 3), [post.reactions]);
   if (total === 0) return null;
   return (
     <View
@@ -399,26 +471,7 @@ function ReactionSummary({ post }: { post: Post }) {
         marginTop: spacing.md,
       }}
     >
-      <View style={{ flexDirection: 'row' }}>
-        {top.map((r, idx) => (
-          <View
-            key={r.key}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              marginLeft: idx === 0 ? 0 : -8,
-              borderWidth: 2,
-              borderColor: colors.bg.card,
-            }}
-          >
-            <Text style={{ fontSize: 13, lineHeight: 16 }}>{r.emoji}</Text>
-          </View>
-        ))}
-      </View>
+      <BicepIcon size={16} color="#ff8000" />
       <Text variant="caption" tone="secondary" weight="semibold" numeric>
         {total}
       </Text>
@@ -441,40 +494,13 @@ export function FeedItem({
   const [menuOpen, setMenuOpen] = useState(false);
 
   // ── Reactions ──────────────────────────────────────────────
-  const reactBtnRef = useRef<View>(null);
-  const [pickerVisible, setPickerVisible] = useState(false);
-  const [anchor, setAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const active = useMemo(() => activeReaction(post.myReactions), [post.myReactions]);
-
-  const openPicker = useCallback(() => {
-    reactBtnRef.current?.measureInWindow((x, y, width, height) => {
-      setAnchor({ x, y, width, height });
-      setPickerVisible(true);
-    });
-  }, []);
+  // Única reacción: muscle (bíceps). Activa si post.myReactions.muscle === true.
+  const isActive = post.myReactions?.muscle === true;
 
   const handleReactTap = useCallback(() => {
-    // Tap corto: si hay una activa, la quita. Si no, aplica props por defecto.
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    const kind = active ? active.key : DEFAULT_REACTION;
-    onToggleReaction(post.id, kind);
-  }, [active, post.id, onToggleReaction]);
-
-  const handlePickerSelect = useCallback(
-    (kind: ReactionKind) => {
-      setPickerVisible(false);
-      // Si el usuario ya tenía una reacción diferente, la quita primero.
-      if (active && active.key !== kind) {
-        onToggleReaction(post.id, active.key);
-        // Luego añade la nueva (mismo tick; el optimistic update maneja bien
-        // las dos llamadas).
-        onToggleReaction(post.id, kind);
-      } else {
-        onToggleReaction(post.id, kind);
-      }
-    },
-    [active, post.id, onToggleReaction],
-  );
+    onToggleReaction(post.id, 'muscle');
+  }, [post.id, onToggleReaction]);
 
   const askDelete = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -487,9 +513,7 @@ export function FeedItem({
     onDelete(post);
   };
 
-  const reactColor = active ? active.color : colors.text.muted;
-  const reactEmoji = active ? active.emoji : '👊';
-  const reactLabel = active ? active.shortLabel : 'Reaccionar';
+  const reactColor = isActive ? '#ff8000' : colors.text.muted;
 
   const cardInner = (
     <>
@@ -564,16 +588,29 @@ export function FeedItem({
           borderTopColor: colors.border,
         }}
       >
-        <ActionButton
-          innerRef={reactBtnRef}
-          emoji={reactEmoji}
-          label={reactLabel}
+        <Pressable
+          hitSlop={6}
           onPress={handleReactTap}
-          onLongPress={openPicker}
-          color={reactColor}
-          filled={!!active}
-          weight={active ? 'bold' : 'semibold'}
-        />
+          style={({ pressed }) => [
+            {
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingVertical: 10,
+              borderRadius: radius.md,
+            },
+            pressed && { backgroundColor: colors.bg.elevated, opacity: 0.85 },
+          ]}
+        >
+          <BicepIcon size={22} color={reactColor} />
+          {isActive && (
+            <Text variant="caption" weight="bold" style={{ color: reactColor }}>
+              Bíceps
+            </Text>
+          )}
+        </Pressable>
         <ActionButton
           icon="chat"
           label={post.commentCount > 0 ? `${post.commentCount}` : 'Comentar'}
@@ -604,15 +641,6 @@ export function FeedItem({
       ) : (
         <Card padding="lg">{cardInner}</Card>
       )}
-
-      {/* Reaction picker overlay */}
-      <ReactionPicker
-        visible={pickerVisible}
-        anchor={anchor}
-        activeKind={active?.key ?? null}
-        onSelect={handlePickerSelect}
-        onDismiss={() => setPickerVisible(false)}
-      />
 
       {/* Owner menu */}
       <Modal

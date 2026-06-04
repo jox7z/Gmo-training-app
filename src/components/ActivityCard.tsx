@@ -11,7 +11,6 @@ export interface ActivityItem {
   subtitle?: string;
   date: string;
   durationLabel?: string;
-  volumeLabel?: string;
   setsLabel?: string;
   distanceLabel?: string;
   feeling?: 'great' | 'good' | 'tired' | 'bad';
@@ -128,7 +127,6 @@ export function ActivityCard({ item, onPress, compact }: Props) {
         >
           {item.durationLabel && <MiniStat label="Tiempo" value={item.durationLabel} />}
           {item.distanceLabel && <MiniStat label="Distancia" value={item.distanceLabel} />}
-          {item.volumeLabel && <MiniStat label="Volumen" value={item.volumeLabel} />}
           {item.setsLabel && <MiniStat label="Sets" value={item.setsLabel} />}
         </View>
 

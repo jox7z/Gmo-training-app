@@ -29,9 +29,9 @@ function localDateKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function intensityLevel(volume: number, max: number): 0 | 1 | 2 | 3 | 4 {
-  if (max === 0 || volume === 0) return 0;
-  const r = volume / max;
+function intensityLevel(reps: number, max: number): 0 | 1 | 2 | 3 | 4 {
+  if (max === 0 || reps === 0) return 0;
+  const r = reps / max;
   if (r < 0.25) return 1;
   if (r < 0.5) return 2;
   if (r < 0.75) return 3;
@@ -50,7 +50,7 @@ interface Week {
   cells: DayCell[];
 }
 
-function buildGrid(volumeByDay: Record<string, number>, max: number): Week[] {
+function buildGrid(repsByDay: Record<string, number>, max: number): Week[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayKey = localDateKey(today);
@@ -72,7 +72,7 @@ function buildGrid(volumeByDay: Record<string, number>, max: number): Week[] {
       if (d === 0) firstMonth = date.getMonth();
       cells.push({
         dateKey: key,
-        level: isFuture ? 0 : intensityLevel(volumeByDay[key] ?? 0, max),
+        level: isFuture ? 0 : intensityLevel(repsByDay[key] ?? 0, max),
         isFuture,
       });
     }
@@ -85,15 +85,15 @@ export function Heatmap() {
   const history = useWorkoutsStore((s) => s.history);
   const scrollRef = useRef<ScrollView>(null);
 
-  // Aggregate volume per calendar day
-  const volumeByDay: Record<string, number> = {};
+  // Aggregate reps per calendar day
+  const repsByDay: Record<string, number> = {};
   for (const w of history) {
     const k = localDateKey(new Date(w.startedAt));
-    volumeByDay[k] = (volumeByDay[k] ?? 0) + w.totalVolumeKg;
+    repsByDay[k] = (repsByDay[k] ?? 0) + w.totalReps;
   }
-  const maxVolume = history.length > 0 ? Math.max(...Object.values(volumeByDay)) : 0;
+  const maxReps = history.length > 0 ? Math.max(...Object.values(repsByDay)) : 0;
 
-  const weeks = buildGrid(volumeByDay, maxVolume);
+  const weeks = buildGrid(repsByDay, maxReps);
 
   // Month label: show when the month changes week-to-week
   const monthMarkers = new Map<number, string>();

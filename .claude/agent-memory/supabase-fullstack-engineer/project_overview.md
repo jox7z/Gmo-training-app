@@ -1,20 +1,28 @@
 ---
 name: project-overview
-description: Gmo Training App overview — React Native/Expo fitness app, frontend ~70-85% done, Supabase backend defined but not yet deployed
+description: Gmo Training App overview — React Native/Expo fitness app, frontend ~70-85% done, Supabase backend deployed (migración 0024 aplicada; 0025 pendiente)
 metadata:
   type: project
 ---
 
 Gmo Training App is a React Native/Expo SDK 54 fitness app using expo-router, Zustand stores, TypeScript strict mode, and path alias `@/*`.
 
-**Why:** Personal fitness tracker with social features. Frontend ~70-85% complete. Supabase backend deployed (env real, RPCs ok, migración 0017 aplicada — 0018 pendiente de aplicar).
+**Why:** Personal fitness tracker with social features. Frontend ~70-85% complete. Supabase backend deployed.
 
-**How to apply:** Backend is live. Apply migrations via Supabase dashboard SQL editor or CLI. Last applied migration: 0017_notifications.sql. Next pending: 0018_body_measurement_one_per_day.sql.
+Last applied migration: 0024. Next pending: 0025_drop_volume_metric.sql (drops recompute_workout_volume trigger/function; replaces recalc_weekly_ranks() to omit total_volume_kg writes; column stays in DB as inert default 0).
 
-body_measurements table: added `measured_on date` column (unique per user+day), upsert-based insert, RPC body_timeline recreated to return one row per day ascending. WeightChart component positions points by real date (not index). WeightDetailModal provides extended chart view with period filter and stats.
+**totalVolumeKg removed** from Workout type, all stores, DB insert payload, mapping, UI (Summary, publish, profile, settings, coach), Heatmap (now uses totalReps), optimizationScore.scoreProgression (now uses totalReps). exerciseTopWeight exported from workoutCompare.ts.
 
-Key stores: `src/store/app.ts` (profile, auth state), `src/store/routines.ts` (routines list, activeRoutineId), `src/store/workouts.ts` (active workout, history). All three stores hydrate from AsyncStorage and are initialized in `app/_layout.tsx` startup effect.
+New components: TimeSeriesChart (SVG primitivo), ExerciseProgressModal (exercise selector chips, Peso/Reps toggle, period filter, stats, session list). WeightChart refactored to consume TimeSeriesChart.
 
-Active workout flow (`app/workout/active.tsx`) uses a phase state machine: `'intro' | 'warmup' | 'set' | 'rest' | 'summary'`. `startWorkout()` is called at warmup-finish so `startedAt` reflects real work start.
+New lib: src/lib/exerciseProgress.ts (buildExerciseTimeline, listTrainedExercises).
 
-Optimization scoring: `src/lib/optimizationScore.ts` has two score functions — `computeOptimizationScore` (workout history-based, used by coach) and `computeRoutineScore` (routine structure-based, used by routines tab). Do NOT mix them.
+AppStore: pinnedExerciseId added to AppState + persist() + setPinnedExercise setter.
+
+Progress tab: ExerciseProgressCard section after TimelineCard, before BodySection.
+
+Keyboard fix in active.tsx LogPhase: KeyboardAvoidingView (iOS padding), InputAccessoryView "Listo" button, returnKeyType="done", blurOnSubmit, onSubmitEditing=Keyboard.dismiss on BigNumeric.
+
+Key stores: src/store/app.ts (profile, auth, pinnedExerciseId), src/store/routines.ts, src/store/workouts.ts. All hydrate from AsyncStorage in app/_layout.tsx.
+
+Optimization scoring: computeOptimizationScore (history-based, used by coach) vs computeRoutineScore (routine structure-based, used by routines tab). volumeBalance/RoutineScoreBreakdown.volume measure SETS — NOT the removed totalVolumeKg.

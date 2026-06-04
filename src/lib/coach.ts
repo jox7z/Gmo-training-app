@@ -11,7 +11,7 @@ export interface CoachMessage {
 export interface WorkoutSummary {
   date: string;
   durationMin: number;
-  volumeKg: number;
+  totalReps: number;
   exercises: string[];
 }
 
@@ -21,6 +21,7 @@ export interface CoachContext {
   weakGroups: string[];
   recentWorkouts: WorkoutSummary[];
   trainingGaps: string[];
+  muscleSummary?: { label: string; weeklySets: number; status: string }[];
 }
 
 interface CoachResponse {
@@ -36,7 +37,16 @@ export async function askCoach(messages: CoachMessage[], ctx: CoachContext): Pro
         messages: messages.map((m) => ({ role: m.role, content: m.content })),
         context: ctx,
       });
-    } catch (e) {
+    } catch (e: any) {
+      // Surface rate-limit errors so the UI can show a specific message.
+      // FunctionsHttpError exposes `.context.status` or the message contains '429'.
+      const status: number | undefined =
+        e?.context?.status ?? e?.status;
+      if (status === 429 || String(e?.message ?? '').includes('429')) {
+        const err = new Error('rate_limit');
+        (err as any).isRateLimit = true;
+        throw err;
+      }
       console.warn('coach edge function failed, falling back to local mock', e);
     }
   }
@@ -53,7 +63,7 @@ function mockReply(prompt: string, ctx: CoachContext): CoachResponse {
 
   let reply: string;
 
-  if (/score|optimiz|cómo estoy|como estoy|análisis|analisis|mejorar/.test(lower)) {
+  if (/score|optimiz|cómo estoy|como estoy|análisis|analisis|mejorar|rutina/.test(lower)) {
     const weakStr = weakLabels.length
       ? `Tus grupos más descuidados son **${weakLabels.join(' y ')}**.`
       : '';
@@ -66,7 +76,19 @@ function mockReply(prompt: string, ctx: CoachContext): CoachResponse {
       ctx.breakdown.progression > 60
         ? ' Tu progresión de volumen va bien.'
         : ' El volumen semanal no está progresando — considera sobrecarga progresiva.';
-    reply = `Tu score actual es **${ctx.score}/100**.${freqNote}${recNote}${progNote} ${weakStr}`.trim();
+    const lowMuscles = (ctx.muscleSummary ?? [])
+      .filter((m) => m.status === 'low' || m.status === 'untrained')
+      .slice(0, 3);
+    const muscleNote = lowMuscles.length
+      ? ' ' + lowMuscles
+          .map((m) =>
+            m.status === 'untrained'
+              ? `**${m.label}** no está en tu rutina.`
+              : `Tu **${m.label}** está en ${m.weeklySets} series/sem, por debajo del mínimo de 8.`,
+          )
+          .join(' ')
+      : '';
+    reply = `Tu score actual es **${ctx.score}/100**.${freqNote}${recNote}${progNote} ${weakStr}${muscleNote}`.trim();
   } else if (hasGaps && /constancia|hábito|motivación|motivacion|regular/.test(lower)) {
     reply = `Llevas ${ctx.trainingGaps.length} días sin entrenar en las últimas 2 semanas. La consistencia supera a la intensidad. Reserva slots fijos — aunque sean 30 min, cuentan para la racha.`;
   } else if (/espalda|dominada|remo|jalón|jalon|jalones/.test(lower)) {
@@ -119,7 +141,7 @@ function mockReply(prompt: string, ctx: CoachContext): CoachResponse {
       const last = ctx.recentWorkouts[0];
       const exStr =
         last.exercises.slice(0, 3).join(', ') + (last.exercises.length > 3 ? ' y más' : '');
-      reply = `Tu último entreno fue el ${last.date}: ${last.durationMin} min, ${Math.round(last.volumeKg)} kg de volumen total. Ejercicios: ${exStr}.`;
+      reply = `Tu último entreno fue el ${last.date}: ${last.durationMin} min, ${last.totalReps} reps totales. Ejercicios: ${exStr}.`;
     }
   } else if (/progres|aumentar carga|sobrecarga|mejorar fuerza/.test(lower)) {
     const prog = ctx.breakdown.progression;

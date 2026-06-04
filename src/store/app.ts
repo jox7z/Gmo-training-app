@@ -50,12 +50,14 @@ interface AppState {
   profile: UserProfile | null;
   streakWeeks: number;
   daysThisWeek: number;
+  pinnedExerciseId?: string;
   hydrate: () => Promise<void>;
   setProfile: (p: UserProfile) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   markOnboarded: () => Promise<void>;
   addWorkoutDay: () => void;
   addPoints: (n: number) => void;
+  setPinnedExercise: (id: string) => void;
   signOut: () => Promise<void>;
 }
 
@@ -103,6 +105,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   profile: null,
   streakWeeks: 0,
   daysThisWeek: 0,
+  pinnedExerciseId: undefined,
 
   hydrate: async () => {
     try {
@@ -115,6 +118,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           profile,
           streakWeeks: data.streakWeeks ?? 0,
           daysThisWeek: data.daysThisWeek ?? 0,
+          pinnedExerciseId: data.pinnedExerciseId ?? undefined,
         });
       }
       console.log('[Store] hydrate: AsyncStorage read OK', {
@@ -187,6 +191,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     persist(get());
   },
 
+  setPinnedExercise: (id) => {
+    set({ pinnedExerciseId: id });
+    persist(get());
+  },
+
   signOut: async () => {
     // 1. Wipe local state FIRST so any subscriber that re-reads the store
     //    while we're awaiting supabase sees a coherent "logged out" state
@@ -197,6 +206,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       onboarded: false,
       streakWeeks: 0,
       daysThisWeek: 0,
+      pinnedExerciseId: undefined,
       // keep hydrated=true; we don't want the splash loader to reappear
     });
     // 2. Now sign out from Supabase. The onAuthStateChange listener in
@@ -229,6 +239,7 @@ async function persist(state: AppState) {
       profile: state.profile,
       streakWeeks: state.streakWeeks,
       daysThisWeek: state.daysThisWeek,
+      pinnedExerciseId: state.pinnedExerciseId,
     }),
   );
 }

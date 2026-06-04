@@ -11,8 +11,16 @@ import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
 import { WeightChart } from '@/components/WeightChart';
 import { WeightDetailModal } from '@/components/WeightDetailModal';
+import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/TimeSeriesChart';
+import { ExerciseProgressModal } from '@/components/ExerciseProgressModal';
 import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, type RankId } from '@/theme/tokens';
 import { useAppStore, type Unit } from '@/store/app';
+import { StreakRing } from '@/components/StreakRing';
+import { useWorkoutsStore } from '@/store/workouts';
+import { listTrainedExercises, buildExerciseTimeline, type ExercisePeriod } from '@/lib/exerciseProgress';
+import { exerciseImage } from '@/data/exerciseImages';
+import { Image } from 'expo-image';
+import { toDisplay } from '@/lib/units';
 import { useLeaderboard, type LeaderboardEntry } from '@/lib/queries/social';
 import { Avatar } from '@/components/Avatar';
 import { useProgressSummary, useProgressTimeline } from '@/lib/queries/progress';
@@ -43,10 +51,36 @@ export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const profile = useAppStore((s) => s.profile);
+  const streakWeeks = useAppStore((s) => s.streakWeeks);
+  const daysThisWeek = useAppStore((s) => s.daysThisWeek);
 
   const [period, setPeriod] = useState<ProgressPeriod>('30d');
   const [bodyPeriod, setBodyPeriod] = useState<BodyPeriod>('90d');
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [exerciseMetric, setExerciseMetric] = useState<'weight' | 'reps'>('weight');
+
+  const history = useWorkoutsStore((s) => s.history);
+  const pinnedExerciseId = useAppStore((s) => s.pinnedExerciseId);
+  const trainedExercises = useMemo(() => listTrainedExercises(history), [history]);
+  const effectivePinnedId = pinnedExerciseId ?? trainedExercises[0]?.exerciseId;
+  const pinnedName = trainedExercises.find((e) => e.exerciseId === effectivePinnedId)?.name ?? '';
+
+  const pinnedTimeline = useMemo(
+    () => (effectivePinnedId ? buildExerciseTimeline(history, effectivePinnedId, '90d') : []),
+    [history, effectivePinnedId],
+  );
+  const pinnedChartData = useMemo(
+    () =>
+      pinnedTimeline.map((p) => ({
+        ms: new Date(p.date).getTime(),
+        value:
+          exerciseMetric === 'weight'
+            ? toDisplay(p.topWeightKg, profile?.unit ?? 'kg')
+            : p.repsAtTop,
+      })),
+    [pinnedTimeline, exerciseMetric, profile?.unit],
+  );
 
   const summaryQuery = useProgressSummary(period);
   const timelineQuery = useProgressTimeline(period);
@@ -139,16 +173,32 @@ export default function ProgressScreen() {
         ) : (
           <>
             <AveragesCard summary={summary} />
-            <WorkoutsPerWeekCard
-              workoutsPerWeek={summary.workoutsPerWeek}
-              goal={profile?.weeklyGoalDays ?? 4}
-            />
+            <Card padding="lg" style={{ alignItems: 'center' }}>
+              <StreakRing
+                weeks={streakWeeks}
+                daysThisWeek={daysThisWeek}
+                weeklyGoal={profile?.weeklyGoalDays ?? 4}
+              />
+            </Card>
             <TimelineCard
               data={timelineQuery.data ?? []}
               loading={timelineQuery.isLoading && !timelineQuery.data}
             />
           </>
         )}
+
+        {/* Exercise progress card — only when there is history */}
+        {trainedExercises.length > 0 && effectivePinnedId ? (
+          <ExerciseProgressCard
+            exerciseId={effectivePinnedId}
+            name={pinnedName}
+            chartData={pinnedChartData}
+            metric={exerciseMetric}
+            unit={profile?.unit ?? 'kg'}
+            onMetricChange={setExerciseMetric}
+            onOpen={() => setShowExerciseModal(true)}
+          />
+        ) : null}
 
         <BodySection
           measurements={bodyMeasurementsQuery.data ?? []}
@@ -165,6 +215,13 @@ export default function ProgressScreen() {
           onClose={() => setShowDetailModal(false)}
           unit={profile?.unit ?? 'kg'}
           initialPeriod={bodyPeriod}
+        />
+
+        <ExerciseProgressModal
+          visible={showExerciseModal}
+          onClose={() => setShowExerciseModal(false)}
+          unit={profile?.unit ?? 'kg'}
+          initialExerciseId={effectivePinnedId}
         />
 
         <RanksSection currentPoints={profile?.rankPoints ?? 0} />
@@ -198,40 +255,6 @@ function AveragesCard({ summary }: { summary: ProgressSummary }) {
             {formatDuration(summary.avgRestAfter)}
           </Text>
         </View>
-      </View>
-    </Card>
-  );
-}
-
-function WorkoutsPerWeekCard({ workoutsPerWeek, goal }: { workoutsPerWeek: number; goal: number }) {
-  const pct = goal > 0 ? Math.min(1, workoutsPerWeek / goal) : 0;
-  return (
-    <Card padding="lg">
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <Text variant="label" tone="secondary">WORKOUTS POR SEMANA</Text>
-        <Text variant="caption" tone="muted" numeric>
-          meta {goal}/sem
-        </Text>
-      </View>
-      <Text variant="metric" tone="brand" numeric style={{ marginTop: spacing.sm }}>
-        {workoutsPerWeek.toFixed(1)}
-      </Text>
-      <View
-        style={{
-          height: 8,
-          backgroundColor: colors.bg.elevated,
-          borderRadius: radius.full,
-          marginTop: spacing.md,
-          overflow: 'hidden',
-        }}
-      >
-        <View
-          style={{
-            height: '100%',
-            width: `${pct * 100}%`,
-            backgroundColor: pct >= 1 ? colors.success : colors.primary.DEFAULT,
-          }}
-        />
       </View>
     </Card>
   );
@@ -663,6 +686,119 @@ function WeightTimelineCard({ data, unit }: { data: BodyTimelinePoint[]; unit: U
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// =====================================================
+// PROGRESO POR EJERCICIO
+// =====================================================
+
+function ExerciseProgressCard({
+  exerciseId,
+  name,
+  chartData,
+  metric,
+  unit,
+  onMetricChange,
+  onOpen,
+}: {
+  exerciseId?: string;
+  name: string;
+  chartData: TimeSeriesPoint[];
+  metric: 'weight' | 'reps';
+  unit: Unit;
+  onMetricChange: (m: 'weight' | 'reps') => void;
+  onOpen: () => void;
+}) {
+  const img = exerciseId ? exerciseImage(exerciseId) : undefined;
+  const { width } = useWindowDimensions();
+  const chartWidth = width - spacing.lg * 4;
+
+  return (
+    <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Text variant="heading">Progreso por ejercicio</Text>
+        <Pressable onPress={onOpen} hitSlop={8}>
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: colors.bg.elevated,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <Icon name="chart" size={18} color={colors.primary.DEFAULT} />
+          </View>
+        </Pressable>
+      </View>
+
+      <Pressable onPress={onOpen}>
+        <Card padding="lg">
+          {/* Exercise name + metric toggle */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+            {img !== undefined && (
+              <Image
+                source={img}
+                style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg.elevated }}
+                contentFit="cover"
+              />
+            )}
+            <Text weight="bold" style={{ flex: 1 }} numberOfLines={1}>
+              {name}
+            </Text>
+            <View
+              style={{
+                flexDirection: 'row',
+                backgroundColor: colors.bg.elevated,
+                borderRadius: radius.lg,
+                padding: 3,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }}
+            >
+              {(['weight', 'reps'] as ('weight' | 'reps')[]).map((m) => {
+                const active = metric === m;
+                return (
+                  <Pressable
+                    key={m}
+                    onPress={(e) => { e.stopPropagation?.(); onMetricChange(m); }}
+                    style={{
+                      paddingHorizontal: spacing.sm,
+                      paddingVertical: 4,
+                      borderRadius: radius.md,
+                      backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
+                    }}
+                  >
+                    <Text
+                      weight="bold"
+                      style={{ fontSize: 11, color: active ? '#fff' : colors.text.secondary }}
+                    >
+                      {m === 'weight' ? 'Peso' : 'Reps'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          <TimeSeriesChart
+            data={chartData}
+            chartWidth={chartWidth}
+            chartHeight={130}
+            formatLabel={
+              metric === 'weight'
+                ? (v) => `${v.toFixed(1)}${unit}`
+                : (v) => `${Math.round(v)}r`
+            }
+            emptyMessage="Registra 2 o más sesiones con este ejercicio."
+          />
+        </Card>
+      </Pressable>
+    </View>
+  );
 }
 
 // =====================================================

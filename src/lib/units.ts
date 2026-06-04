@@ -10,7 +10,14 @@ export function fromDisplay(value: number, unit: Unit): number {
   return unit === 'kg' ? value : value / KG_TO_LB;
 }
 
+/**
+ * Formatea el peso de una SERIE de ejercicio. Un peso <= 0 se interpreta como
+ * ejercicio de peso corporal y devuelve "Peso corporal".
+ * NO usar para mostrar medidas de peso corporal del usuario (progress tracking);
+ * para eso existe `formatWeight` en `@/lib/progress`.
+ */
 export function formatWeight(weightKg: number, unit: Unit, decimals = 1): string {
+  if (weightKg <= 0) return 'Peso corporal';
   const v = toDisplay(weightKg, unit);
   return `${v.toFixed(decimals).replace(/\.0$/, '')} ${unit}`;
 }

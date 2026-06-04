@@ -347,7 +347,6 @@ function WorkoutCard({ workout }: { workout: Workout }) {
     (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
     0,
   );
-  const volume = Math.round(workout.totalVolumeKg);
   const durationMin = Math.round((workout.durationSeconds ?? 0) / 60);
 
   return (
@@ -394,9 +393,6 @@ function WorkoutCard({ workout }: { workout: Workout }) {
         </View>
         <View style={{ flex: 1 }}>
           <Stat label="Sets" value={sets} unit="" tone="info" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Stat label="Volumen" value={volume} unit="kg" tone="accent" />
         </View>
       </View>
 
@@ -459,6 +455,7 @@ function WorkoutComposer({
     defaultWorkoutId ?? recentWorkouts[0]?.id ?? null,
   );
   const [showSelector, setShowSelector] = useState(false);
+  const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -485,6 +482,7 @@ function WorkoutComposer({
 
   const remaining = MAX_CAPTION - caption.length;
   const overLimit = remaining < 0;
+  const canPublish = !!workout && title.trim().length > 0 && !overLimit && !publish.isPending && !uploading;
 
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -495,7 +493,7 @@ function WorkoutComposer({
   };
 
   const submit = async () => {
-    if (!workout || overLimit || publish.isPending || uploading) return;
+    if (!canPublish || !workout) return;
     // Ensure the workout is synced to Supabase before publishing
     if (userId) {
       try {
@@ -518,7 +516,7 @@ function WorkoutComposer({
       }
     }
     publish.mutate(
-      { workoutId: workout.id, caption: caption.trim() || undefined, photoUrl },
+      { workoutId: workout.id, title: title.trim(), caption: caption.trim() || undefined, photoUrl },
       {
         onSuccess: () => onSuccess('Entreno compartido'),
         onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
@@ -589,6 +587,16 @@ function WorkoutComposer({
       )}
 
       <View style={{ marginTop: spacing.lg }}>
+        <Input
+          label="Título"
+          placeholder="Ej: Pecho y tríceps intenso"
+          value={title}
+          onChangeText={setTitle}
+          maxLength={80}
+        />
+      </View>
+
+      <View style={{ marginTop: spacing.lg }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
           <Text variant="label" tone="secondary">Caption (opcional)</Text>
           <Text variant="caption" tone={overLimit ? 'danger' : remaining <= 30 ? 'accent' : 'muted'} numeric>
@@ -643,7 +651,7 @@ function WorkoutComposer({
         title={uploading ? 'Subiendo foto…' : 'Publicar entreno'}
         onPress={submit}
         loading={publish.isPending || uploading}
-        disabled={!workout || overLimit || publish.isPending || uploading}
+        disabled={!canPublish}
         fullWidth
         style={{ marginTop: spacing.xl }}
       />
@@ -664,6 +672,7 @@ function PrComposer({
   onError: (msg: string) => void;
 }) {
   const [exerciseId, setExerciseId] = useState<string | null>(null);
+  const [title, setTitle] = useState('');
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [caption, setCaption] = useState('');
@@ -679,6 +688,7 @@ function PrComposer({
     weightNum > 0 &&
     !Number.isNaN(repsNum) &&
     repsNum > 0;
+  const canPublish = valid && title.trim().length > 0 && !publish.isPending && !uploading;
 
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -689,7 +699,7 @@ function PrComposer({
   };
 
   const submit = async () => {
-    if (!valid || !exerciseId || publish.isPending || uploading) return;
+    if (!canPublish || !exerciseId) return;
     let photoUrl: string | undefined;
     if (photoUri && userId) {
       try {
@@ -704,7 +714,7 @@ function PrComposer({
       }
     }
     publish.mutate(
-      { exerciseId, weightKg: weightNum, reps: repsNum, caption: caption.trim() || undefined, photoUrl },
+      { exerciseId, title: title.trim(), weightKg: weightNum, reps: repsNum, caption: caption.trim() || undefined, photoUrl },
       {
         onSuccess: () => onSuccess('PR publicado'),
         onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
@@ -764,6 +774,16 @@ function PrComposer({
             </Pressable>
           );
         })}
+      </View>
+
+      <View style={{ marginTop: spacing.lg }}>
+        <Input
+          label="Título"
+          placeholder="Ej: Nuevo máximo en banca"
+          value={title}
+          onChangeText={setTitle}
+          maxLength={80}
+        />
       </View>
 
       <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
@@ -838,7 +858,7 @@ function PrComposer({
         title={uploading ? 'Subiendo foto…' : 'Publicar PR'}
         onPress={submit}
         loading={publish.isPending || uploading}
-        disabled={!valid || publish.isPending || uploading}
+        disabled={!canPublish}
         fullWidth
         style={{ marginTop: spacing.xl }}
       />

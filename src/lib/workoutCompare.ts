@@ -1,17 +1,22 @@
 import { Workout, WorkoutExercise } from '@/store/workouts';
 
-/** Volume for a single exercise (completed non-warmup sets only). */
-function exerciseVolume(ex: WorkoutExercise): number {
-  return ex.sets
-    .filter((s) => s.isCompleted && !s.isWarmup)
-    .reduce((sum, s) => sum + s.reps * s.weightKg, 0);
-}
-
 /** Top-set weight for a single exercise (completed non-warmup sets only). */
-function exerciseTopWeight(ex: WorkoutExercise): number {
+export function exerciseTopWeight(ex: WorkoutExercise): number {
   const completed = ex.sets.filter((s) => s.isCompleted && !s.isWarmup);
   if (!completed.length) return 0;
   return Math.max(...completed.map((s) => s.weightKg));
+}
+
+/**
+ * Reps of the top set (heaviest; ties broken by most reps).
+ * Returns 0 if no completed non-warmup sets.
+ */
+export function exerciseTopReps(ex: WorkoutExercise): number {
+  const completed = ex.sets.filter((s) => s.isCompleted && !s.isWarmup);
+  if (!completed.length) return 0;
+  const topWeight = Math.max(...completed.map((s) => s.weightKg));
+  const topSets = completed.filter((s) => s.weightKg === topWeight);
+  return Math.max(...topSets.map((s) => s.reps));
 }
 
 /**
@@ -46,14 +51,16 @@ export function findPreviousSession(
 
 export interface ExerciseComparison {
   exerciseId: string;
-  /** Delta in total volume kg vs previous session (null if exercise not in previous) */
-  volumeDelta: number | null;
   /** Delta in top-set weight vs previous session (null if not present) */
   topWeightDelta: number | null;
+  /** Delta in reps of the top set vs previous session (null if no prior exercise) */
+  repsDelta: number | null;
+  /** True if there was any improvement in weight or reps */
+  improved: boolean;
 }
 
 /**
- * For each exercise in `current`, computes the volume and top-weight delta
+ * For each exercise in `current`, computes the top-weight and reps delta
  * relative to the same exercise in `previous`.
  */
 export function comparePerExercise(
@@ -65,23 +72,49 @@ export function comparePerExercise(
       (p) => p.exerciseId === ex.exerciseId,
     );
 
-    const curVol = exerciseVolume(ex);
     const curTop = exerciseTopWeight(ex);
+    const curReps = exerciseTopReps(ex);
 
     if (!prevEx) {
       return {
         exerciseId: ex.exerciseId,
-        volumeDelta: null,
         topWeightDelta: null,
+        repsDelta: null,
+        improved: false,
       };
     }
 
+    const topWeightDelta = curTop - exerciseTopWeight(prevEx);
+    const repsDelta = curReps - exerciseTopReps(prevEx);
+
     return {
       exerciseId: ex.exerciseId,
-      volumeDelta: curVol - exerciseVolume(prevEx),
-      topWeightDelta: curTop - exerciseTopWeight(prevEx),
+      topWeightDelta,
+      repsDelta,
+      improved: topWeightDelta > 0 || repsDelta > 0,
     };
   });
+}
+
+export interface ProgressSummary {
+  improvedCount: number;
+  prCount: number;
+  gainedWeight: boolean;
+  gainedReps: boolean;
+}
+
+/**
+ * Aggregates comparisons and PRs into a high-level progress summary.
+ */
+export function summarizeProgress(
+  comparisons: ExerciseComparison[],
+  prs: Set<string>,
+): ProgressSummary {
+  const improvedCount = comparisons.filter((c) => c.improved).length;
+  const prCount = prs.size;
+  const gainedWeight = comparisons.some((c) => (c.topWeightDelta ?? 0) > 0);
+  const gainedReps = comparisons.some((c) => (c.repsDelta ?? 0) > 0);
+  return { improvedCount, prCount, gainedWeight, gainedReps };
 }
 
 /**

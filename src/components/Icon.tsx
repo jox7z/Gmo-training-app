@@ -1,4 +1,4 @@
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
 
 export type IconName =
   | 'robot'
@@ -77,13 +77,16 @@ function renderIcon(name: IconName, c: string, filled = false) {
 
     case 'dumbbell':
     case 'barbell':
+      // Font Awesome 6 solid "dumbbell" (viewBox 0 0 640 512) scaled into the
+      // shared 0 0 24 24 box: scale 24/640 = 0.0375, centred vertically
+      // (translateY = (24 - 512*0.0375)/2 = 2.4). Filled, keeps `color`.
       return (
-        <Path
-          d="M6 12h12M2 9.5v5M5 10.5v3M19 10.5v3M22 9.5v5"
-          stroke={c}
-          strokeWidth={2.5}
-          strokeLinecap="round"
-        />
+        <G transform="translate(0 2.4) scale(0.0375)">
+          <Path
+            d="M96 64c0-17.7 14.3-32 32-32l32 0c17.7 0 32 14.3 32 32l0 160 0 64 0 160c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32l0-64-32 0c-17.7 0-32-14.3-32-32l0-32c-17.7 0-32-14.3-32-32l0-64c0-17.7 14.3-32 32-32l0-32c0-17.7 14.3-32 32-32l32 0 0-64zm448 0l0 64 32 0c17.7 0 32 14.3 32 32l0 32c17.7 0 32 14.3 32 32l0 64c0 17.7-14.3 32-32 32l0 32c0 17.7-14.3 32-32 32l-32 0 0 64c0 17.7-14.3 32-32 32l-32 0c-17.7 0-32-14.3-32-32l0-160 0-64 0-160c0-17.7 14.3-32 32-32l32 0c17.7 0 32 14.3 32 32zM416 224l0 64-192 0 0-64 192 0z"
+            fill={c}
+          />
+        </G>
       );
 
     case 'muscle':

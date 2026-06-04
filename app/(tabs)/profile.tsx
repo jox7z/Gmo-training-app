@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { View, Pressable, ScrollView, Share, Alert, Image } from 'react-native';
+import { WorkoutResultsModal } from '@/components/WorkoutResultsModal';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -50,8 +51,9 @@ export default function Profile() {
   const countersQuery  = useProfileCounters(profile?.id);
   const userPostsQuery = useUserPosts(profile?.id);
 
-  const [commentsPost, setCommentsPost] = useState<Post | null>(null);
-  const [activeTab, setActiveTab]       = useState<ProfileTab>('posts');
+  const [commentsPost, setCommentsPost]       = useState<Post | null>(null);
+  const [activeTab, setActiveTab]             = useState<ProfileTab>('posts');
+  const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
 
   const userPosts = useMemo(
     () => userPostsQuery.data?.pages.flatMap((p) => p.posts) ?? [],
@@ -254,7 +256,13 @@ export default function Profile() {
           ) : (
             <View style={{ gap: spacing.md }}>
               {workoutHistory.map((w) => (
-                <WorkoutHistoryCard key={w.id} workout={w} />
+                <Pressable
+                  key={w.id}
+                  onPress={() => setSelectedWorkout(w)}
+                  style={({ pressed }) => pressed ? { opacity: 0.75 } : undefined}
+                >
+                  <WorkoutHistoryCard workout={w} />
+                </Pressable>
               ))}
             </View>
           )
@@ -299,6 +307,12 @@ export default function Profile() {
         postOwnerId={commentsPost?.userId ?? null}
         currentUserId={profile.id}
         onClose={() => setCommentsPost(null)}
+      />
+
+      <WorkoutResultsModal
+        visible={!!selectedWorkout}
+        workout={selectedWorkout}
+        onClose={() => setSelectedWorkout(null)}
       />
     </SafeAreaView>
   );
@@ -382,9 +396,12 @@ function PublicationCard({ post, onPress }: { post: Post; onPress: () => void })
         ]}
       >
         <PostReactionsInline reactions={post.reactions} />
-        <Text variant="caption" tone="muted" style={{ marginLeft: 'auto' }}>
-          {post.commentCount > 0 ? `💬 ${post.commentCount} comentarios` : '💬 Ver comentarios'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+          <Icon name="chat" size={14} color={colors.text.muted} />
+          <Text variant="caption" tone="muted">
+            {post.commentCount > 0 ? `${post.commentCount} comentarios` : 'Ver comentarios'}
+          </Text>
+        </View>
       </Pressable>
     </Card>
   );
@@ -393,10 +410,6 @@ function PublicationCard({ post, onPress }: { post: Post; onPress: () => void })
 // ─────────────────────────────────────────────────────────────────────────────
 // Workout history card
 // ─────────────────────────────────────────────────────────────────────────────
-
-const FEELING_EMOJI: Record<NonNullable<Workout['feeling']>, string> = {
-  great: '🔥', good: '💪', tired: '😓', bad: '😤',
-};
 
 function WorkoutHistoryCard({ workout }: { workout: Workout }) {
   const durationMin = Math.round((workout.durationSeconds ?? 0) / 60);
@@ -418,15 +431,11 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
           <Text weight="bold" numberOfLines={1}>{workout.routineName ?? 'Entrenamiento libre'}</Text>
           <Text variant="caption" tone="muted">{date}</Text>
         </View>
-        {workout.feeling ? (
-          <Text style={{ fontSize: 22 }}>{FEELING_EMOJI[workout.feeling]}</Text>
-        ) : null}
       </View>
 
       <View style={{ flexDirection: 'row', marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border }}>
         <WorkoutStat label="Tiempo"  value={`${durationMin}min`} />
         <WorkoutStat label="Series"  value={String(sets)} />
-        <WorkoutStat label="Volumen" value={`${Math.round(workout.totalVolumeKg)}kg`} />
         <WorkoutStat label="Reps"    value={String(workout.totalReps)} />
       </View>
 

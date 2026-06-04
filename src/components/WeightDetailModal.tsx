@@ -19,10 +19,36 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
 import { WeightChart } from '@/components/WeightChart';
+import { TimeSeriesChart } from '@/components/TimeSeriesChart';
 import { colors, radius, spacing } from '@/theme/tokens';
-import { useBodyTimeline, type BodyPeriod } from '@/lib/queries/body';
+import { useBodyTimeline, type BodyPeriod, type BodyTimelinePoint } from '@/lib/queries/body';
 import { toDisplay } from '@/lib/units';
 import type { Unit } from '@/store/app';
+
+type Metric = 'weight' | 'muscle' | 'water' | 'fat';
+
+const METRIC_OPTIONS: { value: Metric; label: string; unit: string }[] = [
+  { value: 'weight', label: 'Peso (kg)', unit: 'kg' },
+  { value: 'muscle', label: 'Músculo (%)', unit: '%' },
+  { value: 'water', label: 'Agua (%)', unit: '%' },
+  { value: 'fat', label: 'Grasa (%)', unit: '%' },
+];
+
+function getMetricValue(p: BodyTimelinePoint, metric: Metric, unit: Unit): number | undefined {
+  switch (metric) {
+    case 'weight': return toDisplay(p.weightKg, unit);
+    case 'muscle': return p.musclePct;
+    case 'water': return p.waterPct;
+    case 'fat': return p.bodyFatPct;
+  }
+}
+
+const METRIC_NAMES: Record<Metric, string> = {
+  weight: 'peso',
+  muscle: 'músculo',
+  water: 'agua',
+  fat: 'grasa',
+};
 
 const PERIODS: { value: BodyPeriod; label: string }[] = [
   { value: '7d', label: '7d' },
@@ -49,39 +75,41 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
   const { width: screenWidth } = useWindowDimensions();
 
   const [period, setPeriod] = useState<BodyPeriod>(initialPeriod);
+  const [metric, setMetric] = useState<Metric>('weight');
+  const [metricOpen, setMetricOpen] = useState(false);
   const { data: rawData = [], isLoading } = useBodyTimeline(period);
 
   // Los datos llegan en orden ascendente desde el RPC (0018).
   const data = rawData;
 
+  // Puntos filtrados para la métrica seleccionada (excluir undefined)
+  const metricPoints = useMemo(
+    () =>
+      data
+        .map((p) => {
+          const v = getMetricValue(p, metric, unit);
+          if (v === undefined) return null;
+          return { ms: new Date(p.recordedAt).getTime(), value: v, recordedAt: p.recordedAt };
+        })
+        .filter((x): x is { ms: number; value: number; recordedAt: string } => x !== null),
+    [data, metric, unit],
+  );
+
+  const currentMetricOpt = METRIC_OPTIONS.find((o) => o.value === metric)!;
+
   const stats = useMemo(() => {
-    if (data.length === 0) return null;
-    const weights = data.map((p) => toDisplay(p.weightKg, unit));
-    const first = weights[0];
-    const last = weights[weights.length - 1];
-    const min = Math.min(...weights);
-    const max = Math.max(...weights);
-    const avg = weights.reduce((a, b) => a + b, 0) / weights.length;
+    if (metricPoints.length === 0) return null;
+    const values = metricPoints.map((p) => p.value);
+    const first = values[0];
+    const last = values[values.length - 1];
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const avg = values.reduce((a, b) => a + b, 0) / values.length;
     const delta = last - first;
     const deltaPct = first !== 0 ? (delta / first) * 100 : 0;
 
-    // Datos avanzados: mostrar si al menos un punto los tiene.
-    const hasFat = data.some((p) => p.bodyFatPct !== undefined);
-    const hasMuscle = data.some((p) => p.musclePct !== undefined);
-    const hasWater = data.some((p) => p.waterPct !== undefined);
-
-    const latestFat = hasFat
-      ? [...data].reverse().find((p) => p.bodyFatPct !== undefined)?.bodyFatPct
-      : undefined;
-    const latestMuscle = hasMuscle
-      ? [...data].reverse().find((p) => p.musclePct !== undefined)?.musclePct
-      : undefined;
-    const latestWater = hasWater
-      ? [...data].reverse().find((p) => p.waterPct !== undefined)?.waterPct
-      : undefined;
-
     return {
-      count: data.length,
+      count: metricPoints.length,
       first,
       last,
       delta,
@@ -89,13 +117,10 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
       min,
       max,
       avg,
-      latestFat,
-      latestMuscle,
-      latestWater,
-      dateFirst: data[0].recordedAt,
-      dateLast: data[data.length - 1].recordedAt,
+      dateFirst: metricPoints[0].recordedAt,
+      dateLast: metricPoints[metricPoints.length - 1].recordedAt,
     };
-  }, [data, unit]);
+  }, [metricPoints]);
 
   // El chart ocupa ancho de pantalla menos padding del modal (2 * lg).
   const chartWidth = screenWidth - spacing.lg * 2;
@@ -190,6 +215,87 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
           })}
         </View>
 
+        {/* Selector de métrica — desplegable */}
+        <View
+          style={{
+            marginHorizontal: spacing.lg,
+            marginTop: spacing.sm,
+            zIndex: 10,
+          }}
+        >
+          <Pressable
+            onPress={() => setMetricOpen((o) => !o)}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+              paddingHorizontal: spacing.md,
+              paddingVertical: 10,
+              borderRadius: radius.lg,
+              borderWidth: 1,
+              borderColor: metricOpen ? colors.primary.DEFAULT : colors.border,
+              backgroundColor: pressed ? colors.bg.elevated : colors.bg.card,
+            })}
+          >
+            <Icon name="chart" size={15} color={colors.text.secondary} />
+            <Text variant="caption" weight="bold" style={{ flex: 1, color: colors.text.primary }}>
+              {currentMetricOpt.label}
+            </Text>
+            <View style={{ transform: [{ rotate: metricOpen ? '-90deg' : '90deg' }] }}>
+              <Icon name="chevron-right" size={16} color={colors.text.muted} />
+            </View>
+          </Pressable>
+
+          {metricOpen && (
+            <View
+              style={{
+                marginTop: spacing.xs,
+                borderRadius: radius.lg,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.bg.card,
+                overflow: 'hidden',
+              }}
+            >
+              {METRIC_OPTIONS.map((opt, i) => {
+                const active = metric === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => {
+                      setMetric(opt.value);
+                      setMetricOpen(false);
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.sm,
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: 11,
+                      borderBottomWidth: i < METRIC_OPTIONS.length - 1 ? 1 : 0,
+                      borderBottomColor: colors.border,
+                      backgroundColor: pressed
+                        ? colors.bg.elevated
+                        : active
+                        ? colors.primary.muted
+                        : 'transparent',
+                    })}
+                  >
+                    <Text
+                      variant="caption"
+                      weight={active ? 'bold' : 'semibold'}
+                      style={{ flex: 1, color: active ? colors.primary.DEFAULT : colors.text.secondary }}
+                    >
+                      {opt.label}
+                    </Text>
+                    {active && <Icon name="check" size={15} color={colors.primary.DEFAULT} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
         <ScrollView
           contentContainerStyle={{
             padding: spacing.lg,
@@ -200,18 +306,26 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
           {/* Chart grande */}
           <Card padding={0} style={{ padding: spacing.lg }}>
             <Text variant="label" tone="secondary" style={{ marginBottom: spacing.md }}>
-              PESO ({unit})
+              {currentMetricOpt.label.toUpperCase()}
             </Text>
             {isLoading ? (
               <View style={{ height: 220, alignItems: 'center', justifyContent: 'center' }}>
                 <Text variant="caption" tone="muted">Cargando…</Text>
               </View>
-            ) : (
+            ) : metric === 'weight' ? (
               <WeightChart
                 data={data}
                 unit={unit}
                 chartWidth={chartWidth - spacing.lg * 2}
                 chartHeight={220}
+              />
+            ) : (
+              <TimeSeriesChart
+                data={metricPoints}
+                chartWidth={chartWidth - spacing.lg * 2}
+                chartHeight={220}
+                formatLabel={(v) => `${v.toFixed(1)}%`}
+                emptyMessage={`Sin registros de ${METRIC_NAMES[metric]} para este período.`}
               />
             )}
             {stats && (
@@ -232,17 +346,17 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <StatCard
                   label="Actual"
-                  value={`${stats.last.toFixed(1)} ${unit}`}
+                  value={`${stats.last.toFixed(1)} ${currentMetricOpt.unit}`}
                   valueStyle={{ color: colors.text.primary }}
                 />
                 <StatCard
                   label="Inicial"
-                  value={`${stats.first.toFixed(1)} ${unit}`}
+                  value={`${stats.first.toFixed(1)} ${currentMetricOpt.unit}`}
                   valueStyle={{ color: colors.text.secondary }}
                 />
                 <StatCard
                   label="Delta"
-                  value={`${stats.delta >= 0 ? '+' : ''}${stats.delta.toFixed(1)} ${unit}`}
+                  value={`${stats.delta >= 0 ? '+' : ''}${stats.delta.toFixed(1)} ${currentMetricOpt.unit}`}
                   sub={`${stats.deltaPct >= 0 ? '+' : ''}${stats.deltaPct.toFixed(1)}%`}
                   valueStyle={{ color: deltaColor }}
                 />
@@ -252,15 +366,15 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <StatCard
                   label="Mínimo"
-                  value={`${stats.min.toFixed(1)} ${unit}`}
+                  value={`${stats.min.toFixed(1)} ${currentMetricOpt.unit}`}
                 />
                 <StatCard
                   label="Máximo"
-                  value={`${stats.max.toFixed(1)} ${unit}`}
+                  value={`${stats.max.toFixed(1)} ${currentMetricOpt.unit}`}
                 />
                 <StatCard
                   label="Media"
-                  value={`${stats.avg.toFixed(1)} ${unit}`}
+                  value={`${stats.avg.toFixed(1)} ${currentMetricOpt.unit}`}
                 />
               </View>
 
@@ -272,32 +386,6 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
                 </View>
               </Card>
 
-              {/* Composición corporal (si hay datos) */}
-              {(stats.latestFat !== undefined ||
-                stats.latestMuscle !== undefined ||
-                stats.latestWater !== undefined) && (
-                <Card padding="lg">
-                  <Text
-                    variant="label"
-                    tone="secondary"
-                    style={{ marginBottom: spacing.md }}
-                  >
-                    COMPOSICIÓN (ÚLTIMA MEDICIÓN CON DATOS)
-                  </Text>
-                  <View style={{ flexDirection: 'row', gap: spacing.md }}>
-                    {stats.latestFat !== undefined && (
-                      <MiniStat label="Grasa" value={`${stats.latestFat.toFixed(1)}%`} />
-                    )}
-                    {stats.latestMuscle !== undefined && (
-                      <MiniStat label="Músculo" value={`${stats.latestMuscle.toFixed(1)}%`} />
-                    )}
-                    {stats.latestWater !== undefined && (
-                      <MiniStat label="Agua" value={`${stats.latestWater.toFixed(1)}%`} />
-                    )}
-                  </View>
-                </Card>
-              )}
-
               {/* Lista de puntos */}
               <Card padding="lg">
                 <Text
@@ -308,29 +396,26 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
                   MEDICIONES
                 </Text>
                 <View style={{ gap: spacing.sm }}>
-                  {[...data].reverse().map((p, i) => {
-                    const w = toDisplay(p.weightKg, unit);
-                    return (
-                      <View
-                        key={p.recordedAt}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingVertical: spacing.xs,
-                          borderBottomWidth: i < data.length - 1 ? 1 : 0,
-                          borderBottomColor: colors.border,
-                        }}
-                      >
-                        <Text variant="caption" tone="muted">
-                          {formatDateEs(p.recordedAt)}
-                        </Text>
-                        <Text weight="bold" numeric>
-                          {w.toFixed(1)} {unit}
-                        </Text>
-                      </View>
-                    );
-                  })}
+                  {[...metricPoints].reverse().map((p, i) => (
+                    <View
+                      key={p.recordedAt}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        paddingVertical: spacing.xs,
+                        borderBottomWidth: i < metricPoints.length - 1 ? 1 : 0,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <Text variant="caption" tone="muted">
+                        {formatDateEs(p.recordedAt)}
+                      </Text>
+                      <Text weight="bold" numeric>
+                        {p.value.toFixed(1)} {currentMetricOpt.unit}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               </Card>
             </>
@@ -342,7 +427,7 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
                 tone="muted"
                 style={{ marginTop: spacing.sm, textAlign: 'center' }}
               >
-                Sin datos para este período
+                Sin registros de {METRIC_NAMES[metric]} para este período
               </Text>
             </Card>
           ) : null}
@@ -378,11 +463,3 @@ function StatCard({
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1 }}>
-      <Text variant="caption" tone="muted">{label}</Text>
-      <Text weight="bold" numeric style={{ marginTop: 2 }}>{value}</Text>
-    </View>
-  );
-}

@@ -60,7 +60,11 @@ export function useFeed() {
     queryKey: feedKeys.list(),
     queryFn: ({ pageParam }) => listFeed(pageParam),
     initialPageParam: undefined,
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+    getNextPageParam: (lastPage) =>
+      lastPage.posts.length > 0 ? lastPage.nextCursor : undefined,
+    // Override global staleTime so refetchOnWindowFocus (AppState active)
+    // triggers a real refetch after 15 s of staleness.
+    staleTime: 15_000,
   });
 }
 
@@ -88,7 +92,7 @@ interface ToggleReactionContext {
   previous?: FeedCache;
 }
 
-function applyReactionToggle(
+export function applyReactionToggle(
   data: FeedCache | undefined,
   postId: string,
   reaction: ReactionKind,
@@ -144,6 +148,7 @@ export function useToggleReaction() {
 
 interface PublishWorkoutVars {
   workoutId: string;
+  title: string;
   caption?: string;
   photoUrl?: string;
 }
@@ -151,7 +156,7 @@ interface PublishWorkoutVars {
 export function usePublishWorkout() {
   const qc = useQueryClient();
   return useMutation<string, Error, PublishWorkoutVars>({
-    mutationFn: ({ workoutId, caption, photoUrl }) => publishWorkout(workoutId, caption, photoUrl),
+    mutationFn: ({ workoutId, title, caption, photoUrl }) => publishWorkout(workoutId, title, caption, photoUrl),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });

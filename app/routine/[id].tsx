@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { View, ScrollView, Pressable, Modal, FlatList } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -13,7 +14,18 @@ import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { saveRoutine } from '@/lib/repos/routines';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { EXERCISES, exerciseById, MuscleGroup } from '@/data/exercises';
+import { exerciseImage } from '@/data/exerciseImages';
 import { Icon } from '@/components/Icon';
+
+const PICKER_GROUPS: { id: string; label: string; muscles: MuscleGroup[] }[] = [
+  { id: 'all',       label: 'Todos',    muscles: [] },
+  { id: 'chest',     label: 'Pecho',    muscles: ['chest'] },
+  { id: 'back',      label: 'Espalda',  muscles: ['back'] },
+  { id: 'shoulders', label: 'Hombros',  muscles: ['front_delt', 'lateral_delt', 'rear_delt'] },
+  { id: 'arms',      label: 'Brazos',   muscles: ['biceps', 'triceps'] },
+  { id: 'legs',      label: 'Piernas',  muscles: ['quads', 'hamstrings', 'glutes', 'calves'] },
+  { id: 'core',      label: 'Core',     muscles: ['core'] },
+];
 
 const EMPTY_ROUTINE = (): Routine => ({
   id: nid(),
@@ -33,7 +45,7 @@ export default function RoutineEditor() {
   const [routine, setRoutine] = useState<Routine>(existing ?? EMPTY_ROUTINE());
   const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerMuscle, setPickerMuscle] = useState<MuscleGroup | 'all'>('all');
+  const [pickerGroup, setPickerGroup] = useState<string>('all');
 
   const day = routine.days[activeDayIdx];
 
@@ -200,21 +212,47 @@ export default function RoutineEditor() {
             const ex = exerciseById(e.exerciseId);
             return (
               <Card key={e.id} padding="md" style={{ marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm }}>
-                  <Text weight="semibold" style={{ flex: 1 }}>{ex?.name ?? e.exerciseId}</Text>
-                  <Pressable onPress={() => removeExercise(e.id)} hitSlop={12}>
-                    <Text tone="danger" variant="heading">✕</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  {/* Columna central: nombre + steppers */}
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text
+                      weight="semibold"
+                      numberOfLines={2}
+                      style={{ textAlign: 'center', marginBottom: spacing.sm }}
+                    >
+                      {ex?.name ?? e.exerciseId}
+                    </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
+                      <StepperField
+                        label="Sets"
+                        value={e.targetSets}
+                        min={1}
+                        max={20}
+                        step={1}
+                        onChange={(v) => updateExercise(e.id, { targetSets: v })}
+                      />
+                    </View>
+                  </View>
+                  {/* Botón quitar — centrado verticalmente por alignItems:'center' del padre */}
+                  <Pressable
+                    onPress={() => removeExercise(e.id)}
+                    hitSlop={12}
+                    style={({ pressed }) => [
+                      {
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        alignItems: 'center' as const,
+                        justifyContent: 'center' as const,
+                        backgroundColor: 'rgba(239,68,68,0.12)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(239,68,68,0.35)',
+                      },
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <Icon name="close" size={22} color={colors.danger} />
                   </Pressable>
-                </View>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                  <StepperField
-                    label="Sets"
-                    value={e.targetSets}
-                    min={1}
-                    max={20}
-                    step={1}
-                    onChange={(v) => updateExercise(e.id, { targetSets: v })}
-                  />
                 </View>
               </Card>
             );
@@ -233,8 +271,8 @@ export default function RoutineEditor() {
       <ExercisePicker
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        muscle={pickerMuscle}
-        onMuscleChange={setPickerMuscle}
+        group={pickerGroup}
+        onGroupChange={setPickerGroup}
         onSelect={addExercise}
       />
     </Screen>
@@ -263,22 +301,22 @@ function StepperField({
   const display = format ? format(value) : String(value);
 
   return (
-    <View style={{ alignItems: 'center', minWidth: 72 }}>
+    <View style={{ alignItems: 'center' }}>
       <Text
         variant="caption"
         tone="muted"
-        style={{ marginBottom: 4, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}
+        style={{ marginBottom: 6, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}
       >
         {label}
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
         <Pressable
           onPress={dec}
-          hitSlop={8}
+          hitSlop={10}
           style={{
-            width: 26,
-            height: 26,
-            borderRadius: 13,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
             backgroundColor: colors.bg.elevated,
             borderWidth: 1,
             borderColor: colors.border,
@@ -286,18 +324,18 @@ function StepperField({
             justifyContent: 'center',
           }}
         >
-          <Text weight="bold" style={{ fontSize: 14, lineHeight: 16, color: colors.text.primary }}>−</Text>
+          <Text weight="bold" style={{ fontSize: 18, lineHeight: 20, color: colors.text.primary }}>−</Text>
         </Pressable>
-        <Text weight="bold" style={{ minWidth: 28, textAlign: 'center', fontSize: 13 }}>
+        <Text weight="bold" style={{ minWidth: 44, textAlign: 'center', fontSize: 22 }}>
           {display}
         </Text>
         <Pressable
           onPress={inc}
-          hitSlop={8}
+          hitSlop={10}
           style={{
-            width: 26,
-            height: 26,
-            borderRadius: 13,
+            width: 40,
+            height: 40,
+            borderRadius: 20,
             backgroundColor: colors.bg.elevated,
             borderWidth: 1,
             borderColor: colors.border,
@@ -305,7 +343,7 @@ function StepperField({
             justifyContent: 'center',
           }}
         >
-          <Text weight="bold" style={{ fontSize: 14, lineHeight: 16, color: colors.text.primary }}>+</Text>
+          <Text weight="bold" style={{ fontSize: 18, lineHeight: 20, color: colors.text.primary }}>+</Text>
         </Pressable>
       </View>
     </View>
@@ -315,84 +353,128 @@ function StepperField({
 function ExercisePicker({
   visible,
   onClose,
-  muscle,
-  onMuscleChange,
+  group,
+  onGroupChange,
   onSelect,
 }: {
   visible: boolean;
   onClose: () => void;
-  muscle: MuscleGroup | 'all';
-  onMuscleChange: (m: MuscleGroup | 'all') => void;
+  group: string;
+  onGroupChange: (g: string) => void;
   onSelect: (id: string) => void;
 }) {
-  const muscles: (MuscleGroup | 'all')[] = ['all', 'chest', 'back', 'shoulders', 'biceps', 'triceps', 'quads', 'hamstrings', 'glutes', 'calves', 'core'];
-  const filtered = useMemo(
-    () => (muscle === 'all' ? EXERCISES : EXERCISES.filter((e) => e.muscle === muscle)),
-    [muscle],
-  );
+  const filtered = useMemo(() => {
+    if (group === 'all') return EXERCISES;
+    const g = PICKER_GROUPS.find((x) => x.id === group);
+    if (!g) return EXERCISES;
+    return EXERCISES.filter((e) => g.muscles.includes(e.muscle as MuscleGroup));
+  }, [group]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
       <View style={{ flex: 1, backgroundColor: colors.bg.overlay, justifyContent: 'flex-end' }}>
+        {/* Contenedor con altura fija para evitar saltos al filtrar */}
         <View
           style={{
             backgroundColor: colors.bg.base,
             borderTopLeftRadius: radius.xl,
             borderTopRightRadius: radius.xl,
-            maxHeight: '85%',
+            height: '85%',
             padding: spacing.lg,
           }}
         >
+          {/* Header fijo */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="title">Ejercicios</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <Text variant="heading" tone="muted">✕</Text>
+              <Icon name="close" size={18} color={colors.text.muted} />
             </Pressable>
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.md }}>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              {muscles.map((m) => {
-                const active = m === muscle;
-                return (
-                  <Pressable
-                    key={m}
-                    onPress={() => onMuscleChange(m)}
-                    style={{
-                      paddingVertical: 8,
-                      paddingHorizontal: 14,
-                      borderRadius: radius.full,
-                      backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                    }}
-                  >
-                    <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
-                      {m}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+          {/* Filtros de grupo — fijos arriba */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: spacing.md, flexGrow: 0 }}
+            contentContainerStyle={{ gap: spacing.sm }}
+          >
+            {PICKER_GROUPS.map((g) => {
+              const active = g.id === group;
+              return (
+                <Pressable
+                  key={g.id}
+                  onPress={() => onGroupChange(g.id)}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: radius.full,
+                    backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
+                    borderWidth: 1,
+                    borderColor: active ? colors.primary.DEFAULT : colors.border,
+                  }}
+                >
+                  <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
+                    {g.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </ScrollView>
 
+          {/* Lista con flex:1 para ocupar el espacio restante */}
           <FlatList
             data={filtered}
             keyExtractor={(e) => e.id}
-            style={{ marginTop: spacing.md }}
-            renderItem={({ item }) => (
-              <Pressable onPress={() => onSelect(item.id)}>
-                <Card padding="md" style={{ marginBottom: spacing.sm }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <View style={{ flex: 1 }}>
-                      <Text weight="semibold">{item.name}</Text>
-                      <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                        {item.muscle} · {item.equipment}
-                      </Text>
+            style={{ marginTop: spacing.md, flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const img = exerciseImage(item.id);
+              return (
+                <Pressable
+                  onPress={() => {
+                    onSelect(item.id);
+                    onClose();
+                  }}
+                >
+                  <Card padding="md" style={{ marginBottom: spacing.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                      {/* Imagen / fallback */}
+                      <View
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: radius.md,
+                          overflow: 'hidden',
+                          backgroundColor: colors.bg.elevated,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {img !== undefined ? (
+                          <Image
+                            source={img}
+                            style={{ width: '100%', height: '100%' }}
+                            contentFit="cover"
+                            transition={120}
+                          />
+                        ) : (
+                          <Icon name="dumbbell" size={20} color={colors.text.muted} />
+                        )}
+                      </View>
+                      {/* Nombre + músculo */}
+                      <View style={{ flex: 1 }}>
+                        <Text weight="semibold" numberOfLines={1}>{item.name}</Text>
+                        <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
+                          {item.muscle} · {item.equipment}
+                        </Text>
+                      </View>
+                      {item.isCompound && <Badge label="Compound" tone="accent" />}
                     </View>
-                    {item.isCompound && <Badge label="Compound" tone="accent" />}
-                  </View>
-                </Card>
-              </Pressable>
-            )}
+                  </Card>
+                </Pressable>
+              );
+            }}
           />
         </View>
       </View>

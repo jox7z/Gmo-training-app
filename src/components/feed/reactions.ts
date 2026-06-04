@@ -15,15 +15,11 @@ export interface ReactionConfig {
 }
 
 /**
- * Orden visual de las reacciones en el picker (de izquierda a derecha).
- * `props` es la reacción por defecto (tap corto en el botón principal).
+ * Reacción única: bíceps (muscle). El icono se renderiza con BicepIcon
+ * en FeedItem, no con emoji.
  */
 export const REACTIONS: ReactionConfig[] = [
-  { key: 'props',   emoji: '👊', icon: 'props',   color: colors.primary.DEFAULT, label: 'Props',    shortLabel: 'Props' },
-  { key: 'respect', emoji: '🤝', icon: 'respect', color: colors.info.DEFAULT,    label: 'Respect',  shortLabel: 'Respect' },
-  { key: 'fire',    emoji: '🔥', icon: 'fire',    color: colors.accent.DEFAULT,  label: 'Fuego',    shortLabel: 'Fuego' },
-  { key: 'muscle',  emoji: '💪', icon: 'muscle',  color: '#E11D48',              label: 'Bestia',   shortLabel: 'Bestia' },
-  { key: 'heart',   emoji: '❤️', icon: 'heart',   color: colors.danger,          label: 'Me gusta', shortLabel: 'Like' },
+  { key: 'muscle', emoji: '💪', icon: 'muscle', color: '#ff8000', label: 'Bíceps', shortLabel: 'Bíceps' },
 ];
 
 export const REACTION_BY_KEY: Record<ReactionKind, ReactionConfig> = REACTIONS.reduce(
@@ -34,10 +30,12 @@ export const REACTION_BY_KEY: Record<ReactionKind, ReactionConfig> = REACTIONS.r
   {} as Record<ReactionKind, ReactionConfig>,
 );
 
-export const DEFAULT_REACTION: ReactionKind = 'props';
+export const DEFAULT_REACTION: ReactionKind = 'muscle';
 
 export function totalReactions(counts: Record<ReactionKind, number>): number {
-  return REACTIONS.reduce((sum, r) => sum + (counts[r.key] ?? 0), 0);
+  // Suma TODOS los tipos del record (incluye reacciones históricas de otros
+  // tipos), no solo las de REACTIONS, para no subcontar posts antiguos.
+  return (Object.values(counts) as number[]).reduce((sum, v) => sum + (v ?? 0), 0);
 }
 
 export function activeReaction(

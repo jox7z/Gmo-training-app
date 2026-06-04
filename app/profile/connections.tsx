@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Pressable, FlatList, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,9 @@ import { useSearchUsers } from '@/lib/queries/search';
 import type { FollowProfile } from '@/lib/repos/social';
 
 type ConnectionType = 'followers' | 'following';
+
+// Referencia estable para el estado de carga (evita un nuevo `[]` por render).
+const EMPTY_LIST: FollowProfile[] = [];
 
 function rankInfo(id: RankId) {
   return RANKS.find((r) => r.id === id) ?? RANKS[0];
@@ -46,7 +49,37 @@ export default function Connections() {
   const followersQuery = useFollowers(type === 'followers' ? resolvedId : undefined);
   const followingQuery = useFollowing(type === 'following' ? resolvedId : undefined);
   const query = type === 'followers' ? followersQuery : followingQuery;
-  const data = useMemo(() => query.data ?? [], [query.data]);
+
+  // Membresía congelada durante la vida de la pantalla: al dejar de seguir, la fila
+  // permanece visible (estilo Instagram) con la opción de volver a seguir. Solo se
+  // re-sincroniza al refrescar manualmente, al re-montar la pantalla, o al cambiar
+  // el destino de la lista (tipo o usuario).
+  const [frozen, setFrozen] = useState<FollowProfile[] | null>(null);
+
+  // Si cambia el destino dentro del mismo montaje (expo-router actualiza params
+  // in-place), descongela para no mostrar la lista anterior.
+  useEffect(() => {
+    setFrozen(null);
+  }, [type, resolvedId]);
+
+  useEffect(() => {
+    if (frozen === null && !query.isLoading && query.data) {
+      setFrozen(query.data);
+    }
+  }, [frozen, query.isLoading, query.data]);
+
+  const data = frozen ?? EMPTY_LIST;
+
+  const handleFollowChange = useCallback((userId: string, next: boolean) => {
+    setFrozen((prev) =>
+      prev ? prev.map((u) => (u.id === userId ? { ...u, isFollowing: next } : u)) : prev,
+    );
+  }, []);
+
+  const handleRefresh = useCallback(() => {
+    setFrozen(null);
+    query.refetch();
+  }, [query.refetch]);
 
   const title = type === 'followers' ? 'Seguidores' : 'Siguiendo';
   const subtitle = isSelf ? 'Tu cuenta' : `@${targetUsername}`;
@@ -123,6 +156,7 @@ export default function Connections() {
               onPress={() =>
                 router.push({ pathname: '/profile/[username]', params: { username: item.username } })
               }
+              onFollowChange={handleFollowChange}
             />
           )}
           contentContainerStyle={{
@@ -150,7 +184,7 @@ export default function Connections() {
           refreshControl={
             <RefreshControl
               refreshing={query.isRefetching}
-              onRefresh={() => query.refetch()}
+              onRefresh={handleRefresh}
               tintColor={colors.primary.DEFAULT}
             />
           }
@@ -165,10 +199,12 @@ function ConnectionRow({
   user,
   currentUserId,
   onPress,
+  onFollowChange,
 }: {
   user: FollowProfile;
   currentUserId: string | null;
   onPress: () => void;
+  onFollowChange: (userId: string, next: boolean) => void;
 }) {
   const info = rankInfo(user.currentRank);
   const isMe = currentUserId === user.id;
@@ -196,6 +232,8 @@ function ConnectionRow({
             userId={user.id}
             isFollowing={user.isFollowing}
             size="sm"
+            onChange={(next) => onFollowChange(user.id, next)}
+            onChangeFailed={(restored) => onFollowChange(user.id, restored)}
           />
         )}
       </Card>

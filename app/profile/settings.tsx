@@ -63,7 +63,6 @@ export default function SettingsScreen() {
   };
 
   const totalDuration = history.reduce((a, w) => a + (w.durationSeconds ?? 0), 0);
-  const totalVolume = history.reduce((a, w) => a + (w.totalVolumeKg ?? 0), 0);
 
   return (
     <Screen>
@@ -233,11 +232,6 @@ export default function SettingsScreen() {
           icon="clock"
           label="Tiempo total"
           value={formatDuration(totalDuration)}
-        />
-        <Row
-          icon="muscle"
-          label="Volumen total"
-          value={`${Math.round(totalVolume).toLocaleString()} ${profile.unit}`}
         />
         <Row
           icon="share"
