@@ -48,6 +48,7 @@ export interface Post {
   createdAt: string;
   reactions: PostReactions;
   myReactions: MyReactions;
+  communityId?: string;
 }
 
 export interface Comment {
@@ -90,6 +91,7 @@ interface DbFeedRow {
   muscle_count: number;
   heart_count: number;
   my_reactions: ReactionKind[];
+  community_id?: string | null;
 }
 
 interface DbCommentRow {
@@ -137,6 +139,7 @@ function toPost(row: DbFeedRow): Post {
       muscle: row.my_reactions.includes('muscle'),
       heart: row.my_reactions.includes('heart'),
     },
+    communityId: row.community_id ?? undefined,
   };
 }
 
@@ -240,14 +243,37 @@ export async function publishPR(args: PublishPRParams): Promise<string> {
 export async function publishManualPost(
   caption: string,
   photoUrl?: string,
+  communityId?: string,
 ): Promise<string> {
   const { data, error } = await supabase.rpc('publish_manual_post', {
     caption,
     photo_url: photoUrl ?? null,
+    p_community_id: communityId ?? null,
   });
 
   if (error) throw error;
   return data as string;
+}
+
+export async function listCommunityFeed(
+  communityId: string,
+  cursor?: string,
+  limit = 20,
+): Promise<FeedPage> {
+  const { data, error } = await supabase.rpc('list_community_feed', {
+    p_community_id: communityId,
+    p_cursor: cursor ?? null,
+    lim: limit,
+  });
+
+  if (error) throw error;
+
+  const rows = (data ?? []) as DbFeedRow[];
+  const posts = rows.map(toPost);
+  const nextCursor =
+    posts.length === limit ? posts[posts.length - 1]?.createdAt : undefined;
+
+  return { posts, nextCursor };
 }
 
 export async function listComments(postId: string): Promise<Comment[]> {

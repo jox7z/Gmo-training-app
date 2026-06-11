@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { feedKeys } from '@/lib/queries/feed';
 import type { FeedPage, ReactionKind } from '@/lib/repos/posts';
@@ -48,66 +49,114 @@ function patchReactionCount(
  * - Reaction changes de OTROS usuarios: parche de conteo en sitio.
  * - Reaction changes propios: se ignoran (el update optimista ya los aplicó;
  *   aplicar el eco duplicaría/invertiría el conteo).
+ *
+ * Suscribe SOLO con sesión autenticada para que postgres_changes en tablas
+ * con RLS pase la autorización. Reacciona a cambios de auth (SIGNED_IN /
+ * SIGNED_OUT) para recrear o destruir el canal sin canales huérfanos.
  */
 export function useFeedRealtime() {
   const qc = useQueryClient();
+  // Referencia mutable al canal activo; null = sin canal abierto.
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) return;
 
-    // Id del usuario actual para descartar los ecos de sus propias reacciones.
-    let myId: string | undefined;
-    supabase.auth.getUser().then(({ data }) => {
-      myId = data.user?.id;
-    });
+    // ── Helpers ────────────────────────────────────────────────────────────
 
-    // Nombre único por montaje para evitar canales duplicados (keep-alive de
-    // tabs, hot reload, StrictMode).
-    const channel = supabase
-      .channel(`feed-changes-${Date.now()}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'posts' },
-        () => {
-          qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
-        },
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'post_reactions' },
-        (payload) => {
-          const record =
-            (payload.new as Record<string, unknown> | null) ??
-            (payload.old as Record<string, unknown> | null);
+    function buildAndSubscribe(myId: string | undefined) {
+      // Destruye el canal previo antes de crear uno nuevo.
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
 
-          const postId = record?.post_id as string | undefined;
-          // La columna real es `type` (ver migración 0004_social_feed.sql).
-          const reaction = record?.type as ReactionKind | undefined;
-          const userId = record?.user_id as string | undefined;
+      const channel = supabase
+        .channel(`feed-changes-${Date.now()}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'posts' },
+          (payload) => {
+            // Ignorar posts de comunidad — no pertenecen al feed global
+            const record = payload.new as Record<string, unknown> | null;
+            if (record?.community_id != null) return;
+            qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'post_reactions' },
+          (payload) => {
+            const record =
+              (payload.new as Record<string, unknown> | null) ??
+              (payload.old as Record<string, unknown> | null);
 
-          // Eco de la propia reacción: ya aplicado de forma optimista.
-          if (userId && myId && userId === myId) return;
+            const postId = record?.post_id as string | undefined;
+            // La columna real es `type` (ver migración 0004_social_feed.sql).
+            const reaction = record?.type as ReactionKind | undefined;
+            const userId = record?.user_id as string | undefined;
 
-          if (postId && reaction && payload.eventType !== 'UPDATE') {
-            const delta = payload.eventType === 'DELETE' ? -1 : 1;
-            const current = qc.getQueryData<FeedCache>(feedKeys.list());
-            if (current) {
-              qc.setQueryData<FeedCache>(feedKeys.list(), (old) =>
-                patchReactionCount(old, postId, reaction, delta),
-              );
-              return;
+            // Eco de la propia reacción: ya aplicado de forma optimista.
+            if (userId && myId && userId === myId) return;
+
+            if (postId && reaction && payload.eventType !== 'UPDATE') {
+              const delta = payload.eventType === 'DELETE' ? -1 : 1;
+              const current = qc.getQueryData<FeedCache>(feedKeys.list());
+              if (current) {
+                qc.setQueryData<FeedCache>(feedKeys.list(), (old) =>
+                  patchReactionCount(old, postId, reaction, delta),
+                );
+                return;
+              }
+            }
+
+            // Fallback: marca stale sin refetch inmediato; el próximo focus o
+            // pull-to-refresh reconcilia.
+            qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
+          },
+        )
+        .subscribe((status, err) => {
+          if (__DEV__) {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              console.warn('[useFeedRealtime] channel status:', status, err);
             }
           }
+        });
 
-          // Fallback: marca stale sin refetch inmediato; el próximo focus o
-          // pull-to-refresh reconcilia.
-          qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
-        },
-      )
-      .subscribe();
+      channelRef.current = channel;
+    }
 
+    function removeCurrentChannel() {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    }
+
+    // ── Suscripción inicial: solo si hay sesión autenticada ────────────────
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      // Autoriza postgres_changes sobre tablas con RLS con el JWT del usuario.
+      supabase.realtime.setAuth(session.access_token);
+      buildAndSubscribe(session.user.id);
+    });
+
+    // ── Reaccionar a cambios de auth ───────────────────────────────────────
+    const { data: { subscription: authSubscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          supabase.realtime.setAuth(session.access_token);
+          buildAndSubscribe(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          removeCurrentChannel();
+        }
+      },
+    );
+
+    // ── Cleanup ────────────────────────────────────────────────────────────
     return () => {
-      supabase.removeChannel(channel);
+      removeCurrentChannel();
+      authSubscription.unsubscribe();
     };
   }, [qc]);
 }

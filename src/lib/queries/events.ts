@@ -5,19 +5,29 @@ import {
 } from '@tanstack/react-query';
 import {
   listEvents,
+  getEvent,
   createEvent,
   joinEvent,
   leaveEvent,
   listEventParticipants,
+  updateEvent,
+  deleteEvent,
+  listEventComments,
+  addEventComment,
+  deleteEventComment,
   type CommunityEvent,
   type CreateEventParams,
+  type UpdateEventParams,
   type EventFilter,
+  type EventComment,
 } from '@/lib/repos/events';
 
 export const eventKeys = {
   all: ['events'] as const,
   list: (filter: EventFilter) => ['events', 'list', filter] as const,
+  detail: (eventId: string) => ['events', 'detail', eventId] as const,
   participants: (eventId: string) => ['events', 'participants', eventId] as const,
+  comments: (eventId: string) => ['events', 'comments', eventId] as const,
 };
 
 export function useEvents(filter: EventFilter = 'all') {
@@ -30,7 +40,7 @@ export function useEvents(filter: EventFilter = 'all') {
 
 /**
  * Detalle de un evento. Primero busca en cualquier lista ya cacheada
- * (navegación desde el hub) y, si no está, hace fetch del set 'all'.
+ * (navegación desde el hub) y, si no está, hace fetch puntual con get_event.
  */
 export function useEvent(eventId: string | undefined) {
   const qc = useQueryClient();
@@ -42,8 +52,7 @@ export function useEvent(eventId: string | undefined) {
         const hit = list?.find((e) => e.id === eventId);
         if (hit) return hit;
       }
-      const all = await listEvents('all');
-      return all.find((e) => e.id === eventId);
+      return getEvent(eventId!);
     },
     enabled: !!eventId,
   });
@@ -111,4 +120,104 @@ export function useToggleJoinEvent() {
   });
 }
 
-export type { CommunityEvent, EventFilter };
+export function useUpdateEvent() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, UpdateEventParams>({
+    mutationFn: (params) => updateEvent(params),
+    onSuccess: (_data, vars) => {
+      // Invalida listas y actualiza detalle en cache
+      qc.invalidateQueries({ queryKey: eventKeys.all });
+      qc.setQueryData<CommunityEvent | undefined>(
+        eventKeys.detail(vars.eventId),
+        (old) =>
+          old
+            ? {
+                ...old,
+                title: vars.title,
+                description: vars.description,
+                coverUrl: vars.coverUrl,
+                location: vars.location,
+                metric: vars.metric,
+                startsAt: vars.startsAt ?? old.startsAt,
+                endsAt: vars.endsAt,
+              }
+            : old,
+      );
+    },
+  });
+}
+
+export function useDeleteEvent() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, string>({
+    mutationFn: (eventId) => deleteEvent(eventId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: eventKeys.all });
+    },
+  });
+}
+
+// ---------------------------------------------------------------
+// Event comments hooks
+// ---------------------------------------------------------------
+
+export function useEventComments(eventId: string | undefined) {
+  return useQuery({
+    queryKey: eventId ? eventKeys.comments(eventId) : ['events', 'comments', 'noop'],
+    queryFn: () => listEventComments(eventId!),
+    enabled: !!eventId,
+  });
+}
+
+interface AddEventCommentVars {
+  eventId: string;
+  body: string;
+}
+
+export function useAddEventComment() {
+  const qc = useQueryClient();
+  return useMutation<EventComment, Error, AddEventCommentVars, { snapshot: EventComment[] | undefined }>({
+    mutationFn: ({ eventId, body }) => addEventComment(eventId, body),
+    onMutate: async ({ eventId, body }) => {
+      const key = eventKeys.comments(eventId);
+      await qc.cancelQueries({ queryKey: key });
+      const snapshot = qc.getQueryData<EventComment[]>(key);
+      // Optimistic: append con datos temporales
+      const optimistic: EventComment = {
+        id: `optimistic-${Date.now()}`,
+        eventId,
+        userId: 'current',
+        body,
+        createdAt: new Date().toISOString(),
+        user: { username: '', displayName: '…', currentRank: 'bronze' as const },
+      };
+      qc.setQueryData<EventComment[]>(key, (old) => [...(old ?? []), optimistic]);
+      return { snapshot };
+    },
+    onError: (_err, { eventId }, ctx) => {
+      if (ctx?.snapshot !== undefined) {
+        qc.setQueryData(eventKeys.comments(eventId), ctx.snapshot);
+      }
+    },
+    onSuccess: (_data, { eventId }) => {
+      qc.invalidateQueries({ queryKey: eventKeys.comments(eventId) });
+    },
+  });
+}
+
+interface DeleteEventCommentVars {
+  commentId: string;
+  eventId: string;
+}
+
+export function useDeleteEventComment() {
+  const qc = useQueryClient();
+  return useMutation<void, Error, DeleteEventCommentVars>({
+    mutationFn: ({ commentId }) => deleteEventComment(commentId),
+    onSuccess: (_data, { eventId }) => {
+      qc.invalidateQueries({ queryKey: eventKeys.comments(eventId) });
+    },
+  });
+}
+
+export type { CommunityEvent, EventFilter, UpdateEventParams, EventComment };

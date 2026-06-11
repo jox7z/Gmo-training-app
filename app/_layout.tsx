@@ -40,6 +40,22 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   return Promise.race([p, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
 }
 
+// Sentinela para distinguir "getProfile hizo timeout" de sus resultados reales
+// (UserProfile | null). null significa "el perfil NO existe" → signOut, así que
+// un timeout jamás debe colapsar a null.
+const FETCH_TIMED_OUT = '__fetch_timed_out__' as const;
+
+// getProfile con cota de tiempo. Un cuelgue de red aquí (token refresh en frío,
+// Android sin conexión) dejaba profileComplete en null para siempre y la app
+// se quedaba en el Loader infinito al arrancar con sesión cacheada.
+function getProfileBounded(userId: string) {
+  return withTimeout<Awaited<ReturnType<typeof getProfile>> | typeof FETCH_TIMED_OUT>(
+    getProfile(userId),
+    PROFILE_CHECK_TIMEOUT_MS,
+    FETCH_TIMED_OUT,
+  );
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -57,15 +73,14 @@ export default function RootLayout() {
   const hydrate = useAppStore((s) => s.hydrate);
   const setProfile = useAppStore((s) => s.setProfile);
   const markOnboarded = useAppStore((s) => s.markOnboarded);
+  // profileComplete viene del store (estado de sesión, no persiste).
+  // El backend es la única verdad: no depende del flag local `onboarded`.
+  const profileComplete = useAppStore((s) => s.profileComplete);
   const router = useRouter();
   const segments = useSegments();
 
   const [authChecked, setAuthChecked] = useState(!isSupabaseConfigured);
   const [hasSession, setHasSession] = useState(false);
-  // Cache de is_profile_complete por sesión. null = aún no consultado.
-  // Solo se recalcula en SIGNED_IN / cuando el perfil se actualiza, NO en
-  // cada cambio de segmento (evita un RPC por navegación).
-  const [profileComplete, setProfileComplete] = useState<boolean | null>(null);
 
   // 1. Hydrate AsyncStorage (app + routines + workouts — local stores, not gated behind auth)
   useEffect(() => {
@@ -97,15 +112,58 @@ export default function RootLayout() {
         setAuthChecked(true);
         if (session) {
           queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
+          // Fire-and-forget: la descarga del historial NO debe bloquear el gate
+          // de navegación (sin timeout, un cuelgue aquí congelaba el arranque).
+          getWorkouts(session.user.id)
+            .then((ws) => useWorkoutsStore.getState().mergeHistory(ws))
+            .catch(() => {});
+
+          // El servidor es la única verdad: si no hay fila de profile, la sesión
+          // es fantasma (cuenta huérfana, borrada manualmente, etc.) → cerrar sesión.
+          // Pero distinguimos "no existe" de un error de red transitorio: ante
+          // un fallo de red NO expulsamos (no dejar sin app a alguien con mala
+          // conexión); solo cerramos sesión cuando el perfil realmente no existe.
+          let remote: Awaited<ReturnType<typeof getProfileBounded>> = null;
+          let fetchFailed = false;
           try {
-            const ws = await getWorkouts(session.user.id);
-            useWorkoutsStore.getState().mergeHistory(ws);
-          } catch {}
-          // Garantizar que profile.id siempre coincide con el usuario autenticado.
-          const stored = useAppStore.getState().profile;
-          if (stored && stored.id !== session.user.id) {
-            void useAppStore.getState().setProfile({ ...stored, id: session.user.id });
+            remote = await getProfileBounded(session.user.id);
+          } catch {
+            fetchFailed = true;
           }
+          // Timeout = no pudimos confirmar con el servidor → tratar como fallo
+          // de red (fallback local), nunca como "perfil no existe".
+          if (remote === FETCH_TIMED_OUT) {
+            fetchFailed = true;
+            remote = null;
+          }
+
+          if (fetchFailed) {
+            // No se pudo confirmar con el servidor (red): caemos al flag local
+            // `onboarded` para dar resiliencia offline a usuarios YA existentes.
+            // Esto NO reintroduce el bug de cuentas nuevas: esas sí alcanzan el
+            // servidor y reciben false vía getProfile/isProfileComplete; el gate
+            // (CASE 3) ya no depende de `onboarded`.
+            if (!cancelled) useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
+            return;
+          }
+
+          if (!remote) {
+            if (!cancelled) {
+              console.warn('[RootLayout] getSession: perfil no existe → signOut');
+              await useAppStore.getState().signOut();
+              setHasSession(false);
+              useAppStore.getState().setProfileComplete(null);
+            }
+            return;
+          }
+
+          // Sincronizar perfil remoto al store.
+          await setProfile(remote);
+
+          // Consultar si el onboarding está completo. Si la RPC hace timeout o
+          // falla (no podemos confirmar con el servidor) caemos al flag local
+          // `onboarded`. La verdad del servidor (cuando responde) manda: una
+          // cuenta nueva recibe false y va a /onboarding.
           try {
             const localOnboarded = useAppStore.getState().onboarded;
             const ok = await withTimeout(
@@ -114,11 +172,11 @@ export default function RootLayout() {
               localOnboarded,
             );
             if (!cancelled) {
-              setProfileComplete(ok);
+              useAppStore.getState().setProfileComplete(ok);
               if (ok) void markOnboarded();
             }
           } catch {
-            if (!cancelled) setProfileComplete(false);
+            if (!cancelled) useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
           }
         }
       })
@@ -144,11 +202,40 @@ export default function RootLayout() {
       if (event === 'SIGNED_OUT' || !session) {
         // Reset el cache para el próximo login (otra cuenta puede tener
         // distinto estado de profile completion).
-        setProfileComplete(null);
+        useAppStore.getState().setProfileComplete(null);
         return;
       }
       // Recalcula profileComplete en cada SIGNED_IN / USER_UPDATED / etc.
-      // Es la única vía: no se llama por cada cambio de segmento.
+      // El servidor es la única verdad: si no hay fila de profile → signOut.
+      // Distinguimos "no existe" de error de red transitorio (no expulsar).
+      let remote: Awaited<ReturnType<typeof getProfileBounded>> = null;
+      let fetchFailed = false;
+      try {
+        remote = await getProfileBounded(session.user.id);
+      } catch {
+        fetchFailed = true;
+      }
+      if (remote === FETCH_TIMED_OUT) {
+        fetchFailed = true;
+        remote = null;
+      }
+
+      if (fetchFailed) {
+        // No se pudo confirmar con el servidor (red): caer al flag local.
+        useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
+        return;
+      }
+
+      if (!remote) {
+        console.warn('[RootLayout] onAuthStateChange: perfil no existe → signOut');
+        await useAppStore.getState().signOut();
+        return;
+      }
+
+      await setProfile(remote);
+
+      // La verdad del servidor manda; si la RPC hace timeout/falla caemos al
+      // flag local `onboarded` (resiliencia offline para usuarios existentes).
       try {
         const localOnboarded = useAppStore.getState().onboarded;
         const ok = await withTimeout(
@@ -156,34 +243,18 @@ export default function RootLayout() {
           PROFILE_CHECK_TIMEOUT_MS,
           localOnboarded,
         );
-        setProfileComplete(ok);
+        useAppStore.getState().setProfileComplete(ok);
         if (ok) void markOnboarded();
       } catch {
-        setProfileComplete(false);
-      }
-      try {
-        const remote = await getProfile(session.user.id);
-        if (remote) {
-          await setProfile(remote);
-        } else {
-          await hydrate();
-          // Si hydrate devuelve un perfil con id stale, corregirlo al usuario actual.
-          const stored = useAppStore.getState().profile;
-          if (stored && stored.id !== session.user.id) {
-            await setProfile({ ...stored, id: session.user.id });
-          }
-        }
-      } catch {
-        await hydrate().catch(() => {});
+        useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
       }
       queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
-      try {
-        const ws = await getWorkouts(session.user.id);
-        useWorkoutsStore.getState().mergeHistory(ws);
-      } catch {}
+      getWorkouts(session.user.id)
+        .then((ws) => useWorkoutsStore.getState().mergeHistory(ws))
+        .catch(() => {});
     });
     return () => subscription.unsubscribe();
-  }, [hydrate, setProfile, markOnboarded]);
+  }, [setProfile, markOnboarded]);
 
   // 4. Centralized redirect logic — runs whenever ready state OR location changes.
   // This is the ONLY place that decides where the user should be.
@@ -209,7 +280,8 @@ export default function RootLayout() {
       first === 'discover' ||
       first === 'events' ||
       first === 'notifications' ||
-      first === 'body';
+      first === 'body' ||
+      first === 'communities';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
     // creates a temporary session. We MUST let them stay on reset-password and
@@ -238,26 +310,24 @@ export default function RootLayout() {
     }
 
     // CASE 3: decidir si el usuario necesita onboarding.
-    // Con Supabase configurado, el backend (profileComplete) es la
-    // única verdad. Si todavía no contestó (null), ESPERA — no decidas.
+    // Con Supabase configurado, el backend (profileComplete) es la ÚNICA verdad.
+    // NO se usa el flag local `onboarded` — evita el bug donde AsyncStorage
+    // guardó onboarded=true de una cuenta anterior y saltea el onboarding.
+    // Si todavía no contestó (null), ESPERA — no decidas.
     // Sin Supabase (modo offline/dev), respeta el flag local.
     if (isSupabaseConfigured) {
       if (profileComplete === null) {
         console.log('[RootLayout] waiting for is_profile_complete');
         return;
       }
-      // profileComplete===false pero onboarded===true: el usuario acaba de
-      // completar onboarding en esta sesión. completeSignup() ya actualizó
-      // el backend pero no hubo SIGNED_IN event que re-corra isProfileComplete().
-      // Confiamos en el flag local; la próxima sesión sincroniza el backend.
-      if (profileComplete === false && !onboarded) {
+      if (profileComplete === false) {
         if (!inOnboarding) {
           console.log('[RootLayout] → /onboarding (profile incomplete)');
           router.replace('/onboarding');
         }
         return;
       }
-      // profileComplete===true OR (false && onboarded===true) → liberar.
+      // profileComplete===true → liberar; cae al CASE 4.
     } else {
       if (!onboarded) {
         if (!inOnboarding) {
@@ -316,6 +386,10 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen
+              name="routine/templates"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
               name="coach"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
@@ -348,10 +422,24 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen name="discover" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="communities/index" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen
+              name="communities/new"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen name="communities/[id]" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen
+              name="communities/edit/[id]"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
             <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="events/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen
               name="events/new"
+              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+            />
+            <Stack.Screen
+              name="events/edit/[id]"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen

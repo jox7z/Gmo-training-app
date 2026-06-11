@@ -10,6 +10,7 @@ export interface SearchUserResult {
   rankPoints: number;
   followersCount: number;
   isFollowing: boolean;
+  instagramUsername?: string | null;
 }
 
 interface DbSearchUserRow {
@@ -20,6 +21,7 @@ interface DbSearchUserRow {
   rank_points: number;
   followers_count: number;
   is_following: boolean;
+  instagram_username?: string | null;
 }
 
 function toResult(row: DbSearchUserRow): SearchUserResult {
@@ -31,6 +33,7 @@ function toResult(row: DbSearchUserRow): SearchUserResult {
     rankPoints: row.rank_points,
     followersCount: row.followers_count,
     isFollowing: row.is_following,
+    instagramUsername: row.instagram_username ?? null,
   };
 }
 

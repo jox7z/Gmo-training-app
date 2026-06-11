@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
@@ -15,13 +16,15 @@ import { useGlobalLeaderboard, type GlobalRankEntry } from '@/lib/queries/social
 import { useEvents, type EventFilter } from '@/lib/queries/events';
 import { type CommunityEvent } from '@/lib/repos/events';
 import { EventCard } from '@/components/EventCard';
+import { CommunitiesExplorer } from '@/components/communities/CommunitiesExplorer';
 
-type HubTab = 'search' | 'events' | 'ranking';
+type HubTab = 'search' | 'events' | 'ranking' | 'communities';
 
 const TABS: { key: HubTab; label: string; icon: IconName }[] = [
-  { key: 'search', label: 'Buscar', icon: 'search' },
-  { key: 'events', label: 'Eventos', icon: 'calendar' },
-  { key: 'ranking', label: 'Ranking', icon: 'trophy' },
+  { key: 'search',      label: 'Buscar',      icon: 'search'  },
+  { key: 'events',      label: 'Eventos',     icon: 'calendar' },
+  { key: 'communities', label: 'Comunidades', icon: 'users'   },
+  { key: 'ranking',     label: 'Ranking',     icon: 'trophy'  },
 ];
 
 function rankInfo(id: RankId) {
@@ -105,9 +108,10 @@ export default function DiscoverScreen() {
         </View>
       </View>
 
-      {tab === 'search' && <SearchTab />}
-      {tab === 'events' && <EventsTab />}
-      {tab === 'ranking' && <RankingTab />}
+      {tab === 'search'      && <SearchTab />}
+      {tab === 'events'      && <EventsTab />}
+      {tab === 'communities' && <CommunitiesExplorer />}
+      {tab === 'ranking'     && <RankingTab />}
     </SafeAreaView>
   );
 }
@@ -307,26 +311,12 @@ function EventsTab() {
       )}
       ListHeaderComponent={
         <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
-          <Pressable
+          <Button
+            title="Crear evento"
+            leftIcon={<Icon name="plus" size={18} color={colors.text.primary} />}
             onPress={() => router.push('/events/new')}
-            style={({ pressed }) => [
-              {
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: spacing.sm,
-                paddingVertical: spacing.md,
-                borderRadius: radius.lg,
-                borderWidth: 1.5,
-                borderColor: colors.primary.DEFAULT,
-                backgroundColor: colors.primary.muted,
-              },
-              pressed && { opacity: 0.85 },
-            ]}
-          >
-            <Icon name="plus" size={18} color={colors.primary.DEFAULT} />
-            <Text weight="bold" tone="brand">Crear evento</Text>
-          </Pressable>
+            fullWidth
+          />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>

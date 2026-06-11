@@ -1,6 +1,14 @@
-import { useMemo, useState } from 'react';
-import { View, Pressable, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Pressable,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Image,
+  ActivityIndicator,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,23 +19,30 @@ import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
 import { colors, radius, spacing } from '@/theme/tokens';
-import { useCreateEvent } from '@/lib/queries/events';
-import { useCommunity } from '@/lib/queries/communities';
+import { useEvent, useUpdateEvent } from '@/lib/queries/events';
 import { uploadCover } from '@/lib/storage/photos';
 import { useAppStore } from '@/store/app';
-import type { EventKind } from '@/lib/repos/events';
-import { DAY_OPTIONS, TIME_OPTIONS, buildDate, Chip } from '@/components/events/eventDateHelpers';
+import {
+  DAY_OPTIONS,
+  TIME_OPTIONS,
+  buildDate,
+  parseDateToChips,
+  Chip,
+} from '@/components/events/eventDateHelpers';
 
-export default function NewEventScreen() {
+export default function EditEventScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const createEvent = useCreateEvent();
   const userId = useAppStore((s) => s.profile?.id);
-  const { communityId } = useLocalSearchParams<{ communityId?: string }>();
-  const communityQuery = useCommunity(communityId);
 
-  const [kind, setKind] = useState<EventKind>('challenge');
+  const eventQuery = useEvent(id);
+  const updateEvent = useUpdateEvent();
+  const event = eventQuery.data;
+
+  const isChallenge = event?.kind === 'challenge';
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [metric, setMetric] = useState('');
@@ -35,12 +50,28 @@ export default function NewEventScreen() {
   const [dayOffset, setDayOffset] = useState(1);
   const [time, setTime] = useState('18:00');
   const [coverUri, setCoverUri] = useState<string | null>(null);
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
-  const isChallenge = kind === 'challenge';
+  // Inicializa state con datos del evento cuando carga
+  useEffect(() => {
+    if (event && !initialized) {
+      setTitle(event.title);
+      setDescription(event.description ?? '');
+      setMetric(event.metric ?? '');
+      setLocation(event.location ?? '');
+      setCoverUrl(event.coverUrl ?? null);
+      // Inicializar chips de fecha desde la fecha real del evento
+      const { dayOffset: d, time: t } = parseDateToChips(event.startsAt);
+      setDayOffset(d);
+      setTime(t);
+      setInitialized(true);
+    }
+  }, [event, initialized]);
+
   const startsAt = useMemo(() => buildDate(dayOffset, time), [dayOffset, time]);
-
-  const canSubmit = title.trim().length >= 3 && !createEvent.isPending && !uploadingCover;
+  const canSubmit = title.trim().length >= 1 && !updateEvent.isPending && !uploadingCover;
 
   const pickCover = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -55,16 +86,14 @@ export default function NewEventScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit) {
-      toast.show({ message: 'Ponle un título de al menos 3 caracteres', tone: 'danger' });
-      return;
-    }
+    if (!event || !canSubmit || !userId) return;
 
-    let coverUrl: string | undefined;
-    if (coverUri && userId) {
+    let finalCoverUrl = coverUrl;
+
+    if (coverUri) {
       setUploadingCover(true);
       try {
-        coverUrl = await uploadCover(userId, coverUri);
+        finalCoverUrl = await uploadCover(userId, coverUri);
       } catch {
         toast.show({ message: 'No se pudo subir la portada', tone: 'danger' });
         setUploadingCover(false);
@@ -73,32 +102,41 @@ export default function NewEventScreen() {
       setUploadingCover(false);
     }
 
-    createEvent.mutate(
+    updateEvent.mutate(
       {
-        kind,
+        eventId: event.id,
         title: title.trim(),
-        startsAt: startsAt.toISOString(),
         description: description.trim() || undefined,
-        coverUrl,
+        coverUrl: finalCoverUrl ?? undefined,
         metric: isChallenge ? metric.trim() || undefined : undefined,
         location: !isChallenge ? location.trim() || undefined : undefined,
-        communityId: communityId ?? undefined,
       },
       {
-        onSuccess: (id) => {
-          toast.show({ message: '¡Evento creado!', tone: 'success' });
-          router.replace({ pathname: '/events/[id]', params: { id } });
+        onSuccess: () => {
+          toast.show({ message: 'Evento actualizado', tone: 'success' });
+          router.back();
         },
         onError: (err) =>
-          toast.show({ message: err?.message ?? 'No se pudo crear', tone: 'danger' }),
+          toast.show({ message: err?.message ?? 'No se pudo actualizar', tone: 'danger' }),
       },
     );
   };
+
+  if (eventQuery.isLoading || !event) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
+        <ActivityIndicator color={colors.primary.DEFAULT} />
+      </SafeAreaView>
+    );
+  }
+
+  const previewCover = coverUri ?? coverUrl;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
+      {/* Header */}
       <View
         style={{
           flexDirection: 'row',
@@ -127,32 +165,7 @@ export default function NewEventScreen() {
             <Icon name="close" size={18} color={colors.text.primary} />
           </View>
         </Pressable>
-        <Text variant="heading" style={{ flex: 1 }}>Crear evento</Text>
-        {communityId && communityQuery.data && (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 4,
-              borderRadius: radius.full,
-              backgroundColor: colors.primary.muted,
-              borderWidth: 1,
-              borderColor: colors.primary.DEFAULT,
-              maxWidth: 140,
-            }}
-          >
-            <Icon name="users" size={11} color={colors.primary.DEFAULT} />
-            <Text
-              variant="label"
-              style={{ fontSize: 11, color: colors.primary.DEFAULT }}
-              numberOfLines={1}
-            >
-              {communityQuery.data.name}
-            </Text>
-          </View>
-        )}
+        <Text variant="heading" style={{ flex: 1 }}>Editar evento</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -163,14 +176,14 @@ export default function NewEventScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + 40, gap: spacing.lg }}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Portada */}
+          {/* Cover picker */}
           <View style={{ gap: spacing.sm }}>
             <Text variant="label" tone="secondary">PORTADA (OPCIONAL)</Text>
             <Pressable onPress={pickCover}>
               <Card variant="raised" padding={0} style={{ overflow: 'hidden', borderRadius: radius.lg }}>
-                {coverUri ? (
+                {previewCover ? (
                   <Image
-                    source={{ uri: coverUri }}
+                    source={{ uri: previewCover }}
                     style={{ width: '100%', aspectRatio: 16 / 9 }}
                     resizeMode="cover"
                   />
@@ -189,7 +202,7 @@ export default function NewEventScreen() {
                     <Text variant="caption" tone="muted">Toca para elegir portada</Text>
                   </View>
                 )}
-                {coverUri && (
+                {previewCover && (
                   <View
                     style={{
                       position: 'absolute',
@@ -207,32 +220,11 @@ export default function NewEventScreen() {
             </Pressable>
           </View>
 
-          {/* Tipo */}
-          <View style={{ gap: spacing.sm }}>
-            <Text variant="label" tone="secondary">TIPO DE EVENTO</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <KindOption
-                active={isChallenge}
-                icon="trophy"
-                title="Reto"
-                subtitle="Competencia con ranking"
-                onPress={() => setKind('challenge')}
-              />
-              <KindOption
-                active={!isChallenge}
-                icon="map-pin"
-                title="Quedada"
-                subtitle="Encuentro presencial"
-                onPress={() => setKind('meetup')}
-              />
-            </View>
-          </View>
-
           <Input
             label="TÍTULO"
             value={title}
             onChangeText={setTitle}
-            placeholder={isChallenge ? 'Ej. Reto 30 días de sentadillas' : 'Ej. Entreno grupal en el parque'}
+            placeholder="Título del evento"
             maxLength={120}
           />
 
@@ -265,9 +257,9 @@ export default function NewEventScreen() {
             />
           )}
 
-          {/* Fecha */}
+          {/* Fecha de inicio */}
           <View style={{ gap: spacing.sm }}>
-            <Text variant="label" tone="secondary">DÍA</Text>
+            <Text variant="label" tone="secondary">NUEVA FECHA DE INICIO (OPCIONAL)</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {DAY_OPTIONS.map((d) => (
                 <Chip key={d.offset} label={d.label} active={dayOffset === d.offset} onPress={() => setDayOffset(d.offset)} />
@@ -275,7 +267,6 @@ export default function NewEventScreen() {
             </View>
           </View>
 
-          {/* Hora */}
           <View style={{ gap: spacing.sm }}>
             <Text variant="label" tone="secondary">HORA</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
@@ -304,9 +295,9 @@ export default function NewEventScreen() {
           </View>
 
           <Button
-            title={uploadingCover ? 'Subiendo portada…' : 'Crear evento'}
+            title={uploadingCover ? 'Subiendo portada…' : 'Guardar cambios'}
             onPress={handleSubmit}
-            loading={createEvent.isPending || uploadingCover}
+            loading={updateEvent.isPending || uploadingCover}
             disabled={!canSubmit}
             fullWidth
           />
@@ -315,42 +306,3 @@ export default function NewEventScreen() {
     </SafeAreaView>
   );
 }
-
-function KindOption({
-  active,
-  icon,
-  title,
-  subtitle,
-  onPress,
-}: {
-  active: boolean;
-  icon: 'trophy' | 'map-pin';
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          gap: 6,
-          padding: spacing.md,
-          borderRadius: radius.lg,
-          borderWidth: 1.5,
-          borderColor: active ? colors.primary.DEFAULT : colors.border,
-          backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
-        },
-        pressed && { opacity: 0.85 },
-      ]}
-    >
-      <Icon name={icon} size={20} color={active ? colors.primary.DEFAULT : colors.text.secondary} />
-      <Text weight="bold" style={{ color: active ? colors.primary.DEFAULT : colors.text.primary }}>
-        {title}
-      </Text>
-      <Text variant="caption" tone="muted">{subtitle}</Text>
-    </Pressable>
-  );
-}
-

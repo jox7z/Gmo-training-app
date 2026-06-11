@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, View, Pressable, Image, Modal, ScrollView, useWindowDimensions } from 'react-native';
+import { Animated, View, Pressable, Image, Modal, ScrollView } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
@@ -150,24 +150,60 @@ function PrChips({ prs }: { prs: Array<{ exercise_name: string; weight_kg: numbe
   );
 }
 
+const PR_AUTOPLAY_MS = 3000;
+
 function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: number; reps: number }> }) {
-  const { width: screenWidth } = useWindowDimensions();
-  // Card padding is lg on both sides; 2 * lg accounts for card horizontal padding
-  const slideWidth = screenWidth - spacing.lg * 4;
+  // Medimos el ancho real del carril con onLayout en vez de calcularlo desde el
+  // ancho de pantalla: así el slide cabe exacto sin depender del padding de la
+  // lista ni del borde dorado del PrGoldenWrapper (antes el slide quedaba ~3px
+  // más ancho y el overflow:hidden recortaba el borde derecho del recuadro).
+  const [trackW, setTrackW] = useState(0);
+  const slideWidth = trackW;
+  const interval = slideWidth + spacing.sm;
   const [activeIdx, setActiveIdx] = useState(0);
 
+  const scrollRef = useRef<ScrollView>(null);
+  // El índice vive también en un ref para que el autoplay no reinicie su timer
+  // en cada avance, y para no depender de closures stale.
+  const idxRef = useRef(0);
+  // Mientras el usuario arrastra, el autoplay se pausa.
+  const interactingRef = useRef(false);
+
+  // Auto-deslizamiento: avanza al siguiente PR cada PR_AUTOPLAY_MS y vuelve
+  // al primero al llegar al final.
+  useEffect(() => {
+    if (prs.length < 2) return;
+    const t = setInterval(() => {
+      if (interactingRef.current) return;
+      const next = (idxRef.current + 1) % prs.length;
+      idxRef.current = next;
+      setActiveIdx(next);
+      scrollRef.current?.scrollTo({ x: next * interval, animated: true });
+    }, PR_AUTOPLAY_MS);
+    return () => clearInterval(t);
+  }, [prs.length, interval]);
+
   return (
-    <View>
+    <View style={{ overflow: 'hidden' }} onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}>
+      {trackW > 0 && (
       <ScrollView
+        ref={scrollRef}
         horizontal
         showsHorizontalScrollIndicator={false}
+        onScrollBeginDrag={() => {
+          interactingRef.current = true;
+        }}
         onMomentumScrollEnd={(e) => {
-          const interval = slideWidth + spacing.sm;
-          const idx = Math.round(e.nativeEvent.contentOffset.x / interval);
+          const idx = Math.min(
+            prs.length - 1,
+            Math.max(0, Math.round(e.nativeEvent.contentOffset.x / interval)),
+          );
+          idxRef.current = idx;
           setActiveIdx(idx);
+          interactingRef.current = false;
         }}
         decelerationRate="fast"
-        snapToInterval={slideWidth + spacing.sm}
+        snapToInterval={interval}
         contentContainerStyle={{ gap: spacing.sm }}
       >
         {prs.map((pr, i) => (
@@ -181,6 +217,7 @@ function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: nu
               backgroundColor: 'rgba(255,215,0,0.1)',
               borderWidth: 1,
               borderColor: 'rgba(255,215,0,0.4)',
+              overflow: 'hidden',
             }}
           >
             <Text variant="caption" style={{ color: '#FFD700' }} weight="bold" numberOfLines={1}>
@@ -192,22 +229,43 @@ function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: nu
           </View>
         ))}
       </ScrollView>
+      )}
 
       {/* Dots de página */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: spacing.sm }}>
         {prs.map((_, i) => (
-          <View
-            key={i}
-            style={{
-              width: i === activeIdx ? 16 : 6,
-              height: 6,
-              borderRadius: 3,
-              backgroundColor: i === activeIdx ? '#FFD700' : 'rgba(255,215,0,0.3)',
-            }}
-          />
+          <PrDot key={i} active={i === activeIdx} />
         ))}
       </View>
     </View>
+  );
+}
+
+// Dot que se estira/encoge con spring al activarse, en lugar de saltar.
+function PrDot({ active }: { active: boolean }) {
+  const anim = useRef(new Animated.Value(active ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.spring(anim, {
+      toValue: active ? 1 : 0,
+      friction: 6,
+      tension: 160,
+      useNativeDriver: false, // anima width/color — no soportado por el driver nativo
+    }).start();
+  }, [active, anim]);
+
+  return (
+    <Animated.View
+      style={{
+        width: anim.interpolate({ inputRange: [0, 1], outputRange: [6, 16] }),
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: anim.interpolate({
+          inputRange: [0, 1],
+          outputRange: ['rgba(255,215,0,0.3)', 'rgba(255,215,0,1)'],
+        }),
+      }}
+    />
   );
 }
 
@@ -254,7 +312,7 @@ function WorkoutBody({ post }: { post: Post }) {
               {prs.length === 1 ? 'Nuevo PR' : `${prs.length} nuevos PRs`}
             </Text>
           </View>
-          {prs.length > 2 ? (
+          {prs.length > 1 ? (
             <PrCarousel prs={prs} />
           ) : (
             <PrChips prs={prs} />
@@ -295,7 +353,7 @@ export function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
   return (
     <Animated.View
       style={{
-        borderRadius: radius.lg + 2,
+        borderRadius: radius.xl,
         borderWidth: 1.5,
         borderColor,
         shadowColor: GOLD,
@@ -366,15 +424,15 @@ function RankUpBody({ post }: { post: Post }) {
         style={{ padding: spacing.lg, borderRadius: radius.lg }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Icon name="lightning" size={20} color="#0B0B0B" />
-          <Text weight="black" style={{ color: '#0B0B0B' }}>
+          <Icon name="lightning" size={20} color={colors.bg.base} />
+          <Text weight="black" style={{ color: colors.bg.base }}>
             {info.label.toUpperCase()}
           </Text>
         </View>
-        <Text variant="title" style={{ color: '#0B0B0B', marginTop: spacing.sm }}>
+        <Text variant="title" style={{ color: colors.bg.base, marginTop: spacing.sm }}>
           {post.title}
         </Text>
-        <Text variant="caption" weight="bold" style={{ color: '#0B0B0B', opacity: 0.75, marginTop: spacing.xs }}>
+        <Text variant="caption" weight="bold" style={{ color: colors.bg.base, opacity: 0.75, marginTop: spacing.xs }}>
           {post.subtitle ?? '¡Dale sus felicitaciones!'}
         </Text>
       </LinearGradient>
@@ -471,7 +529,7 @@ function ReactionSummary({ post }: { post: Post }) {
         marginTop: spacing.md,
       }}
     >
-      <BicepIcon size={16} color="#ff8000" />
+      <BicepIcon size={16} color={colors.accent.DEFAULT} />
       <Text variant="caption" tone="secondary" weight="semibold" numeric>
         {total}
       </Text>
@@ -513,7 +571,7 @@ export function FeedItem({
     onDelete(post);
   };
 
-  const reactColor = isActive ? '#ff8000' : colors.text.muted;
+  const reactColor = isActive ? colors.accent.DEFAULT : colors.text.muted;
 
   const cardInner = (
     <>
@@ -639,7 +697,7 @@ export function FeedItem({
           <Card padding="lg">{cardInner}</Card>
         </PrGoldenWrapper>
       ) : (
-        <Card padding="lg">{cardInner}</Card>
+        <Card variant="raised" padding="lg">{cardInner}</Card>
       )}
 
       {/* Owner menu */}
@@ -702,6 +760,7 @@ export function FeedItem({
               <Button
                 title="Eliminar"
                 variant="danger"
+                flat
                 onPress={confirmDelete}
                 style={{ flex: 1 }}
               />

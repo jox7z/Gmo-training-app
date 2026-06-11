@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { UserProfile } from '@/store/app';
+import { UserProfile, Sex } from '@/store/app';
 
 interface DbProfile {
   id: string;
@@ -14,6 +14,8 @@ interface DbProfile {
   current_rank: string;
   rank_points: number;
   weekly_goal_days: number;
+  sex: 'male' | 'female';
+  instagram_username?: string | null;
 }
 
 function toApp(row: DbProfile): UserProfile {
@@ -28,6 +30,7 @@ function toApp(row: DbProfile): UserProfile {
     country: '',
     followers: 0,
     following: 0,
+    sex: (row.sex ?? 'male') as Sex,
     weightKg: row.weight_kg ?? 75,
     heightCm: row.height_cm ?? 175,
     unit: row.unit_preference,
@@ -36,6 +39,7 @@ function toApp(row: DbProfile): UserProfile {
     currentRank: row.current_rank as UserProfile['currentRank'],
     rankPoints: row.rank_points,
     weeklyGoalDays: row.weekly_goal_days,
+    instagramUsername: row.instagram_username ?? undefined,
     privacy: { profilePublic: true, showActivity: true, showStats: true },
     notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
   };
@@ -49,6 +53,7 @@ function toDb(p: UserProfile): DbProfile {
     // error "No pudimos guardar tu perfil" al terminar el onboarding.
     username: p.username,
     display_name: p.displayName,
+    sex: p.sex,
     weight_kg: p.weightKg,
     height_cm: p.heightCm,
     unit_preference: p.unit,
@@ -57,17 +62,22 @@ function toDb(p: UserProfile): DbProfile {
     current_rank: p.currentRank,
     rank_points: p.rankPoints,
     weekly_goal_days: p.weeklyGoalDays,
+    instagram_username: p.instagramUsername ?? null,
   };
 }
 
 export async function getProfile(userId: string): Promise<UserProfile | null> {
+  // maybeSingle: distingue "no existe fila" (data=null, sin error) de un error
+  // real de red/permiso (error != null). Es clave para que _layout solo cierre
+  // sesión cuando el perfil REALMENTE no existe, y no ante un fallo transitorio.
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) throw error;
+  if (!data) return null;
   return toApp(data as DbProfile);
 }
 

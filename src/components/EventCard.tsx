@@ -40,7 +40,7 @@ export function EventCard({ event, onPress }: Props) {
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.88 }]}>
-      <Card padding="md" style={{ gap: spacing.sm, opacity: isPast ? 0.6 : 1 }}>
+      <Card variant="raised" padding="md" style={{ gap: spacing.sm, opacity: isPast ? 0.6 : 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View
             style={{

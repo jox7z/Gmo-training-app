@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 
 const POST_BUCKET = 'post-photos';
 const AVATAR_BUCKET = 'avatars';
+const COVER_BUCKET = 'covers';
 
 function randomId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -71,5 +72,28 @@ export async function uploadAvatar(userId: string, fileUri: string): Promise<str
   if (uploadError) throw uploadError;
 
   const { data } = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+/**
+ * Uploads a local cover image (file:// URI from expo-image-picker) to the
+ * public `covers` bucket. Path layout: ${userId}/${timestamp}-${random}.jpg.
+ * Patrón idéntico a uploadAvatar.
+ */
+export async function uploadCover(userId: string, fileUri: string): Promise<string> {
+  const path = `${userId}/${Date.now()}-${randomId()}.jpg`;
+  const arrayBuffer = await readFileAsArrayBuffer(fileUri);
+
+  const { error: uploadError } = await withTimeout(
+    supabase.storage
+      .from(COVER_BUCKET)
+      .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: false }),
+    30_000,
+    'La subida de la portada tardó demasiado, intenta de nuevo.',
+  );
+
+  if (uploadError) throw uploadError;
+
+  const { data } = supabase.storage.from(COVER_BUCKET).getPublicUrl(path);
   return data.publicUrl;
 }
