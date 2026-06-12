@@ -52,6 +52,12 @@ interface State {
   addSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
   toggleSetComplete: (exerciseIndex: number, setIndex: number) => void;
+  /**
+   * Reemplaza el ejercicio en curso SOLO para esta sesión (la rutina no se toca).
+   * Las series ya completadas se conservan bajo el ejercicio original; las
+   * pendientes pasan al nuevo. Devuelve el índice del ejercicio nuevo.
+   */
+  swapExercise: (exerciseIndex: number, newExerciseId: string) => number;
 }
 
 const KEY = 'gmo:workouts:v1';
@@ -204,5 +210,42 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     const sets = exercises[exIdx].sets.filter((_, i) => i !== setIdx);
     exercises[exIdx] = { ...exercises[exIdx], sets };
     set({ active: { ...a, exercises } });
+  },
+
+  swapExercise: (exIdx, newExerciseId) => {
+    const a = get().active;
+    if (!a) return exIdx;
+    const meta = exerciseById(newExerciseId);
+    const exercises = [...a.exercises];
+    const cur = exercises[exIdx];
+    const completed = cur.sets.filter((s) => s.isCompleted);
+    const pending = cur.sets.filter((s) => !s.isCompleted);
+    const defaultWeight = meta?.equipment === 'bodyweight' ? 0 : 20;
+
+    const newEx: WorkoutExercise = {
+      id: nid(),
+      exerciseId: newExerciseId,
+      exerciseName: meta?.name ?? newExerciseId,
+      muscleGroup: meta?.muscle ?? cur.muscleGroup,
+      sets: (pending.length > 0 ? pending : [{ reps: 8 } as SetEntry]).map((s) => ({
+        id: nid(),
+        reps: s.reps ?? 8,
+        weightKg: defaultWeight,
+        isCompleted: false,
+      })),
+    };
+
+    let newIndex: number;
+    if (completed.length === 0) {
+      exercises[exIdx] = newEx;
+      newIndex = exIdx;
+    } else {
+      // Conserva lo ya hecho bajo el ejercicio original e inserta el nuevo después.
+      exercises[exIdx] = { ...cur, sets: completed };
+      exercises.splice(exIdx + 1, 0, newEx);
+      newIndex = exIdx + 1;
+    }
+    set({ active: { ...a, exercises } });
+    return newIndex;
   },
 }));

@@ -11,6 +11,7 @@ export interface SearchUserResult {
   followersCount: number;
   isFollowing: boolean;
   instagramUsername?: string | null;
+  instagramVerified?: boolean;
 }
 
 interface DbSearchUserRow {
@@ -22,6 +23,7 @@ interface DbSearchUserRow {
   followers_count: number;
   is_following: boolean;
   instagram_username?: string | null;
+  instagram_verified?: boolean | null;
 }
 
 function toResult(row: DbSearchUserRow): SearchUserResult {
@@ -34,6 +36,7 @@ function toResult(row: DbSearchUserRow): SearchUserResult {
     followersCount: row.followers_count,
     isFollowing: row.is_following,
     instagramUsername: row.instagram_username ?? null,
+    instagramVerified: row.instagram_verified ?? false,
   };
 }
 

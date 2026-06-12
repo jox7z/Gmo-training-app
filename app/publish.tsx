@@ -912,7 +912,7 @@ function StreakComposer({
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
       {/* Streak preview card */}
-      <Card padding="lg" style={{ marginBottom: spacing.lg }}>
+      <Card variant="raised" padding="lg" style={{ marginBottom: spacing.lg }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View
             style={{

@@ -103,7 +103,7 @@ function Composer({
   onSharePR: () => void;
 }) {
   return (
-    <Card padding="lg" style={{ marginBottom: spacing.md }}>
+    <Card variant="raised" padding="lg" style={{ marginBottom: spacing.md }}>
       <Pressable
         onPress={onOpenManual}
         style={({ pressed }) => [

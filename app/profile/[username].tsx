@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Pressable, FlatList, RefreshControl, Image } from 'react-native';
+import { openInstagram } from '@/lib/linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -130,6 +131,8 @@ export default function PublicProfile() {
     rankPoints: me!.rankPoints,
     followersCount: 0,
     isFollowing: false,
+    instagramUsername: me!.instagramUsername ?? null,
+    instagramVerified: me!.instagramVerified ?? false,
   };
 
   const info = rankInfo(displayProfile.currentRank);
@@ -171,6 +174,36 @@ export default function PublicProfile() {
                       @{displayProfile.username}
                     </Text>
                   </View>
+                  {!!displayProfile.instagramUsername && (
+                    <Pressable
+                      onPress={() => openInstagram(displayProfile.instagramUsername!)}
+                      hitSlop={6}
+                      style={({ pressed }) => [
+                        {
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          marginTop: 6,
+                          alignSelf: 'flex-start',
+                          paddingHorizontal: 8,
+                          paddingVertical: 4,
+                          borderRadius: 99,
+                          backgroundColor: 'rgba(225,48,108,0.12)',
+                          borderWidth: 1,
+                          borderColor: 'rgba(225,48,108,0.4)',
+                        },
+                        pressed && { opacity: 0.7 },
+                      ]}
+                    >
+                      <Icon name="instagram" size={12} color="#E1306C" />
+                      <Text variant="caption" weight="semibold" style={{ color: '#E1306C', fontSize: 11 }}>
+                        @{displayProfile.instagramUsername}
+                      </Text>
+                      {displayProfile.instagramVerified && (
+                        <Icon name="check" size={11} color="#22c55e" />
+                      )}
+                    </Pressable>
+                  )}
                 </View>
               </View>
 

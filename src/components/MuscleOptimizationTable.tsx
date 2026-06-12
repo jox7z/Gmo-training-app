@@ -8,7 +8,6 @@ import {
   OPTIMAL_MAX_SETS,
   UPPER_MUSCLES,
   LOWER_MUSCLES,
-  MUSCLE_LABELS,
 } from '@/lib/optimizationScore';
 
 interface Props {
@@ -37,6 +36,9 @@ const STATUS_TONE: Record<MuscleStatus, 'success' | 'muted' | 'accent' | 'danger
   untrained: 'muted',
 };
 
+/** Formatea series fraccionales sin el ".0" sobrante (12.5 series, 8 series). */
+const fmtSets = (n: number) => (Number.isInteger(n) ? `${n}` : n.toFixed(1));
+
 function MuscleRow({ item }: { item: MuscleAssessment }) {
   const barColor = STATUS_COLOR[item.status];
   const fillPct = Math.min(100, (item.weeklySets / OPTIMAL_MAX_SETS) * 100);
@@ -56,7 +58,7 @@ function MuscleRow({ item }: { item: MuscleAssessment }) {
             {item.label}
           </Text>
           <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
-            {item.weeklySets} series · {item.frequency}×/sem
+            {fmtSets(item.weeklySets)} series · {item.frequency}×/sem
           </Text>
         </View>
         <Badge label={STATUS_LABEL[item.status]} tone={STATUS_TONE[item.status]} />

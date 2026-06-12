@@ -97,7 +97,7 @@ export default function SettingsScreen() {
 
       {/* Profile preview */}
       <Pressable onPress={() => router.push('/profile/edit')}>
-        <Card padding="lg" variant="elevated">
+        <Card padding="lg" variant="raised">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
             <View style={{ position: 'relative' }}>
               <Avatar uri={profile.avatarUrl} name={profile.displayName} size={64} />

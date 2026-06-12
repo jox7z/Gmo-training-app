@@ -6,6 +6,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 export type Unit = 'kg' | 'lb';
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 export type Goal = 'strength' | 'hypertrophy' | 'fat_loss' | 'general';
+export type Sex = 'male' | 'female';
 
 export interface PrivacySettings {
   profilePublic: boolean;
@@ -30,10 +31,13 @@ export interface UserProfile {
   location?: string;
   country?: string;
   avatarUrl?: string;
+  instagramUsername?: string;
+  instagramVerified?: boolean;
   followers: number;
   following: number;
   weightKg: number;
   heightCm: number;
+  sex: Sex;
   unit: Unit;
   level: Level;
   goal: Goal;
@@ -48,6 +52,9 @@ interface AppState {
   hydrated: boolean;
   onboarded: boolean;
   profile: UserProfile | null;
+  // Estado de sesión: si el perfil remoto está completo. null = aún no consultado.
+  // NO se persiste en AsyncStorage; solo es estado de sesión (se recalcula en cada login).
+  profileComplete: boolean | null;
   streakWeeks: number;
   daysThisWeek: number;
   pinnedExerciseId?: string;
@@ -55,6 +62,7 @@ interface AppState {
   setProfile: (p: UserProfile) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   markOnboarded: () => Promise<void>;
+  setProfileComplete: (v: boolean | null) => void;
   addWorkoutDay: () => void;
   addPoints: (n: number) => void;
   setPinnedExercise: (id: string) => void;
@@ -83,6 +91,7 @@ const defaultProfile = (id = LOCAL_USER_ID): UserProfile => ({
   following: 0,
   weightKg: 75,
   heightCm: 175,
+  sex: 'male',
   unit: 'kg',
   level: 'intermediate',
   goal: 'hypertrophy',
@@ -103,6 +112,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   hydrated: false,
   onboarded: false,
   profile: null,
+  profileComplete: null,
   streakWeeks: 0,
   daysThisWeek: 0,
   pinnedExerciseId: undefined,
@@ -158,6 +168,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     await persist(get());
   },
 
+  setProfileComplete: (v) => {
+    set({ profileComplete: v });
+  },
+
   completeOnboarding: async () => {
     const userId = await getAuthUserId();
     const existing = get().profile;
@@ -204,6 +218,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       profile: null,
       onboarded: false,
+      profileComplete: null,
       streakWeeks: 0,
       daysThisWeek: 0,
       pinnedExerciseId: undefined,

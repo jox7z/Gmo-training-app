@@ -173,7 +173,7 @@ export default function ProgressScreen() {
         ) : (
           <>
             <AveragesCard summary={summary} />
-            <Card padding="lg" style={{ alignItems: 'center' }}>
+            <Card variant="raised" padding="lg" style={{ alignItems: 'center' }}>
               <StreakRing
                 weeks={streakWeeks}
                 daysThisWeek={daysThisWeek}
@@ -240,18 +240,18 @@ export default function ProgressScreen() {
 
 function AveragesCard({ summary }: { summary: ProgressSummary }) {
   return (
-    <Card padding="lg">
+    <Card variant="raised" padding="lg">
       <Text variant="label" tone="secondary">PROMEDIOS POR SERIE</Text>
       <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md }}>
         <View style={{ flex: 1 }}>
           <Text variant="caption" tone="muted">Duración serie</Text>
-          <Text variant="heading" weight="bold" numeric style={{ marginTop: 2 }}>
+          <Text variant="metric" numeric numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 2 }}>
             {formatDuration(summary.avgSetDuration)}
           </Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="caption" tone="muted">Descanso entre series</Text>
-          <Text variant="heading" weight="bold" numeric style={{ marginTop: 2 }}>
+          <Text variant="metric" numeric numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 2 }}>
             {formatDuration(summary.avgRestAfter)}
           </Text>
         </View>
@@ -283,7 +283,7 @@ function TimelineCard({
   const barW = data.length > 0 ? innerW / data.length : 0;
 
   return (
-    <Card padding="lg">
+    <Card variant="raised" padding="lg">
       <Text variant="label" tone="secondary">EVOLUCIÓN · TIEMPO ACTIVO POR DÍA (min)</Text>
       <View style={{ marginTop: spacing.md }}>
         {loading && data.length === 0 ? (
@@ -342,7 +342,7 @@ function TimelineCard({
 
 function EmptyState() {
   return (
-    <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
+    <Card variant="raised" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
       <View
         style={{
           width: 64,
@@ -491,7 +491,7 @@ function BodySection({
       />
 
       {latest && (
-        <Card padding="lg">
+        <Card variant="raised" padding="lg">
           <View
             style={{
               flexDirection: 'row',
@@ -669,7 +669,7 @@ function WeightTimelineCard({ data, unit }: { data: BodyTimelinePoint[]; unit: U
   );
 
   return (
-    <Card padding="lg">
+    <Card variant="raised" padding="lg">
       <Text variant="label" tone="secondary">EVOLUCIÓN DEL PESO ({unit})</Text>
       <View style={{ marginTop: spacing.md }}>
         <WeightChart data={data} unit={unit} />
@@ -736,7 +736,7 @@ function ExerciseProgressCard({
       </View>
 
       <Pressable onPress={onOpen}>
-        <Card padding="lg">
+        <Card variant="raised" padding="lg">
           {/* Exercise name + metric toggle */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
             {img !== undefined && (
@@ -774,7 +774,7 @@ function ExerciseProgressCard({
                   >
                     <Text
                       weight="bold"
-                      style={{ fontSize: 11, color: active ? '#fff' : colors.text.secondary }}
+                      style={{ fontSize: 11, color: active ? colors.text.primary : colors.text.secondary }}
                     >
                       {m === 'weight' ? 'Peso' : 'Reps'}
                     </Text>
@@ -820,14 +820,14 @@ function RanksSection({ currentPoints }: { currentPoints: number }) {
       </View>
 
       {/* Current rank progress card */}
-      <Card padding="lg">
+      <Card variant="raised" padding="lg">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden' }}>
             <LinearGradient
               colors={current.gradient}
               style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
             >
-              <Text weight="black" style={{ color: '#0B0B0B', fontSize: 18 }}>
+              <Text weight="black" style={{ color: colors.bg.base, fontSize: 18 }}>
                 {current.label.charAt(0)}
               </Text>
             </LinearGradient>
@@ -897,11 +897,11 @@ function RanksSection({ currentPoints }: { currentPoints: number }) {
                     style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
                   >
                     {isAchieved ? (
-                      <Text weight="black" style={{ color: '#0B0B0B', fontSize: 15 }}>
+                      <Text weight="black" style={{ color: colors.bg.base, fontSize: 15 }}>
                         {rank.label.charAt(0)}
                       </Text>
                     ) : (
-                      <Icon name="lock" size={14} color="#0B0B0B" />
+                      <Icon name="lock" size={14} color={colors.bg.base} />
                     )}
                   </LinearGradient>
                 </View>
@@ -963,7 +963,7 @@ function LeaderboardSection({
         </View>
       </View>
 
-      <Card padding="md">
+      <Card variant="raised" padding="md">
         {loading ? (
           <View style={{ padding: spacing.xl, alignItems: 'center' }}>
             <Text variant="caption" tone="muted">Cargando leaderboard…</Text>

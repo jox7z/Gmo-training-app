@@ -47,7 +47,7 @@ export function ActivityCard({ item, onPress, compact }: Props) {
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
-      <Card padding={0} variant="elevated" style={{ overflow: 'hidden' }}>
+      <Card padding={0} variant="raised" style={{ overflow: 'hidden' }}>
         {/* Header */}
         <View
           style={{

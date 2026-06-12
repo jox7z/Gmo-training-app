@@ -9,12 +9,12 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { Icon, IconName } from '@/components/Icon';
 import { colors, spacing, radius } from '@/theme/tokens';
-import { useAppStore, Goal, Level, Unit, LOCAL_USER_ID } from '@/store/app';
+import { useAppStore, Goal, Level, Unit, Sex, LOCAL_USER_ID } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { completeSignup, getCurrentUserId, getCurrentUser, checkUsernameAvailable, AuthError, AuthErrorCode } from '@/lib/auth';
+import { completeSignup, getCurrentUser, checkUsernameAvailable, AuthError, AuthErrorCode } from '@/lib/auth';
 import { upsertProfile } from '@/lib/repos/profile';
 import { isUsernameValid } from '@/lib/passwordPolicy';
-import { routineOptions, RoutineOption } from '@/lib/routineGenerator';
+import { famousRoutineOptions } from '@/data/routineTemplates';
 import { useRoutinesStore } from '@/store/routines';
 import { saveRoutine } from '@/lib/repos/routines';
 
@@ -25,6 +25,7 @@ export default function Onboarding() {
   const router = useRouter();
   const setProfile = useAppStore((s) => s.setProfile);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
+  const setProfileComplete = useAppStore((s) => s.setProfileComplete);
 
   const [step, setStep] = useState<Step>('welcome');
   const [name, setName] = useState('');
@@ -34,6 +35,7 @@ export default function Onboarding() {
   >({ state: 'idle' });
   const [weight, setWeight] = useState('75');
   const [height, setHeight] = useState('175');
+  const [sex, setSex] = useState<Sex>('male');
   const [unit, setUnit] = useState<Unit>('kg');
   const [level, setLevel] = useState<Level>('intermediate');
   const [goal, setGoal] = useState<Goal>('hypertrophy');
@@ -42,10 +44,14 @@ export default function Onboarding() {
   const [error, setError] = useState<string | null>(null);
   const [usernameOverride, setUsernameOverride] = useState<string | null>(null);
 
-  const options = useMemo(() => routineOptions({ days, goal, level }), [days, goal, level]);
+  // Exactamente las 4 rutinas famosas (Full Body, Upper/Lower, PPL, Arnold Split).
+  // Estables: ids generados una sola vez, no se remontan las tarjetas.
+  const options = useMemo(() => famousRoutineOptions(), []);
   const [selectedRoutineIdx, setSelectedRoutineIdx] = useState(0);
-  // Reset selection to 0 whenever options change (days/goal/level changed)
-  useEffect(() => { setSelectedRoutineIdx(0); }, [options]);
+  // Opción de rutina personalizada (no crea rutina aquí, navega al editor).
+  const [customSelected, setCustomSelected] = useState(false);
+  // Reset selection a 0 cuando options cambia (aunque options es estable, por defensa).
+  useEffect(() => { setSelectedRoutineIdx(0); setCustomSelected(false); }, [options]);
 
   // Validación debounced de username contra la RPC. Solo dispara el RPC
   // cuando el formato local ya es válido — evita pedir al backend que
@@ -106,6 +112,7 @@ export default function Onboarding() {
         country: '',
         followers: 0,
         following: 0,
+        sex,
         weightKg: parseFloat(weight) || 75,
         heightCm: parseFloat(height) || 175,
         unit,
@@ -149,19 +156,27 @@ export default function Onboarding() {
 
       await setProfile(profileData);
 
-      // Upsert chosen routine
-      const chosenOption = options[selectedRoutineIdx] ?? options[0];
-      if (chosenOption) {
-        const { upsertRoutine, setActiveRoutine } = useRoutinesStore.getState();
-        upsertRoutine(chosenOption.routine);
-        setActiveRoutine(chosenOption.routine.id);
-        if (isSupabaseConfigured && userId !== LOCAL_USER_ID) {
-          saveRoutine(userId, chosenOption.routine).catch(() => {});
+      if (customSelected) {
+        // Rutina personalizada: completar onboarding sin crear rutina.
+        // El usuario llega al editor (id='new') y crea su rutina desde cero.
+        await completeOnboarding();
+        setProfileComplete(true);
+        router.replace({ pathname: '/routine/[id]', params: { id: 'new' } });
+      } else {
+        // Plantilla famosa seleccionada: crear rutina y navegar a tabs.
+        const chosenOption = options[selectedRoutineIdx] ?? options[0];
+        if (chosenOption) {
+          const { upsertRoutine, setActiveRoutine } = useRoutinesStore.getState();
+          upsertRoutine(chosenOption.routine);
+          setActiveRoutine(chosenOption.routine.id);
+          if (isSupabaseConfigured && userId !== LOCAL_USER_ID) {
+            saveRoutine(userId, chosenOption.routine).catch(() => {});
+          }
         }
+        await completeOnboarding();
+        setProfileComplete(true);
+        router.replace('/(tabs)');
       }
-
-      await completeOnboarding();
-      router.replace('/(tabs)');
     } finally {
       setSubmitting(false);
     }
@@ -269,6 +284,14 @@ export default function Onboarding() {
               value={unit}
               onChange={(v) => setUnit(v as Unit)}
             />
+            <Text variant="label" tone="secondary" style={{ marginTop: spacing.lg, marginBottom: 6 }}>
+              Sexo
+            </Text>
+            <SegmentedToggle
+              options={[{ value: 'male', label: 'Hombre' }, { value: 'female', label: 'Mujer' }]}
+              value={sex}
+              onChange={(v) => setSex(v as Sex)}
+            />
           </Section>
         )}
 
@@ -312,7 +335,7 @@ export default function Onboarding() {
 
         {step === 'frequency' && (
           <Section title="¿Cuántos días por semana?" subtitle="Tu meta de racha. Sé realista.">
-            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
+            <Card variant="raised" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
               <Text variant="display" tone="accent" numeric>{days}</Text>
               <Text variant="body" tone="secondary">días por semana</Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
@@ -344,17 +367,31 @@ export default function Onboarding() {
 
         {step === 'routine' && (
           <Section title="Elige tu rutina" subtitle="Puedes editarla después cuando quieras">
-            {options.map((opt, i) => (
-              <ChoiceCard
-                key={opt.routine.id}
-                selected={selectedRoutineIdx === i}
-                onPress={() => setSelectedRoutineIdx(i)}
-                icon={i === 0 ? 'trophy' : i === 1 ? 'dumbbell' : 'lightning'}
-                iconColor={i === 0 ? colors.primary.DEFAULT : i === 1 ? colors.info.DEFAULT : colors.accent.DEFAULT}
-                title={opt.label}
-                desc={opt.summary}
-              />
-            ))}
+            {options.map((opt, i) => {
+              const iconNames = ['trophy', 'dumbbell', 'lightning', 'fire'] as const;
+              const iconColors = [colors.primary.DEFAULT, colors.info.DEFAULT, colors.accent.DEFAULT, '#FFD700'];
+              return (
+                <ChoiceCard
+                  key={opt.routine.id}
+                  selected={!customSelected && selectedRoutineIdx === i}
+                  onPress={() => { setSelectedRoutineIdx(i); setCustomSelected(false); }}
+                  icon={iconNames[i % 4]}
+                  iconColor={iconColors[i % 4]}
+                  title={opt.label}
+                  desc={opt.summary}
+                  badge="Famosa"
+                />
+              );
+            })}
+            {/* Tarjeta de rutina personalizada */}
+            <ChoiceCard
+              selected={customSelected}
+              onPress={() => setCustomSelected(true)}
+              icon="plus"
+              iconColor={colors.success}
+              title="Personalizada"
+              desc="Créala desde cero a tu gusto"
+            />
           </Section>
         )}
 
@@ -367,17 +404,26 @@ export default function Onboarding() {
                 <Text weight="bold">{days} días/semana</Text>.
               </Text>
             </Card>
-            {(options[selectedRoutineIdx] ?? options[0]) && (
-              <Card padding="lg" style={{ marginTop: spacing.md }}>
-                <Text variant="label" tone="muted">Rutina seleccionada</Text>
-                <Text variant="heading" style={{ marginTop: 4 }}>
-                  {(options[selectedRoutineIdx] ?? options[0]).label}
-                </Text>
-                <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>
-                  {(options[selectedRoutineIdx] ?? options[0]).summary}
-                </Text>
-              </Card>
-            )}
+            <Card variant="raised" padding="lg" style={{ marginTop: spacing.md }}>
+              <Text variant="label" tone="muted">Rutina seleccionada</Text>
+              {customSelected ? (
+                <>
+                  <Text variant="heading" style={{ marginTop: 4 }}>Personalizada</Text>
+                  <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>
+                    Crearás tu rutina desde cero en el editor.
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text variant="heading" style={{ marginTop: 4 }}>
+                    {(options[selectedRoutineIdx] ?? options[0]).label}
+                  </Text>
+                  <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>
+                    {(options[selectedRoutineIdx] ?? options[0]).summary}
+                  </Text>
+                </>
+              )}
+            </Card>
             {usernameOverride !== null && (
               <Input
                 label="Username"
@@ -479,6 +525,7 @@ function ChoiceCard({
   iconColor,
   title,
   desc,
+  badge,
 }: {
   selected: boolean;
   onPress: () => void;
@@ -486,6 +533,7 @@ function ChoiceCard({
   iconColor: string;
   title: string;
   desc: string;
+  badge?: string;
 }) {
   return (
     <Pressable onPress={onPress} style={{ marginBottom: spacing.md }}>
@@ -507,7 +555,27 @@ function ChoiceCard({
           <Icon name={icon} size={24} color={iconColor} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text variant="heading">{title}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            <Text variant="heading">{title}</Text>
+            {badge && (
+              <View
+                style={{
+                  backgroundColor: colors.primary.muted,
+                  borderRadius: 6,
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                }}
+              >
+                <Text
+                  variant="caption"
+                  weight="bold"
+                  style={{ color: colors.primary.DEFAULT, fontSize: 9 }}
+                >
+                  {badge.toUpperCase()}
+                </Text>
+              </View>
+            )}
+          </View>
           <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>{desc}</Text>
         </View>
         <View

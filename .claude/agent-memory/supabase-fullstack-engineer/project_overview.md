@@ -1,6 +1,6 @@
 ---
 name: project-overview
-description: Gmo Training App overview — React Native/Expo fitness app, frontend ~70-85% done, Supabase backend deployed (migración 0024 aplicada; 0025 pendiente)
+description: Gmo Training App overview — React Native/Expo fitness app, frontend ~70-85% done, Supabase backend deployed (migración 0035 aplicada)
 metadata:
   type: project
 ---
@@ -9,7 +9,13 @@ Gmo Training App is a React Native/Expo SDK 54 fitness app using expo-router, Zu
 
 **Why:** Personal fitness tracker with social features. Frontend ~70-85% complete. Supabase backend deployed.
 
-Last applied migration: 0024. Next pending: 0025_drop_volume_metric.sql (drops recompute_workout_volume trigger/function; replaces recalc_weekly_ranks() to omit total_volume_kg writes; column stays in DB as inert default 0).
+Last applied migrations through 0035. Plan jazzy-shimmying-fairy Fases 2+3 completadas:
+- 0034_event_management: update_event/delete_event RPCs; bucket covers + RLS policies
+- 0035_event_comments_scores: event_comments table; list/add/delete_event_comment RPCs; recompute_event_scores; trigger trg_workout_event_score; join_event actualizado con backfill
+- Columnas workouts usadas para score: user_id, started_at, ended_at
+- REVOKE EXECUTE FROM anon en todas las nuevas RPCs; trigger function revocada de anon+authenticated
+
+Migration note that was pending: 0025_drop_volume_metric.sql (drops recompute_workout_volume trigger/function; replaces recalc_weekly_ranks() to omit total_volume_kg writes; column stays in DB as inert default 0).
 
 **totalVolumeKg removed** from Workout type, all stores, DB insert payload, mapping, UI (Summary, publish, profile, settings, coach), Heatmap (now uses totalReps), optimizationScore.scoreProgression (now uses totalReps). exerciseTopWeight exported from workoutCompare.ts.
 

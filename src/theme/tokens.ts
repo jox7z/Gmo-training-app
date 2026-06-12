@@ -3,6 +3,7 @@ export const colors = {
     base: '#0B0B0B',
     elevated: '#161616',
     card: '#1C1C1E',
+    cardEdge: '#111113',
     overlay: 'rgba(0,0,0,0.7)',
   },
   primary: {
@@ -10,11 +11,13 @@ export const colors = {
     hover: '#E62E2E',
     muted: 'rgba(255,59,59,0.18)',
     glow: 'rgba(255,59,59,0.35)',
+    dark: '#C22A2A',
   },
   accent: {
     DEFAULT: '#FF7A00',
     soft: 'rgba(255,122,0,0.18)',
     glow: 'rgba(255,122,0,0.4)',
+    dark: '#C45F00',
   },
   info: {
     DEFAULT: '#1E90FF',
@@ -28,7 +31,9 @@ export const colors = {
   border: '#27272A',
   borderStrong: '#3F3F46',
   success: '#22C55E',
+  successDark: '#15803D',
   danger: '#EF4444',
+  dangerDark: '#B91C1C',
   warning: '#F59E0B',
 } as const;
 
@@ -49,8 +54,11 @@ export const radius = {
   lg: 14,
   xl: 20,
   '2xl': 28,
+  '3xl': 32,
   full: 9999,
 } as const;
+
+export const depth = { edge: 4, edgeLg: 5, pressTravel: 4 } as const;
 
 export const fontSize = {
   xs: 11,
@@ -63,6 +71,7 @@ export const fontSize = {
   '3xl': 38,
   '4xl': 48,
   '5xl': 60,
+  '6xl': 72,
 } as const;
 
 export const fontWeight = {

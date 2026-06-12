@@ -1,7 +1,7 @@
-import { Text as RNText, TextProps, StyleSheet } from 'react-native';
+import { Text as RNText, TextProps } from 'react-native';
 import { colors, fontSize, fontWeight } from '@/theme/tokens';
 
-type Variant = 'display' | 'title' | 'heading' | 'body' | 'caption' | 'label' | 'metric';
+type Variant = 'display' | 'title' | 'heading' | 'body' | 'caption' | 'label' | 'metric' | 'metricLg';
 type Tone = 'primary' | 'secondary' | 'muted' | 'accent' | 'brand' | 'info' | 'danger' | 'success';
 
 interface Props extends TextProps {
@@ -19,6 +19,7 @@ const variantStyles: Record<Variant, { size: number; weight: keyof typeof fontWe
   caption: { size: fontSize.sm, weight: 'regular' },
   label: { size: fontSize.xs, weight: 'semibold' },
   metric: { size: fontSize['3xl'], weight: 'black' },
+  metricLg: { size: fontSize['6xl'], weight: 'black' },
 };
 
 const toneColors: Record<Tone, string> = {

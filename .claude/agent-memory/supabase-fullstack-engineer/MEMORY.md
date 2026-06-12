@@ -1,2 +1,2 @@
-- [Project overview](project_overview.md) — Gmo Training App: React Native/Expo fitness app, frontend ~70-85% done, backend Supabase YA desplegado (env real, RPCs ok, migración 0024 aplicada; 0025 pendiente)
+- [Project overview](project_overview.md) — Gmo Training App: React Native/Expo fitness app, frontend ~70-85% done, backend Supabase YA desplegado (env real, RPCs ok, migración 0036 aplicada: comunidades completas fases 4+5)
 - [Communication style](feedback_communication.md) — sin preámbulos, sin despedidas, acción directa, no narrar lo que va a hacer

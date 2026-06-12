@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, View, Pressable, Alert, TextInput, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, Modal, FlatList } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -9,19 +10,22 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Stat } from '@/components/ui/Stat';
 import { colors, spacing, radius, fontSize } from '@/theme/tokens';
-import { useRoutinesStore } from '@/store/routines';
-import { useWorkoutsStore, Workout } from '@/store/workouts';
+import { useRoutinesStore, RoutineDay } from '@/store/routines';
+import { useWorkoutsStore, Workout, WorkoutExercise } from '@/store/workouts';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
-import { exerciseById } from '@/data/exercises';
+import { exerciseById, EXERCISES, MUSCLE_FILTER_GROUPS, MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
+import { exerciseImage } from '@/data/exerciseImages';
 import { formatDuration, toDisplay, fromDisplay, formatWeight } from '@/lib/units';
 import { Icon } from '@/components/Icon';
 import { saveWorkout, ensureWorkoutSynced } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
 import { findPreviousSession, comparePerExercise, detectPRs, summarizeProgress } from '@/lib/workoutCompare';
-
-const REST_GREEN_FROM = 120;
-const REST_GREEN_TO = 300;
+import { WorkoutHeader } from '@/components/workout/WorkoutHeader';
+import { SetProgressPills } from '@/components/workout/SetProgressPills';
+import { ExerciseHero } from '@/components/workout/ExerciseHero';
+import { RestRing } from '@/components/workout/RestRing';
+import { BigStepperInput } from '@/components/workout/BigStepperInput';
 
 const REST_PHRASES = [
   '¡Una más!',
@@ -56,36 +60,52 @@ function formatClock(s: number) {
   return `${m}:${String(r).padStart(2, '0')}`;
 }
 
-function restColor(s: number) {
-  if (s >= REST_GREEN_FROM && s < REST_GREEN_TO) return colors.success;
-  return colors.text.muted;
+// Etiqueta de grupo muscular sin acoplarse al tipo estricto de MuscleGroup.
+function muscleLabel(muscleGroup: string): string | undefined {
+  return (MUSCLE_GROUP_LABELS as Record<string, string>)[muscleGroup];
 }
 
-// Ghost button: transparent bg, border, text in secondary tone
-function GhostButton({ label, onPress }: { label: string; onPress: () => void }) {
+// Réplica pura de advancePosition (sin efectos): a dónde se mueve la sesión
+// después de la serie actual. null = era la última serie del workout.
+function getNextPosition(
+  active: Workout,
+  exIdx: number,
+  setIdx: number,
+): { exercise: WorkoutExercise; setNumber: number; totalSets: number } | null {
+  const currentEx = active.exercises[exIdx];
+  if (!currentEx) return null;
+  if (setIdx + 1 < currentEx.sets.length) {
+    return { exercise: currentEx, setNumber: setIdx + 2, totalSets: currentEx.sets.length };
+  }
+  if (exIdx + 1 < active.exercises.length) {
+    const next = active.exercises[exIdx + 1];
+    return { exercise: next, setNumber: 1, totalSets: next.sets.length };
+  }
+  return null;
+}
+
+// Miniatura cuadrada del ejercicio con fallback a icono dumbbell.
+function ExerciseThumb({ exerciseId, size = 44 }: { exerciseId: string; size?: number }) {
+  const img = exerciseImage(exerciseId);
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        borderWidth: 1,
-        borderColor: pressed ? colors.text.secondary : colors.border,
-        borderRadius: radius.lg,
-        paddingVertical: 22,
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius.md,
+        overflow: 'hidden',
+        backgroundColor: colors.bg.elevated,
         alignItems: 'center',
-        backgroundColor: pressed ? 'rgba(255,255,255,0.04)' : 'transparent',
-      })}
+        justifyContent: 'center',
+        flexShrink: 0,
+      }}
     >
-      <Text
-        style={{
-          fontSize: fontSize.md,
-          fontWeight: '600',
-          color: colors.text.secondary,
-          letterSpacing: 0.5,
-        }}
-      >
-        {label}
-      </Text>
-    </Pressable>
+      {img !== undefined ? (
+        <Image source={img} style={{ width: '100%', height: '100%' }} contentFit="cover" transition={120} />
+      ) : (
+        <Icon name="dumbbell" size={Math.round(size * 0.45)} color={colors.text.muted} />
+      )}
+    </View>
   );
 }
 
@@ -98,7 +118,10 @@ export default function ActiveWorkout() {
   const addPoints = useAppStore((s) => s.addPoints);
 
   const routine = useRoutinesStore((s) => s.routines.find((r) => r.id === routineId));
-  const day = routine?.days.find((d) => d.id === dayId);
+  // Día seleccionado para HOY: arranca en el día sugerido, pero el usuario
+  // puede cambiarlo durante el calentamiento (solo afecta esta sesión).
+  const [selectedDayId, setSelectedDayId] = useState<string | undefined>(dayId);
+  const day = routine?.days.find((d) => d.id === selectedDayId) ?? routine?.days[0];
 
   const active = useWorkoutsStore((s) => s.active);
   const startWorkout = useWorkoutsStore((s) => s.startWorkout);
@@ -106,8 +129,10 @@ export default function ActiveWorkout() {
   const toggleSetComplete = useWorkoutsStore((s) => s.toggleSetComplete);
   const finishWorkout = useWorkoutsStore((s) => s.finishWorkout);
   const cancelWorkout = useWorkoutsStore((s) => s.cancelWorkout);
+  const swapExercise = useWorkoutsStore((s) => s.swapExercise);
 
   const [phase, setPhase] = useState<Phase>('warmup');
+  const [swapOpen, setSwapOpen] = useState(false);
   const [summaryWorkout, setSummaryWorkout] = useState<Workout | null>(null);
   const [exIdx, setExIdx] = useState(0);
   const [setIdx, setSetIdx] = useState(0);
@@ -137,7 +162,70 @@ export default function ActiveWorkout() {
   const splashY       = useRef(new Animated.Value(28)).current;   // slide up
   const splashRing    = useRef(new Animated.Value(0)).current;    // ring expand 0→1
   const splashPulse   = useRef(new Animated.Value(1)).current;    // ring pulse
-  const splashSweep   = useRef(new Animated.Value(0)).current;    // unused legacy, kept for type safety
+
+  // Energetic full-screen splash with a phrase. Reused when entering a set
+  // from rest and when the user swaps the exercise mid-session.
+  const playSplash = (phrase: string) => {
+    setSplashPhrase(phrase);
+    // Reset all values
+    splashScale.setValue(0.72);
+    splashOpacity.setValue(0);
+    splashY.setValue(28);
+    splashRing.setValue(0);
+    splashPulse.setValue(1);
+    setShowSetSplash(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+
+    Animated.sequence([
+      // Phase 1 (0–320ms): ring bursts out + phrase springs in with upward slide
+      Animated.parallel([
+        // Ring expands from 0 → full radius
+        Animated.timing(splashRing, {
+          toValue: 1,
+          duration: 320,
+          useNativeDriver: true,
+        }),
+        // Phrase: spring overshoot (scale) + slide up + fade in
+        Animated.spring(splashScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 160,
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashY, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashOpacity, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Phase 2 (320–520ms): ring pulses once — scale up 1→1.12→1
+      Animated.sequence([
+        Animated.timing(splashPulse, {
+          toValue: 1.12,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.timing(splashPulse, {
+          toValue: 1,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+      ]),
+      // Phase 3: hold at full opacity
+      Animated.delay(480),
+      // Phase 4: fade out everything
+      Animated.timing(splashOpacity, {
+        toValue: 0,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setShowSetSplash(false));
+  };
 
   useEffect(() => {
     const fromRest = prevPhaseRef.current === 'rest' && phase === 'set';
@@ -173,67 +261,9 @@ export default function ActiveWorkout() {
 
     // Show energetic splash when entering set from rest (not the very first set)
     if (fromRest) {
-      const phrase = SET_SPLASH_PHRASES[Math.floor(Math.random() * SET_SPLASH_PHRASES.length)];
-      setSplashPhrase(phrase);
-      // Reset all values
-      splashScale.setValue(0.72);
-      splashOpacity.setValue(0);
-      splashY.setValue(28);
-      splashRing.setValue(0);
-      splashPulse.setValue(1);
-      setShowSetSplash(true);
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-
-      Animated.sequence([
-        // Phase 1 (0–320ms): ring bursts out + phrase springs in with upward slide
-        Animated.parallel([
-          // Ring expands from 0 → full radius
-          Animated.timing(splashRing, {
-            toValue: 1,
-            duration: 320,
-            useNativeDriver: true,
-          }),
-          // Phrase: spring overshoot (scale) + slide up + fade in
-          Animated.spring(splashScale, {
-            toValue: 1,
-            friction: 4,
-            tension: 160,
-            useNativeDriver: true,
-          }),
-          Animated.timing(splashY, {
-            toValue: 0,
-            duration: 280,
-            useNativeDriver: true,
-          }),
-          Animated.timing(splashOpacity, {
-            toValue: 1,
-            duration: 180,
-            useNativeDriver: true,
-          }),
-        ]),
-        // Phase 2 (320–520ms): ring pulses once — scale up 1→1.12→1
-        Animated.sequence([
-          Animated.timing(splashPulse, {
-            toValue: 1.12,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-          Animated.timing(splashPulse, {
-            toValue: 1,
-            duration: 100,
-            useNativeDriver: true,
-          }),
-        ]),
-        // Phase 3: hold at full opacity
-        Animated.delay(480),
-        // Phase 4: fade out everything
-        Animated.timing(splashOpacity, {
-          toValue: 0,
-          duration: 260,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setShowSetSplash(false));
+      playSplash(SET_SPLASH_PHRASES[Math.floor(Math.random() * SET_SPLASH_PHRASES.length)]);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   // Start warmup timer on mount
@@ -287,6 +317,25 @@ export default function ActiveWorkout() {
     }, 1000);
     return () => clearInterval(t);
   }, [active, phase]);
+
+  // Ejercicios ya presentes en la sesión — se excluyen del modal de cambio.
+  const usedExerciseIds = useMemo(
+    () => active?.exercises.map((e) => e.exerciseId) ?? [],
+    [active?.exercises],
+  );
+
+  // Progreso global por ejercicio para la barra segmentada del header.
+  // Antes de empezar (warmup) no hay workout activo → barra oculta.
+  const segments = useMemo(
+    () =>
+      active
+        ? active.exercises.map((e) => ({
+            done: e.sets.filter((s) => s.isCompleted).length,
+            total: e.sets.length,
+          }))
+        : [],
+    [active],
+  );
 
   if (!routine || !day || !profile) {
     return (
@@ -354,6 +403,18 @@ export default function ActiveWorkout() {
     setRestStartedAt(Date.now());
     setRestElapsed(0);
     setPhase('rest');
+  };
+
+  // Cambia el ejercicio actual SOLO para esta sesión (máquina ocupada, etc.).
+  // La rutina guardada no se modifica. El splash a pantalla completa cubre el
+  // cambio de contenido, así que no hace falta re-disparar la transición del hero.
+  const handleSwapSelect = (newExerciseId: string) => {
+    setSwapOpen(false);
+    const newIdx = swapExercise(exIdx, newExerciseId);
+    setExIdx(newIdx);
+    setSetIdx(0);
+    const name = exerciseById(newExerciseId)?.name ?? 'el nuevo ejercicio';
+    playSplash(`¡Vamos con ${name}!`);
   };
 
   const advancePosition = () => {
@@ -466,31 +527,14 @@ export default function ActiveWorkout() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg.base }}>
-      {/* Minimal header */}
-      <View
-        style={{
-          paddingTop: insets.top + spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingBottom: spacing.sm,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Pressable onPress={handleCancel} hitSlop={14}>
-          <Icon name="close" size={18} color={colors.text.muted} />
-        </Pressable>
-        <Text variant="caption" tone="muted" style={{ flex: 1, textAlign: 'center', marginHorizontal: spacing.md }}>
-          {headerContext}
-        </Text>
-        {/* Total timer — small, unobtrusive, only when active */}
-        {active && phase !== 'summary' ? (
-          <Text variant="caption" tone="muted" numeric style={{ minWidth: 36, textAlign: 'right' }}>
-            {formatDuration(elapsed)}
-          </Text>
-        ) : (
-          <View style={{ width: 36 }} />
-        )}
+      {/* Header: close + contexto + chip de tiempo + barra de progreso global */}
+      <View style={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.sm }}>
+        <WorkoutHeader
+          context={headerContext}
+          elapsedLabel={active && phase !== 'summary' ? formatDuration(elapsed) : null}
+          segments={segments}
+          onClose={handleCancel}
+        />
       </View>
 
       {/* Accent sweep bar — driven by accentProgress (0→1) */}
@@ -515,20 +559,30 @@ export default function ActiveWorkout() {
           paddingHorizontal: spacing.lg,
           justifyContent: 'space-between',
           paddingBottom: insets.bottom + spacing.xl,
-          paddingTop: spacing['2xl'],
+          paddingTop: spacing.xl,
         }}
       >
         {phase === 'warmup' && (
-          <WarmupPhase elapsed={warmupElapsed} onDone={handleWarmupDone} />
+          <WarmupPhase
+            elapsed={warmupElapsed}
+            days={routine.days}
+            selectedDayId={day.id}
+            onSelectDay={setSelectedDayId}
+            onDone={handleWarmupDone}
+          />
         )}
 
         {phase === 'set' && currentEx && currentSet && (
           <SetPhase
+            exerciseId={currentEx.exerciseId}
             exerciseName={currentEx.exerciseName}
+            subtitle={muscleLabel(currentEx.muscleGroup)}
             setNumber={setIdx + 1}
             totalSets={currentEx.sets.length}
+            completedCount={currentEx.sets.filter((s) => s.isCompleted).length}
             elapsed={setTimerElapsed}
             onDone={handleSetDone}
+            onSwap={() => setSwapOpen(true)}
           />
         )}
 
@@ -536,18 +590,23 @@ export default function ActiveWorkout() {
           <LogPhase
             set={currentSet}
             unit={profile.unit}
-            exIdx={exIdx}
-            setIdx={setIdx}
+            exerciseId={currentEx.exerciseId}
+            exerciseName={currentEx.exerciseName}
+            setNumber={setIdx + 1}
+            totalSets={currentEx.sets.length}
             onWeightChange={(v) => updateSet(exIdx, setIdx, { weightKg: fromDisplay(v, profile.unit) })}
             onRepsChange={(v) => updateSet(exIdx, setIdx, { reps: v })}
             onSave={handleLogSave}
           />
         )}
 
-        {phase === 'rest' && currentEx && currentSet && (
+        {phase === 'rest' && active && currentEx && currentSet && (
           <RestPhase
             elapsed={restElapsed}
             nextLabel={nextLabel}
+            next={getNextPosition(active, exIdx, setIdx)}
+            currentExercise={currentEx}
+            currentSetIdx={setIdx}
             onConfirm={handleRestConfirm}
           />
         )}
@@ -681,113 +740,455 @@ export default function ActiveWorkout() {
           </Animated.View>
         </Pressable>
       )}
+
+      {/* Cambio de ejercicio solo para esta sesión */}
+      <SwapExerciseModal
+        visible={swapOpen}
+        currentExerciseId={currentEx?.exerciseId ?? ''}
+        usedExerciseIds={usedExerciseIds}
+        onClose={() => setSwapOpen(false)}
+        onSelect={handleSwapSelect}
+      />
     </View>
   );
 }
 
 // ---- Phase components ----
 
-function WarmupPhase({ elapsed, onDone }: { elapsed: number; onDone: () => void }) {
+// Chip de día con "pop" elástico al quedar seleccionado.
+function DayChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (active) {
+      scale.setValue(0.9);
+      Animated.spring(scale, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }).start();
+    }
+  }, [active, scale]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        onPress={onPress}
+        style={{
+          paddingVertical: 10,
+          paddingHorizontal: 18,
+          borderRadius: radius.full,
+          backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
+          borderWidth: 1,
+          borderColor: active ? colors.primary.DEFAULT : colors.border,
+        }}
+      >
+        <Text weight="bold" tone={active ? 'primary' : 'secondary'}>
+          {label}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+function WarmupPhase({
+  elapsed,
+  days,
+  selectedDayId,
+  onSelectDay,
+  onDone,
+}: {
+  elapsed: number;
+  days: RoutineDay[];
+  selectedDayId: string;
+  onSelectDay: (id: string) => void;
+  onDone: () => void;
+}) {
+  const selDay = days.find((d) => d.id === selectedDayId) ?? days[0];
+
+  // El preview de ejercicios entra con fade + slide cada vez que cambia el día.
+  const previewOpacity = useRef(new Animated.Value(1)).current;
+  const previewY = useRef(new Animated.Value(0)).current;
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    previewOpacity.setValue(0);
+    previewY.setValue(14);
+    Animated.parallel([
+      Animated.timing(previewOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
+      Animated.spring(previewY, { toValue: 0, friction: 6, tension: 140, useNativeDriver: true }),
+    ]).start();
+    Haptics.selectionAsync();
+  }, [selectedDayId, previewOpacity, previewY]);
+
+  const previewExercises = selDay?.exercises.slice(0, 4) ?? [];
+  const extraCount = Math.max(0, (selDay?.exercises.length ?? 0) - previewExercises.length);
+
   return (
     <>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      {/* Selector de día — por si hoy toca improvisar */}
+      <View>
         <Text
           style={{
             fontSize: fontSize.sm,
             fontWeight: '700',
             color: colors.text.muted,
             letterSpacing: 4,
-            marginBottom: spacing.xl,
+            marginBottom: spacing.md,
           }}
         >
-          CALENTAMIENTO
+          DÍA DE HOY
         </Text>
-        <Text
-          style={{
-            fontSize: 124,
-            fontWeight: '900',
-            color: colors.text.secondary,
-            letterSpacing: -4,
-            fontVariant: ['tabular-nums'],
-            lineHeight: 124,
-          }}
-        >
-          {formatClock(elapsed)}
-        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            {days.map((d) => (
+              <DayChip
+                key={d.id}
+                label={d.name}
+                active={d.id === selectedDayId}
+                onPress={() => onSelectDay(d.id)}
+              />
+            ))}
+          </View>
+        </ScrollView>
+        {days.length > 1 && (
+          <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm }}>
+            ¿Cambio de planes? Elige otro día solo por hoy: tu rutina no se modifica.
+          </Text>
+        )}
       </View>
-      <GhostButton label="Terminé de calentar" onPress={onDone} />
+
+      {/* Tarjeta central: cronómetro de calentamiento + preview del día */}
+      <View style={{ flex: 1, justifyContent: 'center', paddingVertical: spacing.lg }}>
+        <Card variant="raised" padding="xl">
+          <Text
+            style={{
+              fontSize: fontSize.sm,
+              fontWeight: '700',
+              color: colors.text.muted,
+              letterSpacing: 4,
+              textAlign: 'center',
+              marginBottom: spacing.sm,
+            }}
+          >
+            CALENTAMIENTO
+          </Text>
+          <Text
+            variant="metricLg"
+            numeric
+            style={{
+              color: colors.text.secondary,
+              textAlign: 'center',
+              letterSpacing: -2,
+              lineHeight: 78,
+            }}
+          >
+            {formatClock(elapsed)}
+          </Text>
+
+          <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing.lg }} />
+
+          {/* Preview animado de lo que toca hoy */}
+          <Animated.View
+            style={{
+              opacity: previewOpacity,
+              transform: [{ translateY: previewY }],
+              gap: spacing.sm,
+            }}
+          >
+            {previewExercises.map((e) => (
+              <View key={e.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                <ExerciseThumb exerciseId={e.exerciseId} size={40} />
+                <Text weight="semibold" style={{ flex: 1 }} numberOfLines={1}>
+                  {exerciseById(e.exerciseId)?.name ?? e.exerciseId}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  {e.targetSets} series
+                </Text>
+              </View>
+            ))}
+            {extraCount > 0 && (
+              <Text variant="caption" tone="muted" style={{ textAlign: 'center', marginTop: spacing.xs }}>
+                +{extraCount} más
+              </Text>
+            )}
+          </Animated.View>
+        </Card>
+      </View>
+
+      <Button title="Terminé de calentar" variant="primary" size="lg" fullWidth onPress={onDone} />
     </>
   );
 }
 
 function SetPhase({
+  exerciseId,
   exerciseName,
+  subtitle,
   setNumber,
   totalSets,
+  completedCount,
   elapsed,
   onDone,
+  onSwap,
 }: {
+  exerciseId: string;
   exerciseName: string;
+  subtitle?: string;
   setNumber: number;
   totalSets: number;
+  completedCount: number;
   elapsed: number;
   onDone: () => void;
+  onSwap: () => void;
 }) {
   return (
     <>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        {/* Exercise name — large, bold */}
+      {/* Arriba: serie actual + pills de progreso */}
+      <View>
         <Text
           style={{
-            fontSize: fontSize['2xl'],
-            fontWeight: '900',
-            color: colors.text.primary,
-            letterSpacing: -0.5,
-            textAlign: 'center',
-            marginBottom: spacing.sm,
-          }}
-        >
-          {exerciseName}
-        </Text>
-        {/* Serie counter */}
-        <Text
-          style={{
-            fontSize: fontSize.lg,
+            fontSize: fontSize.sm,
             fontWeight: '700',
             color: colors.primary.DEFAULT,
-            letterSpacing: 2,
-            marginBottom: spacing['2xl'],
+            letterSpacing: 4,
+            textAlign: 'center',
+            marginBottom: spacing.md,
           }}
         >
           SERIE {setNumber}/{totalSets}
         </Text>
-        {/* Hero: per-set chronometer */}
-        <Text
-          style={{
-            fontSize: 128,
-            fontWeight: '900',
-            color: colors.text.primary,
-            letterSpacing: -5,
-            fontVariant: ['tabular-nums'],
-            lineHeight: 128,
-          }}
-        >
-          {formatClock(elapsed)}
-        </Text>
-        <Text
-          style={{
-            fontSize: fontSize.sm,
-            fontWeight: '500',
-            color: colors.text.muted,
-            marginTop: spacing.lg,
-            letterSpacing: 1,
-          }}
-        >
-          tiempo en la serie
-        </Text>
+        <SetProgressPills total={totalSets} current={setNumber - 1} completedCount={completedCount} />
       </View>
-      <GhostButton label="Terminé la serie" onPress={onDone} />
+
+      {/* Centro: hero con imagen del ejercicio + chip del cronómetro */}
+      <View style={{ flex: 1, justifyContent: 'center', gap: spacing.lg, paddingVertical: spacing.lg }}>
+        <ExerciseHero
+          exerciseId={exerciseId}
+          name={exerciseName}
+          subtitle={subtitle}
+          style={{ flex: 1, flexShrink: 1, maxHeight: SCREEN_HEIGHT * 0.42, minHeight: 160 }}
+        />
+
+        {/* Chip ancho del cronómetro de la serie */}
+        <View
+          style={{
+            backgroundColor: colors.bg.elevated,
+            borderRadius: radius.xl,
+            borderWidth: 1,
+            borderColor: colors.border,
+            padding: spacing.lg,
+            alignItems: 'center',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 64,
+              fontWeight: '900',
+              color: colors.text.primary,
+              letterSpacing: -2,
+              fontVariant: ['tabular-nums'],
+              lineHeight: 68,
+            }}
+          >
+            {formatClock(elapsed)}
+          </Text>
+          <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs, letterSpacing: 1 }}>
+            tiempo en la serie
+          </Text>
+        </View>
+
+        {/* ¿Máquina ocupada? Cambia el ejercicio solo por hoy */}
+        <Pressable
+          onPress={onSwap}
+          hitSlop={8}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'center',
+            gap: 8,
+            paddingVertical: 9,
+            paddingHorizontal: 16,
+            borderRadius: radius.full,
+            borderWidth: 1,
+            borderColor: pressed ? colors.text.secondary : colors.border,
+            backgroundColor: pressed ? 'rgba(255,255,255,0.04)' : 'transparent',
+          })}
+        >
+          <Icon name="swap" size={14} color={colors.text.secondary} />
+          <Text variant="caption" weight="semibold" tone="secondary">
+            Cambiar ejercicio
+          </Text>
+        </Pressable>
+      </View>
+
+      <Button title="Terminé la serie" variant="primary" size="lg" fullWidth onPress={onDone} />
     </>
+  );
+}
+
+// ---- Swap exercise modal (cambio solo para esta sesión) ----
+
+function SwapExerciseModal({
+  visible,
+  currentExerciseId,
+  usedExerciseIds,
+  onClose,
+  onSelect,
+}: {
+  visible: boolean;
+  currentExerciseId: string;
+  usedExerciseIds: string[];
+  onClose: () => void;
+  onSelect: (id: string) => void;
+}) {
+  const current = exerciseById(currentExerciseId);
+  const defaultGroup = useMemo(
+    () => MUSCLE_FILTER_GROUPS.find((g) => current && g.muscles.includes(current.muscle))?.id ?? 'all',
+    [current],
+  );
+  const [group, setGroup] = useState(defaultGroup);
+
+  // Cada vez que se abre, arranca filtrado por el músculo del ejercicio actual.
+  useEffect(() => {
+    if (visible) setGroup(defaultGroup);
+  }, [visible, defaultGroup]);
+
+  const filtered = useMemo(() => {
+    const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
+    let list = EXERCISES.filter(
+      (e) => e.id !== currentExerciseId && !usedExerciseIds.includes(e.id),
+    );
+    if (g && g.muscles.length > 0) {
+      list = list.filter((e) => g.muscles.includes(e.muscle));
+    }
+    if (current) {
+      // Mismo músculo exacto primero: son los reemplazos más naturales.
+      list = [...list].sort(
+        (a, b) => Number(b.muscle === current.muscle) - Number(a.muscle === current.muscle),
+      );
+    }
+    return list;
+  }, [group, currentExerciseId, usedExerciseIds, current]);
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: colors.bg.overlay, justifyContent: 'flex-end' }}>
+        <View
+          style={{
+            backgroundColor: colors.bg.base,
+            borderTopLeftRadius: radius.xl,
+            borderTopRightRadius: radius.xl,
+            height: '85%',
+            padding: spacing.lg,
+          }}
+        >
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text variant="title">Cambiar ejercicio</Text>
+            <Pressable onPress={onClose} hitSlop={12}>
+              <Icon name="close" size={18} color={colors.text.muted} />
+            </Pressable>
+          </View>
+          <Text variant="caption" tone="muted" style={{ marginTop: 4 }}>
+            Solo para esta sesión — tu rutina queda igual.
+          </Text>
+
+          {/* Filtros de grupo muscular */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginTop: spacing.md, flexGrow: 0 }}
+            contentContainerStyle={{ gap: spacing.sm }}
+          >
+            {MUSCLE_FILTER_GROUPS.map((g) => {
+              const active = g.id === group;
+              return (
+                <Pressable
+                  key={g.id}
+                  onPress={() => setGroup(g.id)}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: radius.full,
+                    backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
+                    borderWidth: 1,
+                    borderColor: active ? colors.primary.DEFAULT : colors.border,
+                  }}
+                >
+                  <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
+                    {g.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          <FlatList
+            data={filtered}
+            keyExtractor={(e) => e.id}
+            style={{ marginTop: spacing.md, flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const img = exerciseImage(item.id);
+              const sameMuscle = current && item.muscle === current.muscle;
+              return (
+                <Pressable onPress={() => onSelect(item.id)}>
+                  <Card padding="md" style={{ marginBottom: spacing.sm }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                      <View
+                        style={{
+                          width: 48,
+                          height: 48,
+                          borderRadius: radius.md,
+                          overflow: 'hidden',
+                          backgroundColor: colors.bg.elevated,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {img !== undefined ? (
+                          <Image
+                            source={img}
+                            style={{ width: '100%', height: '100%' }}
+                            contentFit="cover"
+                            transition={120}
+                          />
+                        ) : (
+                          <Icon name="dumbbell" size={20} color={colors.text.muted} />
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text weight="semibold" numberOfLines={1}>{item.name}</Text>
+                        <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
+                          {MUSCLE_GROUP_LABELS[item.muscle]} · {EQUIPMENT_LABELS[item.equipment]}
+                        </Text>
+                      </View>
+                      {sameMuscle && (
+                        <View
+                          style={{
+                            paddingHorizontal: spacing.sm,
+                            paddingVertical: 3,
+                            borderRadius: radius.full,
+                            backgroundColor: colors.primary.muted,
+                            borderWidth: 1,
+                            borderColor: colors.primary.DEFAULT,
+                          }}
+                        >
+                          <Text variant="caption" weight="bold" style={{ color: colors.primary.DEFAULT }}>
+                            Equivalente
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  </Card>
+                </Pressable>
+              );
+            }}
+          />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -796,16 +1197,20 @@ const LOG_ACCESSORY_ID = 'log-keyboard-accessory';
 function LogPhase({
   set,
   unit,
-  exIdx: _exIdx,
-  setIdx: _setIdx,
+  exerciseId,
+  exerciseName,
+  setNumber,
+  totalSets,
   onWeightChange,
   onRepsChange,
   onSave,
 }: {
   set: { reps: number; weightKg: number };
   unit: 'kg' | 'lb';
-  exIdx: number;
-  setIdx: number;
+  exerciseId: string;
+  exerciseName: string;
+  setNumber: number;
+  totalSets: number;
   onWeightChange: (v: number) => void;
   onRepsChange: (v: number) => void;
   onSave: () => void;
@@ -841,55 +1246,60 @@ function LogPhase({
         </InputAccessoryView>
       )}
 
-      <Pressable
-        style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-        onPress={Keyboard.dismiss}
-      >
-        <Text
-          style={{
-            fontSize: fontSize.sm,
-            fontWeight: '700',
-            color: colors.text.muted,
-            letterSpacing: 4,
-            marginBottom: spacing['2xl'],
-          }}
-        >
-          REGISTRAR SERIE
+      {/* Contexto compacto: qué ejercicio y qué serie se está registrando */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        <ExerciseThumb exerciseId={exerciseId} size={44} />
+        <Text variant="heading" style={{ flex: 1 }} numberOfLines={1}>
+          {exerciseName}
         </Text>
         <View
           style={{
-            flexDirection: 'row',
-            gap: spacing['2xl'],
-            alignItems: 'flex-start',
+            paddingHorizontal: spacing.md,
+            paddingVertical: 5,
+            borderRadius: radius.full,
+            backgroundColor: colors.primary.muted,
+            borderWidth: 1,
+            borderColor: colors.primary.DEFAULT,
           }}
         >
-          <BigNumeric
-            label={unit.toUpperCase()}
-            value={displayWeight}
-            step={unit === 'kg' ? 2.5 : 5}
-            decimals={unit === 'kg' ? 1 : 0}
-            onChange={onWeightChange}
-            accessoryId={LOG_ACCESSORY_ID}
-          />
-          <View
-            style={{
-              width: 1,
-              height: 80,
-              backgroundColor: colors.border,
-              alignSelf: 'center',
-            }}
-          />
-          <BigNumeric
-            label="REPS"
-            value={set.reps}
-            step={1}
-            decimals={0}
-            onChange={onRepsChange}
-            accessoryId={LOG_ACCESSORY_ID}
-          />
+          <Text variant="caption" weight="bold" style={{ color: colors.primary.DEFAULT }} numeric>
+            Serie {setNumber}/{totalSets}
+          </Text>
         </View>
-      </Pressable>
-      <GhostButton label="Guardar serie" onPress={onSave} />
+      </View>
+
+      {/* Steppers gigantes de peso y reps */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          gap: spacing.lg,
+          paddingVertical: spacing.lg,
+        }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        showsVerticalScrollIndicator={false}
+      >
+        <BigStepperInput
+          label={unit.toUpperCase()}
+          value={displayWeight}
+          step={unit === 'kg' ? 2.5 : 5}
+          decimals={unit === 'kg' ? 1 : 0}
+          onChange={onWeightChange}
+          accessoryId={LOG_ACCESSORY_ID}
+        />
+        <BigStepperInput
+          label="REPS"
+          value={set.reps}
+          step={1}
+          decimals={0}
+          onChange={onRepsChange}
+          accessoryId={LOG_ACCESSORY_ID}
+        />
+      </ScrollView>
+
+      <Button title="Guardar serie" variant="primary" size="lg" fullWidth onPress={onSave} />
     </KeyboardAvoidingView>
   );
 }
@@ -940,7 +1350,7 @@ function RestPhrase() {
       style={{
         opacity: phraseOpacity,
         transform: [{ scale: phraseScale }, { translateY: phraseY }],
-        marginTop: spacing.xl,
+        marginTop: spacing.lg,
         alignItems: 'center',
       }}
     >
@@ -962,166 +1372,85 @@ function RestPhrase() {
 function RestPhase({
   elapsed,
   nextLabel,
+  next,
+  currentExercise,
+  currentSetIdx,
   onConfirm,
 }: {
   elapsed: number;
   nextLabel: string;
+  next: { exercise: WorkoutExercise; setNumber: number; totalSets: number } | null;
+  currentExercise: WorkoutExercise;
+  currentSetIdx: number;
   onConfirm: () => void;
 }) {
-  const color = restColor(elapsed);
+  // Pills de lo que viene; si era la última serie del workout, mostramos el
+  // ejercicio actual ya completo.
+  const pillsEx = next ? next.exercise : currentExercise;
+  const pillsTotal = next ? next.totalSets : currentExercise.sets.length;
+  const pillsCurrent = next ? next.setNumber - 1 : currentSetIdx;
+  const pillsCompleted = pillsEx.sets.filter((s) => s.isCompleted).length;
 
   return (
     <>
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      {/* Arriba: label + pills de la serie que viene */}
+      <View>
         <Text
           style={{
             fontSize: fontSize.sm,
             fontWeight: '700',
             color: colors.text.muted,
             letterSpacing: 4,
-            marginBottom: spacing.xl,
+            textAlign: 'center',
+            marginBottom: spacing.md,
           }}
         >
           DESCANSO
         </Text>
-        {/* Hero: rest chronometer, colour transitions to green in the window */}
+        <SetProgressPills total={pillsTotal} current={pillsCurrent} completedCount={pillsCompleted} />
+      </View>
+
+      {/* Centro: anillo de descanso + tarjeta de lo que sigue */}
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md }}>
+        <RestRing elapsed={elapsed} size={Math.min(260, SCREEN_HEIGHT * 0.3)} />
         <Text
-          style={{
-            fontSize: 128,
-            fontWeight: '900',
-            color,
-            letterSpacing: -5,
-            fontVariant: ['tabular-nums'],
-            lineHeight: 128,
-          }}
-        >
-          {formatClock(elapsed)}
-        </Text>
-        <Text
-          style={{
-            fontSize: fontSize.sm,
-            fontWeight: '400',
-            color: colors.text.muted,
-            marginTop: spacing.xl,
-            textAlign: 'center',
-            maxWidth: 260,
-            lineHeight: 20,
-          }}
+          variant="caption"
+          tone="muted"
+          style={{ marginTop: spacing.md, textAlign: 'center', maxWidth: 260, lineHeight: 18 }}
         >
           Descansa hasta sentirte completamente recuperado (2–5 min)
         </Text>
+
+        {/* Qué toca después del descanso */}
+        <Card variant="raised" padding="md" style={{ alignSelf: 'stretch', marginTop: spacing.lg }}>
+          {next ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+              <ExerciseThumb exerciseId={next.exercise.exerciseId} size={44} />
+              <View style={{ flex: 1 }}>
+                <Text variant="caption" tone="muted">
+                  Siguiente
+                </Text>
+                <Text weight="semibold" numberOfLines={1}>
+                  {next.exercise.exerciseName}
+                </Text>
+              </View>
+              <Text variant="caption" tone="secondary" numeric>
+                Serie {next.setNumber}/{next.totalSets}
+              </Text>
+            </View>
+          ) : (
+            <Text weight="semibold" style={{ textAlign: 'center' }}>
+              ¡Último set, a cerrar fuerte!
+            </Text>
+          )}
+        </Card>
+
         {/* Rotating motivational phrase — lively, cycles every ~4.5s */}
         <RestPhrase />
       </View>
-      <GhostButton label={nextLabel} onPress={onConfirm} />
+
+      <Button title={nextLabel} variant="primary" size="lg" fullWidth onPress={onConfirm} />
     </>
-  );
-}
-
-function BigNumeric({
-  label,
-  value,
-  step,
-  decimals,
-  onChange,
-  accessoryId,
-}: {
-  label: string;
-  value: number;
-  step: number;
-  decimals: number;
-  onChange: (v: number) => void;
-  accessoryId?: string;
-}) {
-  const [text, setText] = useState(value.toFixed(decimals).replace(/\.0$/, ''));
-  const [editing, setEditing] = useState(false);
-
-  useEffect(() => {
-    if (!editing) setText(value.toFixed(decimals).replace(/\.0$/, ''));
-  }, [value, decimals, editing]);
-
-  const bump = (delta: number) => {
-    const next = Math.max(0, value + delta);
-    onChange(parseFloat(next.toFixed(decimals)));
-    Haptics.selectionAsync();
-  };
-
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Text
-        style={{
-          fontSize: fontSize.sm,
-          fontWeight: '700',
-          color: colors.text.muted,
-          letterSpacing: 3,
-          marginBottom: spacing.sm,
-        }}
-      >
-        {label}
-      </Text>
-      <TextInput
-        value={text}
-        onFocus={() => setEditing(true)}
-        onBlur={() => {
-          setEditing(false);
-          const n = parseFloat(text);
-          if (!isNaN(n)) onChange(n);
-        }}
-        onChangeText={setText}
-        keyboardType="decimal-pad"
-        returnKeyType="done"
-        blurOnSubmit
-        onSubmitEditing={Keyboard.dismiss}
-        inputAccessoryViewID={Platform.OS === 'ios' ? accessoryId : undefined}
-        style={{
-          color: colors.text.primary,
-          fontSize: 60,
-          fontWeight: '900',
-          textAlign: 'center',
-          minWidth: 110,
-          paddingHorizontal: spacing.xs,
-        }}
-        selectTextOnFocus
-      />
-      <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md }}>
-        <Pressable
-          onPress={() => bump(-step)}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            borderWidth: 1,
-            borderColor: colors.borderStrong,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text
-            style={{ fontSize: fontSize.xl, fontWeight: '700', color: colors.text.secondary }}
-          >
-            −
-          </Text>
-        </Pressable>
-        <Pressable
-          onPress={() => bump(step)}
-          style={{
-            width: 48,
-            height: 48,
-            borderRadius: 24,
-            borderWidth: 1,
-            borderColor: colors.borderStrong,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text
-            style={{ fontSize: fontSize.xl, fontWeight: '700', color: colors.text.secondary }}
-          >
-            +
-          </Text>
-        </Pressable>
-      </View>
-    </View>
   );
 }
 
@@ -1237,7 +1566,7 @@ function Summary({
         </View>
 
         {/* ---- Global stats ---- */}
-        <Card padding="lg" style={{ marginBottom: spacing.lg }}>
+        <Card variant="raised" padding="xl" style={{ marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg }}>
             <View style={{ flex: 1, minWidth: 80 }}>
               <Stat label="Sets" value={totalSets} unit="" tone="info" />
@@ -1285,7 +1614,7 @@ function Summary({
               } : {}),
             }}
           >
-            <Card padding="lg">
+            <Card variant="raised" padding="lg">
               <View style={{ alignItems: 'center', gap: spacing.sm }}>
                 <Text
                   style={{
@@ -1319,7 +1648,7 @@ function Summary({
           const isPR = prs.has(ex.exerciseId);
 
           return (
-            <Card key={ex.id} padding="md" style={{ marginBottom: spacing.sm }}>
+            <Card key={ex.id} variant="raised" padding="md" style={{ marginBottom: spacing.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                 <Text weight="bold" style={{ flex: 1 }} numberOfLines={1}>
                   {ex.exerciseName}
@@ -1378,7 +1707,7 @@ function Summary({
             loading={publishing}
             fullWidth
           />
-          <GhostButton label="Listo" onPress={onClose} />
+          <Button title="Listo" variant="secondary" size="lg" fullWidth onPress={onClose} />
         </View>
       </ScrollView>
     </View>

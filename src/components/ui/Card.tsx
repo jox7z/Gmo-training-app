@@ -2,7 +2,7 @@ import { View, ViewProps, ViewStyle } from 'react-native';
 import { colors, radius, spacing, shadow } from '@/theme/tokens';
 
 interface Props extends ViewProps {
-  variant?: 'default' | 'elevated' | 'outlined' | 'glow';
+  variant?: 'default' | 'elevated' | 'outlined' | 'glow' | 'raised';
   padding?: keyof typeof spacing | 0;
   glowColor?: string;
 }
@@ -24,6 +24,15 @@ export function Card({
           backgroundColor: 'transparent',
           borderWidth: 1,
           borderColor: colors.border,
+        };
+      case 'raised':
+        return {
+          backgroundColor: colors.bg.card,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderBottomWidth: 3,
+          borderBottomColor: colors.bg.cardEdge,
+          borderRadius: radius['2xl'],
         };
       case 'glow':
         return {
@@ -48,6 +57,7 @@ export function Card({
         {
           borderRadius: radius.xl,
           padding: padding === 0 ? 0 : spacing[padding],
+          overflow: variant === 'glow' || variant === 'raised' ? undefined : 'hidden',
         },
         variantStyle,
         style,

@@ -16,6 +16,7 @@ interface DbProfile {
   weekly_goal_days: number;
   sex: 'male' | 'female';
   instagram_username?: string | null;
+  instagram_verified?: boolean | null;
 }
 
 function toApp(row: DbProfile): UserProfile {
@@ -40,6 +41,7 @@ function toApp(row: DbProfile): UserProfile {
     rankPoints: row.rank_points,
     weeklyGoalDays: row.weekly_goal_days,
     instagramUsername: row.instagram_username ?? undefined,
+    instagramVerified: row.instagram_verified ?? false,
     privacy: { profilePublic: true, showActivity: true, showStats: true },
     notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
   };
@@ -63,6 +65,11 @@ function toDb(p: UserProfile): DbProfile {
     rank_points: p.rankPoints,
     weekly_goal_days: p.weeklyGoalDays,
     instagram_username: p.instagramUsername ?? null,
+    // NOTE: instagram_verified, instagram_user_id e instagram_linked_at NO se
+    // envían en toDb(): el trigger protect_instagram_verification los protege,
+    // pero mantener el payload limpio evita que un objeto UserProfile obsoleto
+    // degradee accidentalmente la verificación en un upsert ordinario.
+    // (Mismo patrón que `email`, que vive en auth.users y no en profiles.)
   };
 }
 

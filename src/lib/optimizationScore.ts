@@ -208,8 +208,23 @@ export interface MuscleAssessment {
   hint: string;
 }
 
-/** Single-pass helper: builds weeklySets and frequency per muscle. */
-function buildRoutineMuscleStats(routine: Routine): {
+/**
+ * Peso fraccional de los músculos sinergistas (método fraccional):
+ * cada serie cuenta 1 para el primario y 0.5 para cada secundario.
+ * Estándar respaldado por el meta-análisis de dosis-respuesta 2024-25.
+ */
+const SECONDARY_WEIGHT = 0.5;
+
+/**
+ * Single-pass helper: builds weeklySets and frequency per muscle.
+ * Con `includeSecondary`, suma 0.5 series a cada músculo sinergista del
+ * ejercicio (p.ej. press de banca → tríceps y hombro frontal). El score
+ * numérico de la rutina lo deja en false para no alterar su comportamiento.
+ */
+function buildRoutineMuscleStats(
+  routine: Routine,
+  includeSecondary = false,
+): {
   setsByMuscle: Record<string, number>;
   daysByMuscle: Record<string, number>;
 } {
@@ -224,6 +239,12 @@ function buildRoutineMuscleStats(routine: Routine): {
       const muscle = exercise.muscle;
       setsByMuscle[muscle] = (setsByMuscle[muscle] ?? 0) + ex.targetSets;
       musclesThisDay.add(muscle);
+      if (includeSecondary && exercise.secondary) {
+        for (const sm of exercise.secondary) {
+          setsByMuscle[sm] = (setsByMuscle[sm] ?? 0) + ex.targetSets * SECONDARY_WEIGHT;
+          musclesThisDay.add(sm);
+        }
+      }
     }
     for (const m of musclesThisDay) {
       daysByMuscle[m] = (daysByMuscle[m] ?? 0) + 1;
@@ -234,11 +255,13 @@ function buildRoutineMuscleStats(routine: Routine): {
 }
 
 export function analyzeRoutineMuscles(routine: Routine): MuscleAssessment[] {
-  const { setsByMuscle, daysByMuscle } = buildRoutineMuscleStats(routine);
+  // includeSecondary: la tabla y el mapa corporal cuentan los sinergistas (0.5).
+  const { setsByMuscle, daysByMuscle } = buildRoutineMuscleStats(routine, true);
 
   const items: MuscleAssessment[] = [];
   for (const muscle of MAJOR_GROUPS) {
-    const weeklySets = setsByMuscle[muscle] ?? 0;
+    // Redondea a múltiplos de 0.5 para evitar floats sucios (p.ej. 2.5 series).
+    const weeklySets = Math.round((setsByMuscle[muscle] ?? 0) * 2) / 2;
     if (weeklySets === 0) continue; // only muscles present in routine
 
     const frequency = daysByMuscle[muscle] ?? 0;

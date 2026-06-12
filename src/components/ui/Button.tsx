@@ -1,6 +1,6 @@
 import { Pressable, View, ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, radius, spacing, shadow } from '@/theme/tokens';
+import { colors, radius, spacing, shadow, depth } from '@/theme/tokens';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent';
@@ -17,6 +17,8 @@ interface Props {
   leftIcon?: React.ReactNode;
   style?: ViewStyle;
   haptic?: boolean;
+  /** Forces the flat (non-3D) render, e.g. for fixed-height rows. */
+  flat?: boolean;
 }
 
 export function Button({
@@ -30,30 +32,20 @@ export function Button({
   leftIcon,
   style,
   haptic = true,
+  flat,
 }: Props) {
   const variantStyle = variantStyles[variant];
   const sizeStyle = sizeStyles[size];
   const isDisabled = disabled || loading;
+  const chunky = !flat && size !== 'sm' && variantStyle.edgeColor != null;
 
-  return (
-    <Pressable
-      onPress={() => {
-        if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-        onPress?.();
-      }}
-      disabled={isDisabled}
-      style={({ pressed }) => [
-        styles.base,
-        sizeStyle.container,
-        variantStyle.container,
-        fullWidth && { alignSelf: 'stretch' },
-        pressed && !isDisabled && { transform: [{ scale: 0.97 }], opacity: 0.92 },
-        isDisabled && { opacity: 0.45 },
-        variant === 'primary' && shadow.glowPrimary,
-        variant === 'accent' && shadow.glowAccent,
-        style,
-      ]}
-    >
+  const handlePress = () => {
+    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    onPress?.();
+  };
+
+  const content = (
+    <>
       {loading ? (
         <ActivityIndicator color={variantStyle.textColor} />
       ) : (
@@ -67,27 +59,99 @@ export function Button({
           </Text>
         </View>
       )}
+    </>
+  );
+
+  if (chunky) {
+    return (
+      <Pressable
+        onPress={handlePress}
+        disabled={isDisabled}
+        style={[
+          { paddingBottom: depth.edge },
+          fullWidth && { alignSelf: 'stretch' },
+          isDisabled && { opacity: 0.45 },
+          style,
+        ]}
+      >
+        {({ pressed }) => (
+          <>
+            <View
+              style={[styles.edge, { backgroundColor: variantStyle.edgeColor }]}
+              pointerEvents="none"
+            />
+            <View
+              style={[
+                styles.face,
+                sizeStyle.container,
+                variantStyle.container,
+                pressed && !isDisabled && { transform: [{ translateY: depth.edge }] },
+              ]}
+            >
+              {content}
+            </View>
+          </>
+        )}
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      disabled={isDisabled}
+      style={({ pressed }) => [
+        styles.base,
+        sizeStyle.container,
+        variantStyle.container,
+        fullWidth && { alignSelf: 'stretch' },
+        pressed && !isDisabled && { transform: [{ scale: 0.97 }], opacity: 0.92 },
+        isDisabled && { opacity: 0.45 },
+        variant === 'primary' && shadow.glowPrimary,
+        variant === 'accent' && shadow.glowAccent,
+        style,
+      ]}
+    >
+      {content}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   base: {
-    borderRadius: radius.lg,
+    borderRadius: radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  edge: {
+    position: 'absolute',
+    top: depth.edge,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: radius.xl,
+  },
+  face: {
+    borderRadius: radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
   row: { flexDirection: 'row', alignItems: 'center' },
 });
 
-const variantStyles: Record<Variant, { container: ViewStyle; textColor: string }> = {
+const variantStyles: Record<
+  Variant,
+  { container: ViewStyle; textColor: string; edgeColor?: string }
+> = {
   primary: {
     container: { backgroundColor: colors.primary.DEFAULT },
-    textColor: '#FFFFFF',
+    textColor: colors.text.primary,
+    edgeColor: colors.primary.dark,
   },
   accent: {
     container: { backgroundColor: colors.accent.DEFAULT },
-    textColor: '#0B0B0B',
+    textColor: colors.bg.base,
+    edgeColor: colors.accent.dark,
   },
   secondary: {
     container: {
@@ -96,6 +160,7 @@ const variantStyles: Record<Variant, { container: ViewStyle; textColor: string }
       borderColor: colors.border,
     },
     textColor: colors.text.primary,
+    edgeColor: colors.bg.cardEdge,
   },
   ghost: {
     container: { backgroundColor: 'transparent' },
@@ -103,12 +168,13 @@ const variantStyles: Record<Variant, { container: ViewStyle; textColor: string }
   },
   danger: {
     container: { backgroundColor: colors.danger },
-    textColor: '#FFFFFF',
+    textColor: colors.text.primary,
+    edgeColor: colors.dangerDark,
   },
 };
 
 const sizeStyles: Record<Size, { container: ViewStyle; fontSize: number }> = {
   sm: { container: { paddingVertical: 10, paddingHorizontal: 16 }, fontSize: 14 },
-  md: { container: { paddingVertical: 14, paddingHorizontal: 20 }, fontSize: 16 },
-  lg: { container: { paddingVertical: 18, paddingHorizontal: 24 }, fontSize: 18 },
+  md: { container: { paddingVertical: 16, paddingHorizontal: 20 }, fontSize: 16 },
+  lg: { container: { paddingVertical: 20, paddingHorizontal: 24 }, fontSize: 18 },
 };

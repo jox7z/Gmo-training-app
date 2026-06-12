@@ -41,7 +41,9 @@ export type IconName =
   | 'route'
   | 'chart'
   | 'search'
-  | 'scale';
+  | 'scale'
+  | 'swap'
+  | 'instagram';
 
 interface Props {
   name: IconName;
@@ -646,6 +648,18 @@ function renderIcon(name: IconName, c: string, filled = false) {
         </>
       );
 
+    case 'swap':
+      // Lucide arrow-left-right — dos flechas opuestas.
+      return (
+        <Path
+          d="M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      );
+
     case 'scale':
       return (
         <>
@@ -657,6 +671,16 @@ function renderIcon(name: IconName, c: string, filled = false) {
             strokeLinecap="round"
           />
           <Circle cx="12" cy="15" r="2" stroke={c} strokeWidth={2} />
+        </>
+      );
+
+    case 'instagram':
+      // Instagram logo simplificado: rectángulo redondeado + círculo + punto de flash
+      return (
+        <>
+          <Rect x="3" y="3" width="18" height="18" rx="5" stroke={c} strokeWidth={2} />
+          <Circle cx="12" cy="12" r="4" stroke={c} strokeWidth={2} />
+          <Circle cx="17.5" cy="6.5" r="1.2" fill={c} />
         </>
       );
 

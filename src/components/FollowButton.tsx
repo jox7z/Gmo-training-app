@@ -90,7 +90,7 @@ export function FollowButton({ userId, isFollowing, size = 'md', onChange, onCha
           weight="semibold"
           style={{
             fontSize: isSm ? 12 : 14,
-            color: effective ? colors.primary.DEFAULT : '#0B0B0B',
+            color: effective ? colors.primary.DEFAULT : colors.bg.base,
           }}
         >
           {effective ? 'Siguiendo' : 'Seguir'}

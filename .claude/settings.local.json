@@ -31,7 +31,17 @@
       "Bash(echo \"EXIT:$?\")",
       "Bash(grep -rA20 \"create table.*body_measurements\" supabase/migrations/)",
       "Bash(grep -rA40 \"function public.body_timeline\" supabase/migrations/)",
-      "Bash(awk '/function public.body_timeline/,/grant execute on function public.body_timeline/' supabase/migrations/0010_body_search_and_photos_public.sql)"
+      "Bash(awk '/function public.body_timeline/,/grant execute on function public.body_timeline/' supabase/migrations/0010_body_search_and_photos_public.sql)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "mcp__5303ea24-f769-41e2-b912-70e6cee849b5__list_projects",
+      "PowerShell(node scripts/generate-exercise-sql.mjs)",
+      "PowerShell($sql = Get-Content -Raw supabase/migrations/0031_exercise_catalog.sql -Encoding utf8; $sql.Length)",
+      "mcp__5303ea24-f769-41e2-b912-70e6cee849b5__apply_migration",
+      "mcp__5303ea24-f769-41e2-b912-70e6cee849b5__execute_sql",
+      "Bash(curl -s \"https://api.github.com/repos/yuhonas/free-exercise-db/git/trees/main?recursive=0\")",
+      "Bash(sed 's|\"path\": \"exercises/||; s|\\\\.json\"||')",
+      "Read(//tmp/**)",
+      "PowerShell(node scripts/fetch-exercise-images.mjs)"
     ]
   }
 }

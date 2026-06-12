@@ -40,3 +40,6 @@ verify_jwt = true
 
 [functions.generate_routine]
 verify_jwt = true
+
+[functions.instagram_oauth]
+verify_jwt = false

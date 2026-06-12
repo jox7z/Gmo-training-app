@@ -7,25 +7,21 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore, Routine, RoutineDay, RoutineDayExercise, nid } from '@/store/routines';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { saveRoutine } from '@/lib/repos/routines';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { EXERCISES, exerciseById, MuscleGroup } from '@/data/exercises';
+import {
+  EXERCISES,
+  exerciseById,
+  MuscleGroup,
+  MUSCLE_FILTER_GROUPS,
+  MUSCLE_GROUP_LABELS,
+  EQUIPMENT_LABELS,
+} from '@/data/exercises';
 import { exerciseImage } from '@/data/exerciseImages';
 import { Icon } from '@/components/Icon';
-
-const PICKER_GROUPS: { id: string; label: string; muscles: MuscleGroup[] }[] = [
-  { id: 'all',       label: 'Todos',    muscles: [] },
-  { id: 'chest',     label: 'Pecho',    muscles: ['chest'] },
-  { id: 'back',      label: 'Espalda',  muscles: ['back'] },
-  { id: 'shoulders', label: 'Hombros',  muscles: ['front_delt', 'lateral_delt', 'rear_delt'] },
-  { id: 'arms',      label: 'Brazos',   muscles: ['biceps', 'triceps'] },
-  { id: 'legs',      label: 'Piernas',  muscles: ['quads', 'hamstrings', 'glutes', 'calves'] },
-  { id: 'core',      label: 'Core',     muscles: ['core'] },
-];
 
 const EMPTY_ROUTINE = (): Routine => ({
   id: nid(),
@@ -200,7 +196,7 @@ export default function RoutineEditor() {
 
         <View style={{ marginTop: spacing.lg }}>
           {day.exercises.length === 0 && (
-            <Card padding="xl" style={{ alignItems: 'center' }}>
+            <Card variant="raised" padding="xl" style={{ alignItems: 'center' }}>
               <Icon name="dumbbell" size={40} color={colors.text.muted} />
               <Text variant="heading" style={{ marginTop: spacing.sm }}>Día vacío</Text>
               <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
@@ -365,7 +361,7 @@ function ExercisePicker({
 }) {
   const filtered = useMemo(() => {
     if (group === 'all') return EXERCISES;
-    const g = PICKER_GROUPS.find((x) => x.id === group);
+    const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
     if (!g) return EXERCISES;
     return EXERCISES.filter((e) => g.muscles.includes(e.muscle as MuscleGroup));
   }, [group]);
@@ -398,7 +394,7 @@ function ExercisePicker({
             style={{ marginTop: spacing.md, flexGrow: 0 }}
             contentContainerStyle={{ gap: spacing.sm }}
           >
-            {PICKER_GROUPS.map((g) => {
+            {MUSCLE_FILTER_GROUPS.map((g) => {
               const active = g.id === group;
               return (
                 <Pressable
@@ -466,10 +462,9 @@ function ExercisePicker({
                       <View style={{ flex: 1 }}>
                         <Text weight="semibold" numberOfLines={1}>{item.name}</Text>
                         <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                          {item.muscle} · {item.equipment}
+                          {MUSCLE_GROUP_LABELS[item.muscle]} · {EQUIPMENT_LABELS[item.equipment]}
                         </Text>
                       </View>
-                      {item.isCompound && <Badge label="Compound" tone="accent" />}
                     </View>
                   </Card>
                 </Pressable>

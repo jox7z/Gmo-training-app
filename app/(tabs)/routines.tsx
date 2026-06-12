@@ -84,8 +84,8 @@ export default function Routines() {
     return out;
   }, [muscleStats]);
 
-  // "Cambiar rutina": como solo puede haber una, cambiar = editar la actual o
-  // reemplazarla por una nueva (desde cero).
+  // "Cambiar rutina": como solo puede haber una, cambiar = editar la actual,
+  // elegir plantilla famosa o crear desde cero.
   const handleChange = () => {
     Alert.alert(
       'Cambiar rutina',
@@ -96,6 +96,10 @@ export default function Routines() {
           onPress: () =>
             activeRoutine &&
             router.push({ pathname: '/routine/[id]', params: { id: activeRoutine.id } }),
+        },
+        {
+          text: 'Elegir plantilla',
+          onPress: () => router.push('/routine/templates'),
         },
         {
           text: 'Crear desde cero',
@@ -137,14 +141,21 @@ export default function Routines() {
             Crea tu rutina de entrenamiento
           </Text>
           <Button
+            title="Elegir plantilla"
+            size="lg"
+            onPress={() => router.push('/routine/templates')}
+            fullWidth
+          />
+          <Button
             title="Crear rutina manual"
+            variant="ghost"
             onPress={() => router.push({ pathname: '/routine/[id]', params: { id: 'new' } })}
             fullWidth
           />
         </View>
       ) : (
         <>
-          <Card variant="glow" padding="lg" style={{ marginTop: spacing.lg }}>
+          <Card variant="raised" padding="xl" style={{ marginTop: spacing.lg }}>
             <Text variant="label" tone="brand">RUTINA ACTIVA</Text>
             <Text variant="title" style={{ marginTop: 4 }}>{activeRoutine.name}</Text>
             <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
@@ -153,6 +164,7 @@ export default function Routines() {
             {nextDay && (
               <Button
                 title="Empezar"
+                size="lg"
                 leftIcon={<Icon name="dumbbell" size={18} color="#fff" />}
                 onPress={() =>
                   router.push({
@@ -177,7 +189,7 @@ export default function Routines() {
           {optScore && (
             <View style={{ marginTop: spacing['2xl'], alignItems: 'center' }}>
               <Text variant="heading" style={{ marginBottom: spacing.md, alignSelf: 'stretch' }}>Score de optimización</Text>
-              <Card padding="lg" style={{ alignSelf: 'stretch' }}>
+              <Card variant="raised" padding="lg" style={{ alignSelf: 'stretch' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   <View
                     style={{
@@ -232,7 +244,7 @@ export default function Routines() {
           {muscleStats.length > 0 && (
             <View style={{ marginTop: spacing['2xl'] }}>
               <Text variant="heading" style={{ marginBottom: spacing.md }}>Mapa muscular</Text>
-              <Card padding="lg">
+              <Card variant="raised" padding="lg">
                 {/* Toggle frente / espalda */}
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
                   {(['front', 'back'] as const).map((v) => {
@@ -265,7 +277,7 @@ export default function Routines() {
 
                 {/* Silueta */}
                 <View style={{ alignItems: 'center' }}>
-                  <MuscleMap view={mapView} colors={muscleColors} size={180} />
+                  <MuscleMap view={mapView} colors={muscleColors} size={180} gender={profile?.sex ?? 'male'} />
                 </View>
 
                 {/* Leyenda */}
@@ -374,7 +386,7 @@ export default function Routines() {
                 )}
               </View>
 
-              <Card padding="lg" style={{ alignSelf: 'stretch' }}>
+              <Card variant="raised" padding="lg" style={{ alignSelf: 'stretch' }}>
                 <MuscleOptimizationTable
                   items={selectedMuscle === 'all' ? muscleStats : muscleStats.filter((m) => m.muscle === selectedMuscle)}
                   grouped={selectedMuscle === 'all'}

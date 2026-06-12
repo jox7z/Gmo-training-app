@@ -4,7 +4,7 @@ import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '@/theme/tokens';
+import { colors, radius } from '@/theme/tokens';
 import { TabIcon } from '@/components/TabIcon';
 import { Text } from '@/components/ui/Text';
 
@@ -79,8 +79,17 @@ export default function TabsLayout() {
                 onPress={() => handleTabPress(i)}
                 style={styles.tabItem}
               >
-                <TabIcon name={tab.key} color={color} focused={active} />
-                <Text weight="semibold" style={{ color, fontSize: 10, marginTop: 2 }}>
+                <View
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 2,
+                    borderRadius: radius.full,
+                    backgroundColor: active ? colors.primary.muted : 'transparent',
+                  }}
+                >
+                  <TabIcon name={tab.key} color={color} focused={active} />
+                </View>
+                <Text weight={active ? 'bold' : 'semibold'} style={{ color, fontSize: 11 }}>
                   {tab.label}
                 </Text>
               </Pressable>
@@ -109,6 +118,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: 3,
   },
 });

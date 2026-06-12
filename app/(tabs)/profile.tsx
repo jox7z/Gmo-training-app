@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { View, Pressable, ScrollView, Share, Alert, Image } from 'react-native';
+import { openInstagram } from '@/lib/linking';
 import { WorkoutResultsModal } from '@/components/WorkoutResultsModal';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -146,7 +147,7 @@ export default function Profile() {
         }}
       >
         {/* Hero */}
-        <Card padding="xl" style={{ alignItems: 'center', overflow: 'hidden' }}>
+        <Card variant="raised" padding="xl" style={{ alignItems: 'center', overflow: 'hidden' }}>
           <LinearGradient
             colors={rank.gradient}
             start={{ x: 0, y: 0 }}
@@ -162,7 +163,7 @@ export default function Profile() {
               end={{ x: 1, y: 0 }}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
-            <Text weight="black" style={{ color: '#0B0B0B', letterSpacing: 1 }}>{rank.label.toUpperCase()}</Text>
+            <Text weight="black" style={{ color: colors.bg.base, letterSpacing: 1 }}>{rank.label.toUpperCase()}</Text>
           </View>
           {streakWeeks > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
@@ -194,10 +195,39 @@ export default function Profile() {
               {profile.bio}
             </Text>
           )}
+          {!!profile.instagramUsername && (
+            <Pressable
+              onPress={() => openInstagram(profile.instagramUsername!)}
+              hitSlop={6}
+              style={({ pressed }) => [
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  marginTop: spacing.sm,
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 5,
+                  borderRadius: radius.full,
+                  backgroundColor: 'rgba(225,48,108,0.12)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(225,48,108,0.4)',
+                },
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Icon name="instagram" size={14} color="#E1306C" />
+              <Text variant="caption" weight="semibold" style={{ color: '#E1306C' }}>
+                @{profile.instagramUsername}
+              </Text>
+              {profile.instagramVerified && (
+                <Icon name="check" size={12} color="#22c55e" />
+              )}
+            </Pressable>
+          )}
         </Card>
 
         {/* Stats */}
-        <Card padding="lg" style={{ flexDirection: 'row' }}>
+        <Card variant="raised" padding="lg" style={{ flexDirection: 'row' }}>
           <SocialStat
             label="Seguidores"
             value={followersCount}
@@ -218,6 +248,7 @@ export default function Profile() {
           <Button
             title="Editar perfil"
             variant="secondary"
+            flat
             leftIcon={<Icon name="edit" size={15} color={colors.text.primary} />}
             onPress={() => router.push('/profile/edit')}
             style={{ flex: 1 }}
@@ -366,7 +397,7 @@ function PublicationCard({ post, onPress }: { post: Post; onPress: () => void })
   const { icon, color, label } = POST_TYPE_MAP[post.type] ?? POST_TYPE_MAP.manual;
 
   return (
-    <Card padding="lg">
+    <Card variant="raised" padding="lg">
       {/* Type row */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
         <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: `${color}22`, alignItems: 'center', justifyContent: 'center' }}>
@@ -422,7 +453,7 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
   });
 
   return (
-    <Card padding="lg">
+    <Card variant="raised" padding="lg">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary.muted, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="dumbbell" size={20} color={colors.primary.DEFAULT} />
