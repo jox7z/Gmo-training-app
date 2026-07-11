@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { View, Pressable, ScrollView, Share, Alert, Image } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { openInstagram } from '@/lib/linking';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { WorkoutResultsModal } from '@/components/WorkoutResultsModal';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,12 +11,15 @@ import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
+import { Image as ExpoImage } from 'expo-image';
 import { colors, radius, spacing, rankFromPoints } from '@/theme/tokens';
+import { RANK_IMAGES } from '@/theme/rankImages';
 import { Loader } from '@/components/ui/Loader';
 import { useAppStore } from '@/store/app';
+import { AchievementMedal } from '@/components/achievements/AchievementMedal';
+import { evaluateAchievements } from '@/lib/achievements';
 import { useProfileCounters } from '@/lib/queries/profile';
 import { useUserPosts } from '@/lib/queries/social';
 import { useWorkoutsStore, type Workout } from '@/store/workouts';
@@ -22,15 +27,6 @@ import { useToast } from '@/components/ui/Toast';
 import { CommentSheet } from '@/components/feed/CommentSheet';
 import type { Post, PostReactions } from '@/lib/repos/posts';
 import { topReactions, totalReactions } from '@/components/feed/reactions';
-
-const BADGES: { id: string; label: string; icon: IconName; color: string; earned: boolean }[] = [
-  { id: 'first',   label: 'Primer workout', icon: 'medal',   color: '#CD7F32',            earned: true  },
-  { id: 'streak3', label: 'Racha 3 sem',    icon: 'fire',    color: colors.accent.DEFAULT, earned: true  },
-  { id: 'streak10',label: 'Racha 10 sem',   icon: 'fire',    color: colors.accent.DEFAULT, earned: false },
-  { id: 'volume',  label: 'Bestia +10t',    icon: 'muscle',  color: colors.primary.DEFAULT,earned: false },
-  { id: 'early',   label: 'Madrugador',     icon: 'seedling',color: colors.success,        earned: true  },
-  { id: 'social',  label: 'Influencer',     icon: 'target',  color: colors.info.DEFAULT,   earned: false },
-];
 
 type ProfileTab = 'posts' | 'activity' | 'achievements';
 
@@ -61,13 +57,21 @@ export default function Profile() {
     [userPostsQuery.data],
   );
 
+  const { achievements, earnedLevels, totalLevels } = useMemo(() => {
+    const achievements = evaluateAchievements({ history: workoutHistory, streakWeeks });
+    return {
+      achievements,
+      earnedLevels: achievements.reduce((a, p) => a + p.level, 0),
+      totalLevels: achievements.reduce((a, p) => a + p.maxLevel, 0),
+    };
+  }, [workoutHistory, streakWeeks]);
+
   if (!profile) return <Loader />;
 
   const rank          = rankFromPoints(profile.rankPoints);
   const followersCount = countersQuery.data?.followers ?? 0;
   const followingCount = countersQuery.data?.following ?? 0;
   const postsCount     = countersQuery.data?.posts ?? 0;
-  const earnedCount    = BADGES.filter((b) => b.earned).length;
 
   const handleShare = async () => {
     try {
@@ -99,13 +103,15 @@ export default function Profile() {
           paddingBottom: spacing.xs,
         }}>
           <Text variant="heading" numberOfLines={1}>@{profile.username}</Text>
-          <Pressable
+          <PressableScale
             onPress={() => router.push('/profile/settings')}
             hitSlop={8}
-            style={({ pressed }) => [{ padding: spacing.xs, borderRadius: radius.md }, pressed && { opacity: 0.7 }]}
+            pressScale={0.88}
+            haptic={false}
+            style={{ padding: spacing.xs, borderRadius: radius.md }}
           >
             <Icon name="settings" size={20} color={colors.text.secondary} />
-          </Pressable>
+          </PressableScale>
         </View>
 
         <View style={{ flexDirection: 'row' }}>
@@ -155,7 +161,14 @@ export default function Profile() {
             style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 110, opacity: 0.25 }}
           />
           <Avatar uri={profile.avatarUrl} name={profile.displayName} size={100} borderColor={rank.color} />
-          <Text variant="title" style={{ marginTop: spacing.md }}>{profile.displayName}</Text>
+          <ExpoImage
+            source={RANK_IMAGES[rank.id]}
+            style={{ width: 72, height: 72, marginTop: spacing.sm }}
+            contentFit="contain"
+            transition={150}
+            accessibilityLabel={`Rango ${rank.label}`}
+          />
+          <Text variant="title" style={{ marginTop: spacing.xs }}>{profile.displayName}</Text>
           <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.full, overflow: 'hidden' }}>
             <LinearGradient
               colors={rank.gradient}
@@ -171,23 +184,21 @@ export default function Profile() {
               <Text variant="caption" tone="accent" weight="bold">
                 {streakWeeks} {streakWeeks === 1 ? 'semana' : 'semanas'} seguidas
               </Text>
-              <Pressable
+              <PressableScale
                 onPress={() => router.push({ pathname: '/publish', params: { mode: 'streak' } })}
                 hitSlop={6}
-                style={({ pressed }) => [
-                  {
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 3,
-                    borderRadius: radius.full,
-                    backgroundColor: colors.accent.soft,
-                    borderWidth: 1,
-                    borderColor: colors.accent.DEFAULT,
-                  },
-                  pressed && { opacity: 0.7 },
-                ]}
+                pressScale={0.92}
+                style={{
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 3,
+                  borderRadius: radius.full,
+                  backgroundColor: colors.accent.soft,
+                  borderWidth: 1,
+                  borderColor: colors.accent.DEFAULT,
+                }}
               >
                 <Text variant="caption" tone="accent" weight="bold">Compartir</Text>
-              </Pressable>
+              </PressableScale>
             </View>
           )}
           {!!profile.bio && (
@@ -196,33 +207,28 @@ export default function Profile() {
             </Text>
           )}
           {!!profile.instagramUsername && (
-            <Pressable
+            <PressableScale
               onPress={() => openInstagram(profile.instagramUsername!)}
               hitSlop={6}
-              style={({ pressed }) => [
-                {
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 5,
-                  marginTop: spacing.sm,
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: 5,
-                  borderRadius: radius.full,
-                  backgroundColor: 'rgba(225,48,108,0.12)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(225,48,108,0.4)',
-                },
-                pressed && { opacity: 0.7 },
-              ]}
+              pressScale={0.93}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 5,
+                marginTop: spacing.sm,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 5,
+                borderRadius: radius.full,
+                backgroundColor: 'rgba(225,48,108,0.12)',
+                borderWidth: 1,
+                borderColor: 'rgba(225,48,108,0.4)',
+              }}
             >
               <Icon name="instagram" size={14} color="#E1306C" />
               <Text variant="caption" weight="semibold" style={{ color: '#E1306C' }}>
                 @{profile.instagramUsername}
               </Text>
-              {profile.instagramVerified && (
-                <Icon name="check" size={12} color="#22c55e" />
-              )}
-            </Pressable>
+            </PressableScale>
           )}
         </Card>
 
@@ -253,16 +259,14 @@ export default function Profile() {
             onPress={() => router.push('/profile/edit')}
             style={{ flex: 1 }}
           />
-          <Pressable
+          <PressableScale
             onPress={handleShare}
             hitSlop={6}
-            style={({ pressed }) => [
-              { width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border },
-              pressed && { opacity: 0.7 },
-            ]}
+            pressScale={0.92}
+            style={{ width: 44, height: 44, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border }}
           >
             <Icon name="share" size={18} color={colors.text.primary} />
-          </Pressable>
+          </PressableScale>
         </View>
 
         {/* ── TAB: PUBLICACIONES ── */}
@@ -273,8 +277,10 @@ export default function Profile() {
             <TabEmpty icon="image" message="Aún no hay publicaciones." />
           ) : (
             <View style={{ gap: spacing.md }}>
-              {userPosts.map((post) => (
-                <PublicationCard key={post.id} post={post} onPress={() => setCommentsPost(post)} />
+              {userPosts.map((post, i) => (
+                <Animated.View key={post.id} entering={FadeInDown.delay(Math.min(i, 8) * 50).springify().damping(18)}>
+                  <PublicationCard post={post} onPress={() => setCommentsPost(post)} />
+                </Animated.View>
               ))}
             </View>
           )
@@ -287,11 +293,7 @@ export default function Profile() {
           ) : (
             <View style={{ gap: spacing.md }}>
               {workoutHistory.map((w) => (
-                <Pressable
-                  key={w.id}
-                  onPress={() => setSelectedWorkout(w)}
-                  style={({ pressed }) => pressed ? { opacity: 0.75 } : undefined}
-                >
+                <Pressable key={w.id} onPress={() => setSelectedWorkout(w)} style={({ pressed }) => pressed && { opacity: 0.7 }}>
                   <WorkoutHistoryCard workout={w} />
                 </Pressable>
               ))}
@@ -304,26 +306,40 @@ export default function Profile() {
           <>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs }}>
               <Text variant="heading">Mis logros</Text>
-              <Text variant="caption" tone="secondary" weight="semibold">{earnedCount}/{BADGES.length}</Text>
+              <Text variant="caption" tone="secondary" weight="semibold" numeric>{earnedLevels}/{totalLevels}</Text>
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-              {BADGES.map((b) => (
-                <Card
-                  key={b.id}
-                  padding="md"
-                  variant={b.earned ? 'glow' : 'outlined'}
-                  glowColor={b.color}
-                  style={{ width: '47%', alignItems: 'center', opacity: b.earned ? 1 : 0.4 }}
-                >
-                  <Icon name={b.icon} size={28} color={b.color} />
-                  <Text variant="caption" weight="bold" style={{ marginTop: 6, textAlign: 'center' }}>{b.label}</Text>
-                  {b.earned && <Badge label="Conseguido" tone="accent" />}
-                </Card>
+
+            <Pressable onPress={() => router.push('/achievements')} style={({ pressed }) => pressed && { opacity: 0.7 }}>
+              <Card variant="raised" padding="lg">
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent.soft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="trophy" size={22} color={colors.accent.DEFAULT} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text weight="bold">Ver todos los logros</Text>
+                    <Text variant="caption" tone="muted">
+                      {totalLevels > 0 ? `${Math.round((earnedLevels / totalLevels) * 100)}% completado` : 'Empieza a entrenar'}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={18} color={colors.text.muted} />
+                </View>
+              </Card>
+            </Pressable>
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.lg }}>
+              {achievements.map((p) => (
+                <View key={p.def.id} style={{ width: '31%', alignItems: 'center' }}>
+                  <Pressable onPress={() => router.push('/achievements')} style={{ alignItems: 'center' }}>
+                    <AchievementMedal icon={p.def.icon} color={p.def.color} level={p.level} maxLevel={p.maxLevel} size={62} />
+                    <Text variant="caption" weight="semibold" numberOfLines={1} style={{ marginTop: 6, textAlign: 'center', opacity: p.level > 0 ? 1 : 0.5 }}>
+                      {p.def.title}
+                    </Text>
+                  </Pressable>
+                </View>
               ))}
             </View>
 
             <SectionHeader title="Cuenta" />
-            <RowButton icon="robot" label="Coach IA" onPress={() => router.push('/coach')} tone="info" />
             <RowButton icon="logout" label="Cerrar sesión" onPress={handleSignOut} tone="danger" />
             <Text variant="caption" tone="muted" style={{ marginTop: spacing.xl, textAlign: 'center' }}>
               Gmo Training App · v0.1.0
@@ -506,7 +522,7 @@ function TabEmpty({ icon, message, loading }: { icon: IconName; message: string;
     <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
       <Icon name={icon} size={28} color={colors.text.muted} />
       <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-        {loading ? message : message}
+        {message}
       </Text>
     </Card>
   );
@@ -533,9 +549,9 @@ function SocialStat({ label, value, onPress }: { label: string; value: number; o
   );
   if (!onPress) return <View style={{ flex: 1 }}>{inner}</View>;
   return (
-    <Pressable onPress={onPress} hitSlop={6} style={({ pressed }) => [{ flex: 1 }, pressed && { opacity: 0.7 }]}>
+    <PressableScale onPress={onPress} hitSlop={6} pressScale={0.95} haptic={false} style={{ flex: 1 }}>
       {inner}
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -556,18 +572,16 @@ function RowButton({ icon, label, onPress, tone = 'default' }: { icon: IconName;
   const fg     = tone === 'danger' ? colors.danger : tone === 'info' ? colors.info.DEFAULT : colors.text.primary;
   const iconBg = tone === 'danger' ? 'rgba(239,68,68,0.15)' : tone === 'info' ? colors.info.soft : colors.bg.elevated;
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [
-        { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border },
-        pressed && { opacity: 0.7 },
-      ]}
+      pressScale={0.97}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border }}
     >
       <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: iconBg }}>
         <Icon name={icon} size={16} color={fg} />
       </View>
       <Text weight="semibold" style={{ flex: 1, color: fg }}>{label}</Text>
       <Icon name="chevron-right" size={16} color={colors.text.muted} />
-    </Pressable>
+    </PressableScale>
   );
 }

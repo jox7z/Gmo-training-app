@@ -40,14 +40,15 @@ metadata:
 - SetProgressPills: Animated.loop with `loop.stop()` cleanup — no leak.
 - `usedExerciseIds` memoized off `active?.exercises` — stable reference pattern, correct.
 
-## Instagram OAuth feature (added ~2026-06-11)
-- Trigger `protect_instagram_verification` on `public.profiles` guards `instagram_verified`, `instagram_user_id`, `instagram_linked_at` from client writes
-- Detection: `current_setting('request.jwt.claims', true)::jsonb ->> 'role' = 'service_role'` + `session_user = 'postgres'` for migrations/internal
-- `toDb()` in `src/lib/repos/profile.ts` deliberately omits all three protected columns (same pattern as `email`)
-- Edge function `instagram_oauth` deployed with `--no-verify-jwt`; POST /start validates JWT via `auth.getUser()`
-- Android `openAuthSessionAsync` returns `{ type: 'opened' }` immediately — deep link via `useEffect` in `edit.tsx` handles Android success path
-- Known UX bug: Android shows false 'Vinculación cancelada' toast before correct deep-link toast (linked to `type='opened'` behavior)
-- `search_users` DROP + CREATE pattern required when `RETURNS TABLE` changes — established in 0033, repeated in 0039
+## Instagram: OAuth removed, manual only (updated 2026-06-12)
+- OAuth client flow (`linkInstagram`, `handleLink`, `handleUnlink`, deep-link `useEffect`, `useLocalSearchParams` for `ig_status`) fully deleted from `app/profile/edit.tsx`
+- `src/lib/instagram.ts` deleted; no remaining imports anywhere
+- Only remaining client surface: manual `instagram_username` input in `edit.tsx`, display in `profile.tsx` and `profile/[username].tsx` via `openInstagram` from `src/lib/linking.ts`
+- `instagramVerified` field still lives in types/store/repos (read from DB) but no badge is shown; field is kept for data compatibility with existing rows
+- Trigger `protect_instagram_verification` on `public.profiles` still active (migration 0039) — blocks client writes to `instagram_verified`, `instagram_user_id`, `instagram_linked_at`
+- `toDb()` in `src/lib/repos/profile.ts` still correctly omits all three protected columns
+- Edge function `instagram_oauth` still deployed but inert (no client entry point)
+- `expo-web-browser` still in `package.json` — harmless leftover, used by edge function deploy notes only
 
 ## Redesign: Known issues found in 2026-06-09 review
 - Button chunky: `fullWidth` uses `alignSelf: stretch` on the Pressable but face View has no matching width — face won't stretch to full width. Should add `width: '100%'` or `alignSelf: 'stretch'` to the face.
@@ -55,3 +56,12 @@ metadata:
 - `playSplash` is defined inside the component body as a plain function (not useCallback) — it is recreated every render. Called only from a useEffect and an event handler, not from render, so no re-render cascade; however the phase-change useEffect has `// eslint-disable-next-line react-hooks/exhaustive-deps` suppressing the `playSplash` dep — intentional to avoid re-running on every render, but creates a stale closure risk if `playSplash` ever reads render-cycle state.
 - SwapExerciseModal: image thumbnail inline (not extracted to ExerciseThumb) — minor duplication.
 - `interval` variable in PrCarousel autoplay useEffect dep array: recalculated every render based on screenWidth; stable in practice but causes a new setInterval registration on every resize event (landscape flip). Low risk on mobile.
+
+## Achievements system (added 2026-06-12)
+- Motor puro en `src/lib/achievements.ts`: catálogo ACHIEVEMENTS, evaluateTrack, evaluateAchievements, unlockedTierIds, groupByCategory, lookupTier. Todo derivado del historial local + streakWeeks — fully offline.
+- Store persistido en `src/store/achievements.ts` (AsyncStorage 'gmo:achievements:v1'): unlocked Record<tierId, ISO date>, seeded flag. sync() es síncrono (no async), persiste via fire-and-forget.
+- Known bug: Animated.sequence in AchievementUnlockModal never stopped on unmount/index-change — can fire callbacks after component unmounts. Fix: store .start() return value and call .stop() in useEffect cleanup.
+- Known issue: weekIndex() uses UTC epoch arithmetic (floor(ms/86400000)), not local calendar. On UTC-N timezones, midnight train logs before UTC day-change assign to yesterday's week. Low impact (gym hours rarely cross UTC midnight for US/EU users), but not locale-correct.
+- Known issue: achievements tab in profile.tsx calls evaluateAchievements() in useMemo, but earnedLevels/totalLevels are re-computed inline without memoization — two separate reduce passes on the same array. Minor; consolidate if profile screen grows.
+- persist() in achievements store snapshots state at call time but is called immediately after set() — correct ordering confirmed.
+- seeded flag: backfill logic in _layout.tsx reads seeded AFTER Promise.all hydration — correct; race-safe because all stores hydrate before the seeded check runs.

@@ -1,13 +1,12 @@
 /**
  * WorkoutResultsModal — ventana visual de resultados al tocar un workout en el historial.
  *
- * Muestra un héroe animado (bíceps), una frase motivadora y, por cada ejercicio,
+ * Muestra un héroe (bíceps), una frase motivadora y, por cada ejercicio,
  * el detalle serie a serie (reps × peso). Incluye badge PR/▲ Mejora donde aplica.
  */
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import {
-  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -53,32 +52,6 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
   const history = useWorkoutsStore((s) => s.history);
   const unit    = useAppStore((s) => s.profile?.unit ?? 'kg');
 
-  // Hero animation
-  const ringScale   = useRef(new Animated.Value(0.4)).current;
-  const ringOpacity = useRef(new Animated.Value(0)).current;
-  const checkScale  = useRef(new Animated.Value(0)).current;
-  const contentOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!visible) return;
-    // Reset
-    ringScale.setValue(0.4);
-    ringOpacity.setValue(0);
-    checkScale.setValue(0);
-    contentOpacity.setValue(0);
-
-    const anim = Animated.sequence([
-      Animated.parallel([
-        Animated.spring(ringScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
-        Animated.timing(ringOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
-      ]),
-      Animated.spring(checkScale, { toValue: 1, friction: 4, tension: 100, useNativeDriver: true }),
-      Animated.timing(contentOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-    ]);
-    anim.start();
-    return () => anim.stop();
-  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Cálculos derivados (solo cuando hay workout). Memoizado para no recomputar
   // en cada render mientras el modal está montado.
   const data = useMemo(() => {
@@ -113,7 +86,7 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
   return (
     <Modal
       visible={visible}
-      animationType="slide"
+      animationType="fade"
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
@@ -156,7 +129,7 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
         >
           {/* ---- Hero ---- */}
           <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>
-            <Animated.View
+            <View
               style={{
                 width: 88,
                 height: 88,
@@ -165,17 +138,13 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
                 borderColor: colors.primary.DEFAULT,
                 alignItems: 'center',
                 justifyContent: 'center',
-                opacity: ringOpacity,
-                transform: [{ scale: ringScale }],
                 marginBottom: spacing.lg,
               }}
             >
-              <Animated.View style={{ transform: [{ scale: checkScale }] }}>
-                <Icon name="muscle" size={40} color={colors.primary.DEFAULT} filled />
-              </Animated.View>
-            </Animated.View>
+              <Icon name="muscle" size={40} color={colors.primary.DEFAULT} filled />
+            </View>
 
-            <Animated.View style={{ opacity: contentOpacity, alignItems: 'center' }}>
+            <View style={{ alignItems: 'center' }}>
               <Text
                 style={{
                   fontSize: fontSize['2xl'],
@@ -191,11 +160,11 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
               <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
                 {formatDateEs(workout.startedAt)}
               </Text>
-            </Animated.View>
+            </View>
           </View>
 
           {/* ---- Frase motivadora ---- */}
-          <Animated.View style={{ opacity: contentOpacity, marginBottom: spacing.lg }}>
+          <View style={{ marginBottom: spacing.lg }}>
             <Text
               style={{
                 fontSize: fontSize.md,
@@ -206,10 +175,10 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
             >
               {progressPhrase}
             </Text>
-          </Animated.View>
+          </View>
 
           {/* ---- Detalle por ejercicio (series: reps × peso) ---- */}
-          <Animated.View style={{ opacity: contentOpacity, gap: spacing.md }}>
+          <View style={{ gap: spacing.md }}>
             {exercises.map(({ ex, sets }) => {
               const isPR  = prs.has(ex.exerciseId);
               const comp  = comparisons.find((c) => c.exerciseId === ex.exerciseId);
@@ -275,7 +244,7 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
                 </Card>
               );
             })}
-          </Animated.View>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </Modal>

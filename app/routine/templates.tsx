@@ -2,14 +2,16 @@
  * Modal selector de rutinas famosas predefinidas.
  * Accesible desde el estado vacío de la pestaña Rutinas y desde el Alert "Cambiar rutina".
  */
-import { ScrollView, View, Pressable } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { useMemo } from 'react';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, spacing } from '@/theme/tokens';
 import { famousRoutineOptions } from '@/data/routineTemplates';
 import { useRoutinesStore } from '@/store/routines';
@@ -55,9 +57,10 @@ export default function TemplatesModal() {
           gap: spacing.md,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        {/* Botón volver — icono pequeño con escala 0.9 */}
+        <PressableScale onPress={() => router.back()} hitSlop={12} pressScale={0.9}>
           <Icon name="chevron-left" size={24} color={colors.text.secondary} />
-        </Pressable>
+        </PressableScale>
         <Text variant="title" style={{ flex: 1 }}>
           Plantillas famosas
         </Text>
@@ -71,65 +74,71 @@ export default function TemplatesModal() {
         }}
       >
         {options.map((opt, i) => (
-          <Card key={opt.routine.id} variant="raised" padding="lg" style={{ gap: spacing.sm }}>
-            {/* Badge "Famosa" */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <View
-                style={{
-                  backgroundColor: colors.primary.muted,
-                  borderRadius: 6,
-                  paddingHorizontal: 8,
-                  paddingVertical: 2,
-                }}
-              >
-                <Text
-                  variant="caption"
-                  weight="bold"
-                  style={{ color: colors.primary.DEFAULT, fontSize: 10 }}
-                >
-                  FAMOSA
-                </Text>
-              </View>
-              <Text variant="heading">{opt.label}</Text>
-            </View>
-
-            <Text variant="caption" tone="secondary">
-              {opt.summary}
-            </Text>
-
-            {/* Lista de días */}
-            <View style={{ gap: 4, marginTop: spacing.xs }}>
-              {opt.routine.days.map((day) => (
+          // Card de plantilla con entrada escalonada
+          <Animated.View
+            key={opt.routine.id}
+            entering={FadeInDown.delay(Math.min(i, 8) * 60).springify().damping(18)}
+          >
+            <Card variant="raised" padding="lg" style={{ gap: spacing.sm }}>
+              {/* Badge "Famosa" */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <View
-                  key={day.id}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
+                  style={{
+                    backgroundColor: colors.primary.muted,
+                    borderRadius: 6,
+                    paddingHorizontal: 8,
+                    paddingVertical: 2,
+                  }}
                 >
-                  <View
-                    style={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: colors.primary.DEFAULT,
-                    }}
-                  />
-                  <Text variant="caption" tone="secondary">
-                    <Text variant="caption" weight="semibold">
-                      {day.name}
-                    </Text>
-                    {' · '}
-                    {day.exercises.length} ejercicios
+                  <Text
+                    variant="caption"
+                    weight="bold"
+                    style={{ color: colors.primary.DEFAULT, fontSize: 10 }}
+                  >
+                    FAMOSA
                   </Text>
                 </View>
-              ))}
-            </View>
+                <Text variant="heading">{opt.label}</Text>
+              </View>
 
-            <Button
-              title="Elegir esta rutina"
-              onPress={() => handleSelect(i)}
-              fullWidth
-              style={{ marginTop: spacing.sm }}
-            />
-          </Card>
+              <Text variant="caption" tone="secondary">
+                {opt.summary}
+              </Text>
+
+              {/* Lista de días */}
+              <View style={{ gap: 4, marginTop: spacing.xs }}>
+                {opt.routine.days.map((day) => (
+                  <View
+                    key={day.id}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
+                  >
+                    <View
+                      style={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: colors.primary.DEFAULT,
+                      }}
+                    />
+                    <Text variant="caption" tone="secondary">
+                      <Text variant="caption" weight="semibold">
+                        {day.name}
+                      </Text>
+                      {' · '}
+                      {day.exercises.length} ejercicios
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <Button
+                title="Elegir esta rutina"
+                onPress={() => handleSelect(i)}
+                fullWidth
+                style={{ marginTop: spacing.sm }}
+              />
+            </Card>
+          </Animated.View>
         ))}
       </ScrollView>
     </Screen>

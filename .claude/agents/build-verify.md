@@ -1,7 +1,7 @@
 ---
 name: "build-verify"
 description: "Use this agent when the user wants to verify code compiles, run the test suite, check types, lint code, or confirm a change does not break the build. This agent executes commands and reports only failures — it does not fix issues or explore code.\\n\\n<example>\\nContext: The user has just written a new TypeScript module and wants to verify types are correct.\\nuser: \"Can you check that my types are all good?\"\\nassistant: \"I'll launch the build-verify agent to run a type check now.\"\\n<commentary>\\nThe user wants to verify types, so use the build-verify agent to run tsc --noEmit and report any type errors.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: The user has refactored a function and wants to confirm nothing is broken.\\nuser: \"Make sure my refactor didn't break anything\"\\nassistant: \"Let me use the build-verify agent to run the test suite and check for any failures.\"\\n<commentary>\\nThe user wants to verify a refactor, so use the build-verify agent to run tests, typecheck, and lint as appropriate.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: The user has finished implementing a feature and asks to run the full verification suite.\\nuser: \"Run all the checks before I commit\"\\nassistant: \"I'll invoke the build-verify agent to run tests, typecheck, and lint and report back any failures.\"\\n<commentary>\\nPre-commit verification is a core use case — launch the build-verify agent to run the full suite.\\n</commentary>\\n</example>\\n\\n<example>\\nContext: The user asks if the project builds successfully after merging a dependency update.\\nuser: \"Does the project still build after that change?\"\\nassistant: \"I'll use the build-verify agent to run the build command and report the result.\"\\n<commentary>\\nThe user wants to confirm the build is not broken, so use the build-verify agent to execute the build command.\\n</commentary>\\n</example>"
-tools: Glob, Grep, Read, TaskCreate, TaskGet, TaskList, TaskStop, TaskUpdate, WebFetch, WebSearch, Bash
+tools: Glob, Grep, Read, TaskCreate, TaskGet, TaskList, TaskStop, TaskUpdate, WebFetch, WebSearch, Bash, PowerShell
 model: haiku
 color: blue
 ---
@@ -92,11 +92,3 @@ When multiple failure types exist, present them in this priority order:
 - If a command times out (>120s), report it as FAILED with "Timed out after 120s"
 - If the working directory is ambiguous, run from the project root (where `package.json` resides)
 - For monorepos, run from the workspace root unless the user specifies a package
-
-**Update your agent memory** as you discover project-specific command patterns, custom script names, test runner configurations, and common recurring failure patterns. This builds institutional knowledge across conversations.
-
-Examples of what to record:
-- The exact npm/yarn/pnpm scripts used for tests, lint, typecheck, and build
-- Known flaky tests or intermittent failures
-- Custom ESLint or TypeScript config file locations
-- Any commands that require environment variables or special setup to run

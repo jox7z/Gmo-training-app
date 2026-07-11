@@ -215,12 +215,12 @@ export default function Onboarding() {
             <Text variant="display" tone="brand">GMO</Text>
             <Text variant="title" style={{ marginTop: 4 }}>Entrena. Compite. Evoluciona.</Text>
             <Text variant="body" tone="secondary" style={{ marginTop: spacing.md }}>
-              La app que convierte tu disciplina en progreso medible. Rachas, rangos y un coach IA siempre a tu lado.
+              La app que convierte tu disciplina en progreso medible. Rachas, rangos y logros que celebran tu constancia.
             </Text>
             <View style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
               <FeatureRow icon="fire" color={colors.accent.DEFAULT} title="Rachas que motivan" desc="Visualiza tu constancia semana a semana." />
               <FeatureRow icon="trophy" color="#FFD700" title="Sistema Ranked" desc="Sube de rango por consistencia, no por ego." />
-              <FeatureRow icon="robot" color={colors.info.DEFAULT} title="Coach IA 24/7" desc="Resuelve dudas de técnica y nutrición al instante." />
+              <FeatureRow icon="medal" color={colors.info.DEFAULT} title="Logros desbloqueables" desc="Gana medallas por cada hito de tu entrenamiento." />
             </View>
           </View>
         )}

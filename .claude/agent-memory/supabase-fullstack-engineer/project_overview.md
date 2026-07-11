@@ -1,6 +1,6 @@
 ---
 name: project-overview
-description: Gmo Training App overview — React Native/Expo fitness app, frontend ~70-85% done, Supabase backend deployed (migración 0035 aplicada)
+description: Gmo Training App overview — React Native/Expo fitness app, frontend ~70-85% done, Supabase backend deployed (migración 0040 aplicada; feature Coach IA eliminada)
 metadata:
   type: project
 ---
@@ -31,4 +31,6 @@ Keyboard fix in active.tsx LogPhase: KeyboardAvoidingView (iOS padding), InputAc
 
 Key stores: src/store/app.ts (profile, auth, pinnedExerciseId), src/store/routines.ts, src/store/workouts.ts. All hydrate from AsyncStorage in app/_layout.tsx.
 
-Optimization scoring: computeOptimizationScore (history-based, used by coach) vs computeRoutineScore (routine structure-based, used by routines tab). volumeBalance/RoutineScoreBreakdown.volume measure SETS — NOT the removed totalVolumeKg.
+**Coach IA feature ELIMINADA** (2026-06-12, migración 0040_drop_ai_coach): frontend ya removido (app/coach.tsx, src/lib/coach.ts, queries/repos coach). Backend dropeado: tablas ai_conversations, ai_messages, ai_response_cache, ai_usage_log; funciones ai_usage_remaining(), increment_cache_hit(text). Edge function `coach` NUNCA estuvo desplegada en live (list_edge_functions=[]). Bloque [functions.coach] removido de config.toml; dir supabase/functions/coach/ borrado. **generate_routine se queda** (no usaba ninguna tabla/RPC del coach; comparte secrets GEMINI/ANTHROPIC/OPENAI_API_KEY que NO se borraron). NOTA: ninguna edge function está desplegada en live actualmente — solo existen como código local.
+
+Optimization scoring: computeOptimizationScore (history-based, antes usado por coach) vs computeRoutineScore (routine structure-based, used by routines tab). volumeBalance/RoutineScoreBreakdown.volume measure SETS — NOT the removed totalVolumeKg.

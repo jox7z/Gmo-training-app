@@ -1,7 +1,8 @@
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
+import { PressableScale } from '@/components/ui/PressableScale';
 
 interface Props {
   context: string;
@@ -21,9 +22,10 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
   return (
     <View style={{ paddingHorizontal: spacing.lg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Pressable onPress={onClose} hitSlop={14}>
+        {/* Botón cerrar sesión — escala 0.88, hitSlop generoso */}
+        <PressableScale onPress={onClose} hitSlop={14} pressScale={0.88}>
           <Icon name="close" size={18} color={colors.text.muted} />
-        </Pressable>
+        </PressableScale>
         <Text
           variant="caption"
           tone="muted"

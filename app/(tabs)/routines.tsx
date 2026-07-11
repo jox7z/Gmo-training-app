@@ -1,10 +1,12 @@
-import { View, Pressable, Alert } from 'react-native';
+import { View, Alert } from 'react-native';
 import { useState, useMemo, useEffect } from 'react';
+import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
 import { useAppStore } from '@/store/app';
@@ -113,22 +115,6 @@ export default function Routines() {
   return (
     <Screen>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <Pressable onPress={() => router.push('/coach')}>
-          <View
-            style={{
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              backgroundColor: colors.info.soft,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: colors.info.DEFAULT,
-            }}
-          >
-            <Icon name="robot" size={20} color={colors.info.DEFAULT} />
-          </View>
-        </Pressable>
         <Text variant="title">Mi rutina</Text>
       </View>
 
@@ -185,9 +171,13 @@ export default function Routines() {
             />
           </Card>
 
-          {/* Score de optimización — siempre visible cuando hay datos */}
+          {/* Score de optimización — entra con fade escalonado */}
           {optScore && (
-            <View style={{ marginTop: spacing['2xl'], alignItems: 'center' }}>
+            <Animated.View
+              entering={FadeInDown.delay(50).springify().damping(18)}
+              layout={LinearTransition.springify().damping(18)}
+              style={{ marginTop: spacing['2xl'], alignItems: 'center' }}
+            >
               <Text variant="heading" style={{ marginBottom: spacing.md, alignSelf: 'stretch' }}>Score de optimización</Text>
               <Card variant="raised" padding="lg" style={{ alignSelf: 'stretch' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
@@ -237,12 +227,16 @@ export default function Routines() {
                   </View>
                 </View>
               </Card>
-            </View>
+            </Animated.View>
           )}
 
-          {/* Mapa muscular */}
+          {/* Mapa muscular — entra con fade escalonado */}
           {muscleStats.length > 0 && (
-            <View style={{ marginTop: spacing['2xl'] }}>
+            <Animated.View
+              entering={FadeInDown.delay(100).springify().damping(18)}
+              layout={LinearTransition.springify().damping(18)}
+              style={{ marginTop: spacing['2xl'] }}
+            >
               <Text variant="heading" style={{ marginBottom: spacing.md }}>Mapa muscular</Text>
               <Card variant="raised" padding="lg">
                 {/* Toggle frente / espalda */}
@@ -250,9 +244,11 @@ export default function Routines() {
                   {(['front', 'back'] as const).map((v) => {
                     const active = mapView === v;
                     return (
-                      <Pressable
+                      // Toggle frente/espalda — escala suave 0.96
+                      <PressableScale
                         key={v}
                         onPress={() => setMapView(v)}
+                        pressScale={0.96}
                         style={{
                           flex: 1,
                           paddingVertical: 8,
@@ -270,7 +266,7 @@ export default function Routines() {
                         >
                           {v === 'front' ? 'Frente' : 'Espalda'}
                         </Text>
-                      </Pressable>
+                      </PressableScale>
                     );
                   })}
                 </View>
@@ -304,19 +300,25 @@ export default function Routines() {
                   ))}
                 </View>
               </Card>
-            </View>
+            </Animated.View>
           )}
 
-          {/* Tabla por músculo con filtro desplegable */}
+          {/* Tabla por músculo — entra con fade escalonado */}
           {muscleStats.length > 0 && (
-            <View style={{ marginTop: spacing['2xl'], alignItems: 'center' }}>
+            <Animated.View
+              entering={FadeInDown.delay(150).springify().damping(18)}
+              layout={LinearTransition.springify().damping(18)}
+              style={{ marginTop: spacing['2xl'], alignItems: 'center' }}
+            >
               <Text variant="heading" style={{ marginBottom: spacing.md, alignSelf: 'stretch' }}>Por músculo</Text>
 
               {/* Desplegable de filtro por músculo */}
               <View style={{ marginBottom: spacing.md, zIndex: 10, alignSelf: 'stretch' }}>
-                <Pressable
+                {/* Selector de músculo — escala leve al abrir */}
+                <PressableScale
                   onPress={() => setMuscleOpen((o) => !o)}
-                  style={({ pressed }) => ({
+                  pressScale={0.97}
+                  style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: spacing.sm,
@@ -325,8 +327,8 @@ export default function Routines() {
                     borderRadius: radius.lg,
                     borderWidth: 1,
                     borderColor: muscleOpen ? colors.primary.DEFAULT : colors.border,
-                    backgroundColor: pressed ? colors.bg.elevated : colors.bg.card,
-                  })}
+                    backgroundColor: colors.bg.card,
+                  }}
                 >
                   <Text variant="caption" weight="bold" style={{ flex: 1, color: colors.text.primary }}>
                     {currentMuscleLabel}
@@ -334,7 +336,7 @@ export default function Routines() {
                   <View style={{ transform: [{ rotate: muscleOpen ? '-90deg' : '90deg' }] }}>
                     <Icon name="chevron-right" size={16} color={colors.text.muted} />
                   </View>
-                </Pressable>
+                </PressableScale>
 
                 {muscleOpen && (
                   <View
@@ -350,13 +352,16 @@ export default function Routines() {
                     {muscleDropdownOptions.map((opt, i) => {
                       const active = selectedMuscle === opt.id;
                       return (
-                        <Pressable
+                        // Opción del desplegable — escala pequeña, sin háptico propio (ya está en el trigger)
+                        <PressableScale
                           key={opt.id}
                           onPress={() => {
                             setSelectedMuscle(opt.id);
                             setMuscleOpen(false);
                           }}
-                          style={({ pressed }) => ({
+                          pressScale={0.97}
+                          haptic={false}
+                          style={{
                             flexDirection: 'row',
                             alignItems: 'center',
                             gap: spacing.sm,
@@ -364,12 +369,8 @@ export default function Routines() {
                             paddingVertical: 11,
                             borderBottomWidth: i < muscleDropdownOptions.length - 1 ? 1 : 0,
                             borderBottomColor: colors.border,
-                            backgroundColor: pressed
-                              ? colors.bg.elevated
-                              : active
-                              ? colors.primary.muted
-                              : 'transparent',
-                          })}
+                            backgroundColor: active ? colors.primary.muted : 'transparent',
+                          }}
                         >
                           <Text
                             variant="caption"
@@ -379,7 +380,7 @@ export default function Routines() {
                             {opt.label}
                           </Text>
                           {active && <Icon name="check" size={15} color={colors.primary.DEFAULT} />}
-                        </Pressable>
+                        </PressableScale>
                       );
                     })}
                   </View>
@@ -392,7 +393,7 @@ export default function Routines() {
                   grouped={selectedMuscle === 'all'}
                 />
               </Card>
-            </View>
+            </Animated.View>
           )}
         </>
       )}

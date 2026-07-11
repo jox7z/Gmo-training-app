@@ -1,6 +1,7 @@
 import { View } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { rankFromPoints, nextRank, colors, radius, spacing } from '@/theme/tokens';
+import { RANK_IMAGES } from '@/theme/rankImages';
 import { Text } from './ui/Text';
 
 interface Props {
@@ -13,16 +14,13 @@ export function RankBadge({ points, size = 'md', showProgress = false }: Props) 
   const rank = rankFromPoints(points);
   const next = nextRank(points);
   const dim = size === 'lg' ? 64 : size === 'md' ? 44 : 28;
-  const fontSize = size === 'lg' ? 14 : size === 'md' ? 11 : 9;
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-      <LinearGradient
-        colors={rank.gradient as unknown as [string, string]}
+      <View
         style={{
           width: dim,
           height: dim,
-          borderRadius: radius.full,
           alignItems: 'center',
           justifyContent: 'center',
           shadowColor: rank.color,
@@ -32,10 +30,14 @@ export function RankBadge({ points, size = 'md', showProgress = false }: Props) 
           elevation: 8,
         }}
       >
-        <Text style={{ fontSize, color: '#0B0B0B' }} weight="black">
-          {rank.label[0]}
-        </Text>
-      </LinearGradient>
+        <Image
+          source={RANK_IMAGES[rank.id]}
+          style={{ width: dim, height: dim }}
+          contentFit="contain"
+          transition={150}
+          accessibilityLabel={`Rango ${rank.label}`}
+        />
+      </View>
       {showProgress && (
         <View style={{ flex: 1 }}>
           <Text variant="heading" style={{ color: rank.color }}>

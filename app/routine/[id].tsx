@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { View, ScrollView, Pressable, Modal, FlatList } from 'react-native';
+import { View, ScrollView, Modal, FlatList } from 'react-native';
+import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
@@ -7,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore, Routine, RoutineDay, RoutineDayExercise, nid } from '@/store/routines';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
@@ -127,9 +129,10 @@ export default function RoutineEditor() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        {/* Botón cerrar — icono pequeño, escala 0.9 */}
+        <PressableScale onPress={() => router.back()} hitSlop={12} pressScale={0.9}>
           <Text variant="heading" tone="muted">✕</Text>
-        </Pressable>
+        </PressableScale>
         <Text variant="heading">Editar rutina</Text>
         <Button title="Guardar" size="sm" onPress={handleSave} />
       </View>
@@ -155,10 +158,12 @@ export default function RoutineEditor() {
             {routine.days.map((d, i) => {
               const active = i === activeDayIdx;
               return (
-                <Pressable
+                // Tab de día — escala suave; long-press para eliminar
+                <PressableScale
                   key={d.id}
                   onPress={() => setActiveDayIdx(i)}
                   onLongPress={() => removeDay(i)}
+                  pressScale={0.95}
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 16,
@@ -171,11 +176,13 @@ export default function RoutineEditor() {
                   <Text weight="bold" tone={active ? 'primary' : 'secondary'}>
                     {d.name}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
-            <Pressable
+            {/* Botón añadir día */}
+            <PressableScale
               onPress={addDay}
+              pressScale={0.95}
               style={{
                 paddingVertical: 10,
                 paddingHorizontal: 16,
@@ -186,7 +193,7 @@ export default function RoutineEditor() {
               }}
             >
               <Text tone="brand" weight="bold">+ Día</Text>
-            </Pressable>
+            </PressableScale>
           </View>
         </ScrollView>
 
@@ -207,34 +214,41 @@ export default function RoutineEditor() {
           {day.exercises.map((e) => {
             const ex = exerciseById(e.exerciseId);
             return (
-              <Card key={e.id} padding="md" style={{ marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                  {/* Columna central: nombre + steppers */}
-                  <View style={{ flex: 1, alignItems: 'center' }}>
-                    <Text
-                      weight="semibold"
-                      numberOfLines={2}
-                      style={{ textAlign: 'center', marginBottom: spacing.sm }}
-                    >
-                      {ex?.name ?? e.exerciseId}
-                    </Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
-                      <StepperField
-                        label="Sets"
-                        value={e.targetSets}
-                        min={1}
-                        max={20}
-                        step={1}
-                        onChange={(v) => updateExercise(e.id, { targetSets: v })}
-                      />
+              // Animated.View para animar inserción/eliminación de ejercicios
+              <Animated.View
+                key={e.id}
+                entering={FadeInDown.springify().damping(18)}
+                layout={LinearTransition.springify().damping(18)}
+              >
+                <Card padding="md" style={{ marginBottom: spacing.sm }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                    {/* Columna central: nombre + steppers */}
+                    <View style={{ flex: 1, alignItems: 'center' }}>
+                      <Text
+                        weight="semibold"
+                        numberOfLines={2}
+                        style={{ textAlign: 'center', marginBottom: spacing.sm }}
+                      >
+                        {ex?.name ?? e.exerciseId}
+                      </Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
+                        <StepperField
+                          label="Sets"
+                          value={e.targetSets}
+                          min={1}
+                          max={20}
+                          step={1}
+                          onChange={(v) => updateExercise(e.id, { targetSets: v })}
+                        />
+                      </View>
                     </View>
-                  </View>
-                  {/* Botón quitar — centrado verticalmente por alignItems:'center' del padre */}
-                  <Pressable
-                    onPress={() => removeExercise(e.id)}
-                    hitSlop={12}
-                    style={({ pressed }) => [
-                      {
+                    {/* Botón quitar — icono pequeño con escala 0.88 */}
+                    <PressableScale
+                      onPress={() => removeExercise(e.id)}
+                      hitSlop={12}
+                      pressScale={0.88}
+                      haptic={false}
+                      style={{
                         width: 40,
                         height: 40,
                         borderRadius: 20,
@@ -243,14 +257,13 @@ export default function RoutineEditor() {
                         backgroundColor: 'rgba(239,68,68,0.12)',
                         borderWidth: 1,
                         borderColor: 'rgba(239,68,68,0.35)',
-                      },
-                      pressed && { opacity: 0.7 },
-                    ]}
-                  >
-                    <Icon name="close" size={22} color={colors.danger} />
-                  </Pressable>
-                </View>
-              </Card>
+                      }}
+                    >
+                      <Icon name="close" size={22} color={colors.danger} />
+                    </PressableScale>
+                  </View>
+                </Card>
+              </Animated.View>
             );
           })}
         </View>
@@ -306,9 +319,11 @@ function StepperField({
         {label}
       </Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-        <Pressable
+        {/* Botón decrementar — escala 0.9, hitSlop generoso */}
+        <PressableScale
           onPress={dec}
           hitSlop={10}
+          pressScale={0.9}
           style={{
             width: 40,
             height: 40,
@@ -321,13 +336,15 @@ function StepperField({
           }}
         >
           <Text weight="bold" style={{ fontSize: 18, lineHeight: 20, color: colors.text.primary }}>−</Text>
-        </Pressable>
+        </PressableScale>
         <Text weight="bold" style={{ minWidth: 44, textAlign: 'center', fontSize: 22 }}>
           {display}
         </Text>
-        <Pressable
+        {/* Botón incrementar */}
+        <PressableScale
           onPress={inc}
           hitSlop={10}
+          pressScale={0.9}
           style={{
             width: 40,
             height: 40,
@@ -340,7 +357,7 @@ function StepperField({
           }}
         >
           <Text weight="bold" style={{ fontSize: 18, lineHeight: 20, color: colors.text.primary }}>+</Text>
-        </Pressable>
+        </PressableScale>
       </View>
     </View>
   );
@@ -382,9 +399,10 @@ function ExercisePicker({
           {/* Header fijo */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="title">Ejercicios</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
+            {/* Botón cerrar modal */}
+            <PressableScale onPress={onClose} hitSlop={12} pressScale={0.88}>
               <Icon name="close" size={18} color={colors.text.muted} />
-            </Pressable>
+            </PressableScale>
           </View>
 
           {/* Filtros de grupo — fijos arriba */}
@@ -397,9 +415,11 @@ function ExercisePicker({
             {MUSCLE_FILTER_GROUPS.map((g) => {
               const active = g.id === group;
               return (
-                <Pressable
+                // Chip de filtro muscular
+                <PressableScale
                   key={g.id}
                   onPress={() => onGroupChange(g.id)}
+                  pressScale={0.95}
                   style={{
                     paddingVertical: 8,
                     paddingHorizontal: 14,
@@ -412,7 +432,7 @@ function ExercisePicker({
                   <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
                     {g.label}
                   </Text>
-                </Pressable>
+                </PressableScale>
               );
             })}
           </ScrollView>
@@ -426,11 +446,13 @@ function ExercisePicker({
             renderItem={({ item }) => {
               const img = exerciseImage(item.id);
               return (
-                <Pressable
+                // Fila ejercicio del picker — escala 0.97
+                <PressableScale
                   onPress={() => {
                     onSelect(item.id);
                     onClose();
                   }}
+                  pressScale={0.97}
                 >
                   <Card padding="md" style={{ marginBottom: spacing.sm }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
@@ -467,7 +489,7 @@ function ExercisePicker({
                       </View>
                     </View>
                   </Card>
-                </Pressable>
+                </PressableScale>
               );
             }}
           />

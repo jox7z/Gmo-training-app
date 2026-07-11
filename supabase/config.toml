@@ -35,9 +35,6 @@ enabled = false
 [auth.external.google]
 enabled = false
 
-[functions.coach]
-verify_jwt = true
-
 [functions.generate_routine]
 verify_jwt = true
 

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { View, Pressable, FlatList, RefreshControl, Image } from 'react-native';
+import { View, FlatList, RefreshControl, Image } from 'react-native';
 import { openInstagram } from '@/lib/linking';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -175,34 +176,29 @@ export default function PublicProfile() {
                     </Text>
                   </View>
                   {!!displayProfile.instagramUsername && (
-                    <Pressable
+                    <PressableScale
                       onPress={() => openInstagram(displayProfile.instagramUsername!)}
                       hitSlop={6}
-                      style={({ pressed }) => [
-                        {
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 4,
-                          marginTop: 6,
-                          alignSelf: 'flex-start',
-                          paddingHorizontal: 8,
-                          paddingVertical: 4,
-                          borderRadius: 99,
-                          backgroundColor: 'rgba(225,48,108,0.12)',
-                          borderWidth: 1,
-                          borderColor: 'rgba(225,48,108,0.4)',
-                        },
-                        pressed && { opacity: 0.7 },
-                      ]}
+                      pressScale={0.93}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        marginTop: 6,
+                        alignSelf: 'flex-start',
+                        paddingHorizontal: spacing.sm,
+                        paddingVertical: spacing.xs,
+                        borderRadius: radius.full,
+                        backgroundColor: 'rgba(225,48,108,0.12)',
+                        borderWidth: 1,
+                        borderColor: 'rgba(225,48,108,0.4)',
+                      }}
                     >
                       <Icon name="instagram" size={12} color="#E1306C" />
                       <Text variant="caption" weight="semibold" style={{ color: '#E1306C', fontSize: 11 }}>
                         @{displayProfile.instagramUsername}
                       </Text>
-                      {displayProfile.instagramVerified && (
-                        <Icon name="check" size={11} color="#22c55e" />
-                      )}
-                    </Pressable>
+                    </PressableScale>
                   )}
                 </View>
               </View>
@@ -216,32 +212,36 @@ export default function PublicProfile() {
                   borderTopColor: colors.border,
                 }}
               >
-                <Pressable
+                <PressableScale
                   hitSlop={6}
+                  haptic={false}
+                  pressScale={0.95}
                   onPress={() =>
                     router.push({
                       pathname: '/profile/connections',
                       params: { username: displayProfile.username, type: 'followers' },
                     })
                   }
-                  style={({ pressed }) => [{ flex: 1, alignItems: 'center' }, pressed && { opacity: 0.7 }]}
+                  style={{ flex: 1, alignItems: 'center' }}
                 >
                   <Text variant="heading" weight="bold" numeric>{followersCount}</Text>
                   <Text variant="label" tone="muted" style={{ marginTop: 2 }}>SEGUIDORES</Text>
-                </Pressable>
-                <Pressable
+                </PressableScale>
+                <PressableScale
                   hitSlop={6}
+                  haptic={false}
+                  pressScale={0.95}
                   onPress={() =>
                     router.push({
                       pathname: '/profile/connections',
                       params: { username: displayProfile.username, type: 'following' },
                     })
                   }
-                  style={({ pressed }) => [{ flex: 1, alignItems: 'center' }, pressed && { opacity: 0.7 }]}
+                  style={{ flex: 1, alignItems: 'center' }}
                 >
                   <Text variant="heading" weight="bold" numeric>{followingCount}</Text>
                   <Text variant="label" tone="muted" style={{ marginTop: 2 }}>SIGUIENDO</Text>
-                </Pressable>
+                </PressableScale>
                 <View style={{ flex: 1, alignItems: 'center' }}>
                   <Text variant="heading" weight="bold" numeric>{postsCount}</Text>
                   <Text variant="label" tone="muted" style={{ marginTop: 2 }}>POSTS</Text>
@@ -318,7 +318,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
         borderBottomColor: colors.border,
       }}
     >
-      <Pressable onPress={onBack} hitSlop={8}>
+      <PressableScale onPress={onBack} hitSlop={8} pressScale={0.9} haptic={false}>
         <View
           style={{
             width: 36,
@@ -333,7 +333,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
         >
           <Icon name="chevron-left" size={18} color={colors.text.primary} />
         </View>
-      </Pressable>
+      </PressableScale>
       <View style={{ flex: 1 }}>
         <Text variant="caption" tone="muted">Perfil</Text>
         <Text variant="heading" numberOfLines={1}>{title}</Text>
@@ -344,20 +344,19 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
 
 function PostCell({ post, onPress }: { post: Post; onPress: () => void }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          aspectRatio: 1,
-          borderRadius: radius.lg,
-          overflow: 'hidden',
-          backgroundColor: colors.bg.elevated,
-          borderWidth: 1,
-          borderColor: colors.border,
-        },
-        pressed && { opacity: 0.8 },
-      ]}
+      pressScale={0.96}
+      haptic={false}
+      style={{
+        flex: 1,
+        aspectRatio: 1,
+        borderRadius: radius.lg,
+        overflow: 'hidden',
+        backgroundColor: colors.bg.elevated,
+        borderWidth: 1,
+        borderColor: colors.border,
+      }}
     >
       {post.photoUrl ? (
         <Image source={{ uri: post.photoUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
@@ -385,6 +384,6 @@ function PostCell({ post, onPress }: { post: Post; onPress: () => void }) {
           </Text>
         </View>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }

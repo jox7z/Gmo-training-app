@@ -13,6 +13,8 @@ import { colors, spacing, radius, fontSize } from '@/theme/tokens';
 import { useRoutinesStore, RoutineDay } from '@/store/routines';
 import { useWorkoutsStore, Workout, WorkoutExercise } from '@/store/workouts';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
+import { useAchievementsStore, type UnlockedAchievement } from '@/store/achievements';
+import { AchievementUnlockModal } from '@/components/achievements/AchievementUnlockModal';
 import { exerciseById, EXERCISES, MUSCLE_FILTER_GROUPS, MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
 import { exerciseImage } from '@/data/exerciseImages';
 import { formatDuration, toDisplay, fromDisplay, formatWeight } from '@/lib/units';
@@ -134,6 +136,7 @@ export default function ActiveWorkout() {
   const [phase, setPhase] = useState<Phase>('warmup');
   const [swapOpen, setSwapOpen] = useState(false);
   const [summaryWorkout, setSummaryWorkout] = useState<Workout | null>(null);
+  const [unlockQueue, setUnlockQueue] = useState<UnlockedAchievement[]>([]);
   const [exIdx, setExIdx] = useState(0);
   const [setIdx, setSetIdx] = useState(0);
   const [showSetSplash, setShowSetSplash] = useState(false);
@@ -456,6 +459,14 @@ export default function ActiveWorkout() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSummaryWorkout(finished);
       setPhase('summary');
+
+      // Reevalúa logros con el historial ya actualizado y encola los nuevos
+      // para celebrarlos sobre la pantalla de resumen.
+      const newUnlocks = useAchievementsStore.getState().sync({
+        history: useWorkoutsStore.getState().history,
+        streakWeeks: useAppStore.getState().streakWeeks,
+      });
+      if (newUnlocks.length) setUnlockQueue(newUnlocks);
       if (isSupabaseConfigured && profile.id !== LOCAL_USER_ID) {
         saveWorkout(profile.id, finished).catch((e: unknown) => {
           const msg = e instanceof Error ? e.message : 'El workout no se pudo sincronizar.';
@@ -511,17 +522,24 @@ export default function ActiveWorkout() {
 
   if (phase === 'summary' && summaryWorkout) {
     return (
-      <Summary
-        workout={summaryWorkout}
-        profile={profile}
-        onClose={() => router.replace('/(tabs)')}
-        onPublishWithCaption={() =>
-          router.replace({
-            pathname: '/publish',
-            params: { mode: 'workout', workoutId: summaryWorkout.id },
-          })
-        }
-      />
+      <>
+        <Summary
+          workout={summaryWorkout}
+          profile={profile}
+          onClose={() => router.replace('/(tabs)')}
+          onPublishWithCaption={() =>
+            router.replace({
+              pathname: '/publish',
+              params: { mode: 'workout', workoutId: summaryWorkout.id },
+            })
+          }
+        />
+        <AchievementUnlockModal
+          queue={unlockQueue}
+          visible={unlockQueue.length > 0}
+          onClose={() => setUnlockQueue([])}
+        />
+      </>
     );
   }
 

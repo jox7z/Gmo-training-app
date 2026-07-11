@@ -9,11 +9,13 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { WeightChart } from '@/components/WeightChart';
 import { WeightDetailModal } from '@/components/WeightDetailModal';
 import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/TimeSeriesChart';
 import { ExerciseProgressModal } from '@/components/ExerciseProgressModal';
 import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, type RankId } from '@/theme/tokens';
+import { RANK_IMAGES } from '@/theme/rankImages';
 import { useAppStore, type Unit } from '@/store/app';
 import { StreakRing } from '@/components/StreakRing';
 import { useWorkoutsStore } from '@/store/workouts';
@@ -136,9 +138,11 @@ export default function ProgressScreen() {
           {PERIODS.map((p) => {
             const active = period === p.value;
             return (
-              <Pressable
+              <PressableScale
                 key={p.value}
                 onPress={() => setPeriod(p.value)}
+                pressScale={0.95}
+                haptic={false}
                 style={{
                   flex: 1,
                   paddingVertical: 8,
@@ -150,7 +154,7 @@ export default function ProgressScreen() {
                 <Text weight="bold" tone={active ? 'primary' : 'secondary'} style={{ fontSize: 13 }}>
                   {p.label}
                 </Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -428,7 +432,7 @@ function BodySection({
         }}
       >
         <Text variant="heading">Peso y progreso</Text>
-        <Pressable onPress={onOpenDetail} hitSlop={8}>
+        <PressableScale onPress={onOpenDetail} hitSlop={8} pressScale={0.9} haptic={false}>
           <View
             style={{
               width: 36,
@@ -443,7 +447,7 @@ function BodySection({
           >
             <Icon name="chart" size={18} color={colors.primary.DEFAULT} />
           </View>
-        </Pressable>
+        </PressableScale>
       </View>
 
       {/* Filtro de período para el chart de peso */}
@@ -460,9 +464,11 @@ function BodySection({
         {BODY_PERIODS.map((p) => {
           const active = bodyPeriod === p.value;
           return (
-            <Pressable
+            <PressableScale
               key={p.value}
               onPress={() => onBodyPeriodChange(p.value)}
+              pressScale={0.95}
+              haptic={false}
               style={{
                 flex: 1,
                 paddingVertical: 6,
@@ -478,7 +484,7 @@ function BodySection({
               >
                 {p.label}
               </Text>
-            </Pressable>
+            </PressableScale>
           );
         })}
       </View>
@@ -717,7 +723,7 @@ function ExerciseProgressCard({
     <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text variant="heading">Progreso por ejercicio</Text>
-        <Pressable onPress={onOpen} hitSlop={8}>
+        <PressableScale onPress={onOpen} hitSlop={8} pressScale={0.9} haptic={false}>
           <View
             style={{
               width: 36,
@@ -732,10 +738,10 @@ function ExerciseProgressCard({
           >
             <Icon name="chart" size={18} color={colors.primary.DEFAULT} />
           </View>
-        </Pressable>
+        </PressableScale>
       </View>
 
-      <Pressable onPress={onOpen}>
+      <PressableScale onPress={onOpen} pressScale={0.98} haptic={false}>
         <Card variant="raised" padding="lg">
           {/* Exercise name + metric toggle */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
@@ -762,9 +768,11 @@ function ExerciseProgressCard({
               {(['weight', 'reps'] as ('weight' | 'reps')[]).map((m) => {
                 const active = metric === m;
                 return (
-                  <Pressable
+                  <PressableScale
                     key={m}
-                    onPress={(e) => { e.stopPropagation?.(); onMetricChange(m); }}
+                    onPress={() => onMetricChange(m)}
+                    pressScale={0.94}
+                    haptic={false}
                     style={{
                       paddingHorizontal: spacing.sm,
                       paddingVertical: 4,
@@ -778,7 +786,7 @@ function ExerciseProgressCard({
                     >
                       {m === 'weight' ? 'Peso' : 'Reps'}
                     </Text>
-                  </Pressable>
+                  </PressableScale>
                 );
               })}
             </View>
@@ -796,7 +804,7 @@ function ExerciseProgressCard({
             emptyMessage="Registra 2 o más sesiones con este ejercicio."
           />
         </Card>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
@@ -884,26 +892,34 @@ function RanksSection({ currentPoints }: { currentPoints: number }) {
               >
                 <View
                   style={{
-                    width: 52,
-                    height: 52,
-                    borderRadius: 26,
-                    overflow: 'hidden',
-                    borderWidth: isCurrent ? 2.5 : 1,
-                    borderColor: isCurrent ? rank.color : colors.border,
+                    width: 56,
+                    height: 56,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    shadowColor: isCurrent ? rank.color : 'transparent',
+                    shadowOpacity: isCurrent ? 0.6 : 0,
+                    shadowRadius: 10,
+                    shadowOffset: { width: 0, height: 0 },
+                    elevation: isCurrent ? 8 : 0,
                   }}
                 >
-                  <LinearGradient
-                    colors={rank.gradient}
-                    style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    {isAchieved ? (
-                      <Text weight="black" style={{ color: colors.bg.base, fontSize: 15 }}>
-                        {rank.label.charAt(0)}
-                      </Text>
-                    ) : (
-                      <Icon name="lock" size={14} color={colors.bg.base} />
-                    )}
-                  </LinearGradient>
+                  <Image
+                    source={RANK_IMAGES[rank.id]}
+                    style={{ width: 52, height: 52 }}
+                    contentFit="contain"
+                    accessibilityLabel={`Rango ${rank.label}`}
+                  />
+                  {!isAchieved && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Icon name="lock" size={16} color={colors.text.primary} />
+                    </View>
+                  )}
                 </View>
                 <Text
                   variant="caption"

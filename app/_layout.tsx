@@ -12,6 +12,7 @@ import { colors } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
 import { useRoutinesStore } from '@/store/routines';
 import { useWorkoutsStore } from '@/store/workouts';
+import { useAchievementsStore } from '@/store/achievements';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getProfile } from '@/lib/repos/profile';
 import { getWorkouts } from '@/lib/repos/workouts';
@@ -86,9 +87,22 @@ export default function RootLayout() {
   useEffect(() => {
     const routinesHydrate = useRoutinesStore.getState().hydrate;
     const workoutsHydrate = useWorkoutsStore.getState().hydrate;
-    Promise.all([hydrate(), routinesHydrate(), workoutsHydrate()]).finally(() =>
-      SplashScreen.hideAsync().catch(() => {}),
-    );
+    const achievementsHydrate = useAchievementsStore.getState().hydrate;
+    Promise.all([hydrate(), routinesHydrate(), workoutsHydrate(), achievementsHydrate()])
+      .then(() => {
+        // Backfill silencioso una sola vez: registra los logros que ya
+        // correspondían al historial existente sin celebrarlos. A partir de
+        // aquí, cada workout nuevo sí dispara la celebración (incluido el
+        // primer entreno de un usuario nuevo, que arranca sin historial).
+        const ach = useAchievementsStore.getState();
+        if (!ach.seeded) {
+          ach.sync({
+            history: useWorkoutsStore.getState().history,
+            streakWeeks: useAppStore.getState().streakWeeks,
+          });
+        }
+      })
+      .finally(() => SplashScreen.hideAsync().catch(() => {}));
   }, [hydrate]);
 
   // 2. Check initial Supabase session (with safety timeout for Android)
@@ -272,7 +286,6 @@ export default function RootLayout() {
     // (modals, full-screen flows, profile sub-pages). These must NOT be
     // bounced back to /(tabs) by the catch-all below.
     const inAllowedAuthedRoute =
-      first === 'coach' ||
       first === 'workout' ||
       first === 'routine' ||
       first === 'profile' ||
@@ -281,6 +294,7 @@ export default function RootLayout() {
       first === 'events' ||
       first === 'notifications' ||
       first === 'body' ||
+      first === 'achievements' ||
       first === 'communities';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
@@ -387,10 +401,6 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="routine/templates"
-              options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-            />
-            <Stack.Screen
-              name="coach"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen

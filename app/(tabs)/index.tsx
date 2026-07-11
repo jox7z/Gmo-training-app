@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { View, Pressable, RefreshControl, ActivityIndicator, Share } from 'react-native';
+import { View, RefreshControl, ActivityIndicator, Share } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { FeedItem } from '@/components/feed/FeedItem';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { FeedEmptyState, FeedErrorState } from '@/components/feed/FeedEmptyState';
@@ -27,27 +28,6 @@ import {
 import { useFeedRealtime } from '@/lib/queries/useFeedRealtime';
 import { useUnreadCount } from '@/lib/queries/notifications';
 
-function CoachFab({ onPress }: { onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} hitSlop={8}>
-      <View
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: colors.info.soft,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderWidth: 1,
-          borderColor: colors.info.DEFAULT,
-        }}
-      >
-        <Icon name="robot" size={20} color={colors.info.DEFAULT} />
-      </View>
-    </Pressable>
-  );
-}
-
 function ComposerAction({
   icon,
   label,
@@ -60,11 +40,13 @@ function ComposerAction({
   disabled?: boolean;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
-      style={({ pressed }) => [
+      pressScale={0.94}
+      haptic={false}
+      style={[
         {
           flex: 1,
           flexDirection: 'row',
@@ -75,7 +57,6 @@ function ComposerAction({
           borderRadius: radius.md,
           backgroundColor: 'transparent',
         },
-        pressed && !disabled && { backgroundColor: colors.bg.elevated },
         disabled && { opacity: 0.5 },
       ]}
     >
@@ -83,7 +64,7 @@ function ComposerAction({
       <Text variant="caption" weight="semibold">
         {label}
       </Text>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -104,16 +85,15 @@ function Composer({
 }) {
   return (
     <Card variant="raised" padding="lg" style={{ marginBottom: spacing.md }}>
-      <Pressable
+      <PressableScale
         onPress={onOpenManual}
-        style={({ pressed }) => [
-          {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.md,
-          },
-          pressed && { opacity: 0.7 },
-        ]}
+        pressScale={0.98}
+        haptic={false}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+        }}
       >
         <Avatar uri={avatarUrl} name={displayName} size={40} />
         <View
@@ -129,7 +109,7 @@ function Composer({
         >
           <Text tone="muted">¿Qué lograste hoy?</Text>
         </View>
-      </Pressable>
+      </PressableScale>
 
       <View
         style={{
@@ -280,7 +260,6 @@ export default function FeedHome() {
 
   const goDiscover = useCallback(() => router.push('/discover'), [router]);
   const goNotifications = useCallback(() => router.push('/notifications'), [router]);
-  const goCoach = useCallback(() => router.push('/coach'), [router]);
 
   const { data: unreadCount = 0 } = useUnreadCount();
 
@@ -306,7 +285,6 @@ export default function FeedHome() {
           backgroundColor: colors.bg.base,
         }}
       >
-        <CoachFab onPress={goCoach} />
         <View style={{ flex: 1 }}>
           <Text variant="caption" tone="muted">Hola,</Text>
           <Text variant="heading" numberOfLines={1}>
@@ -314,7 +292,7 @@ export default function FeedHome() {
           </Text>
         </View>
         {/* Bell icon with unread badge */}
-        <Pressable onPress={goNotifications} hitSlop={8}>
+        <PressableScale onPress={goNotifications} hitSlop={8} pressScale={0.9} haptic={false}>
           <View
             style={{
               width: 40,
@@ -352,9 +330,9 @@ export default function FeedHome() {
               </View>
             )}
           </View>
-        </Pressable>
+        </PressableScale>
 
-        <Pressable onPress={goDiscover} hitSlop={8}>
+        <PressableScale onPress={goDiscover} hitSlop={8} pressScale={0.9} haptic={false}>
           <View
             style={{
               width: 40,
@@ -369,7 +347,7 @@ export default function FeedHome() {
           >
             <Icon name="search" size={18} color={colors.text.primary} />
           </View>
-        </Pressable>
+        </PressableScale>
       </View>
 
       {isInitialLoading ? (
