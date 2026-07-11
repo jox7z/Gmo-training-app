@@ -35,6 +35,15 @@ export const colors = {
   danger: '#EF4444',
   dangerDark: '#B91C1C',
   warning: '#F59E0B',
+  // Colores de medalla (podios, PRs, rangos metálicos). Centralizados para no
+  // repetir literales '#FFD700' por toda la app.
+  medal: {
+    gold: '#FFD700',
+    silver: '#C0C0C0',
+    bronze: '#CD7F32',
+    goldSoft: 'rgba(255,215,0,0.12)',
+    goldBorder: 'rgba(255,215,0,0.45)',
+  },
 } as const;
 
 export const spacing = {
@@ -108,9 +117,9 @@ export const shadow = {
 
 export const RANKS = [
   { id: 'rookie',   label: 'Rookie',   min: 0,     color: '#9CA3AF', gradient: ['#6B7280', '#9CA3AF'] as [string, string] },
-  { id: 'bronze',   label: 'Bronze',   min: 200,   color: '#CD7F32', gradient: ['#A05A23', '#CD7F32'] as [string, string] },
-  { id: 'silver',   label: 'Silver',   min: 500,   color: '#C0C0C0', gradient: ['#8E8E93', '#D1D1D6'] as [string, string] },
-  { id: 'gold',     label: 'Gold',     min: 1000,  color: '#FFD700', gradient: ['#B8860B', '#FFD700'] as [string, string] },
+  { id: 'bronze',   label: 'Bronze',   min: 200,   color: colors.medal.bronze, gradient: ['#A05A23', '#CD7F32'] as [string, string] },
+  { id: 'silver',   label: 'Silver',   min: 500,   color: colors.medal.silver, gradient: ['#8E8E93', '#D1D1D6'] as [string, string] },
+  { id: 'gold',     label: 'Gold',     min: 1000,  color: colors.medal.gold, gradient: ['#B8860B', '#FFD700'] as [string, string] },
   { id: 'platinum', label: 'Platinum', min: 2000,  color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] as [string, string] },
   { id: 'diamond',  label: 'Diamond',  min: 4000,  color: '#00D4FF', gradient: ['#0066FF', '#00D4FF'] as [string, string] },
   { id: 'elite',    label: 'Elite',    min: 7000,  color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] as [string, string] },
@@ -134,4 +143,16 @@ export function nextRank(points: number): RankInfo | null {
     if (r.min > points) return r;
   }
   return null;
+}
+
+/**
+ * Color de medalla según la posición en un podio/ranking (1=oro, 2=plata,
+ * 3=bronce). Cualquier otra posición cae en el gris apagado por defecto,
+ * que es el fallback histórico de todos los podios de la app.
+ */
+export function podiumColor(position: number): string {
+  if (position === 1) return colors.medal.gold;
+  if (position === 2) return colors.medal.silver;
+  if (position === 3) return colors.medal.bronze;
+  return colors.text.muted;
 }

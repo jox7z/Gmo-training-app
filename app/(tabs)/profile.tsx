@@ -326,6 +326,23 @@ export default function Profile() {
               </Card>
             </Pressable>
 
+            <Pressable onPress={() => router.push('/records')} style={({ pressed }) => pressed && { opacity: 0.7 }}>
+              <Card variant="raised" padding="lg">
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.medal.goldSoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Icon name="trophy" size={22} color={colors.medal.gold} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text weight="bold">Récords personales</Text>
+                    <Text variant="caption" tone="muted">
+                      Tus mejores marcas y 1RM estimado
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={18} color={colors.text.muted} />
+                </View>
+              </Card>
+            </Pressable>
+
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.lg }}>
               {achievements.map((p) => (
                 <View key={p.def.id} style={{ width: '31%', alignItems: 'center' }}>
@@ -372,7 +389,7 @@ export default function Profile() {
 const POST_TYPE_MAP: Record<Post['type'], { icon: IconName; color: string; label: string }> = {
   workout:     { icon: 'dumbbell',  color: colors.primary.DEFAULT, label: 'Entrenamiento' },
   pr:          { icon: 'trophy',    color: colors.accent.DEFAULT,  label: 'PR'            },
-  rank_up:     { icon: 'lightning', color: '#FFD700',              label: 'Nuevo rango'   },
+  rank_up:     { icon: 'lightning', color: colors.medal.gold,      label: 'Nuevo rango'   },
   streak:      { icon: 'fire',      color: colors.accent.DEFAULT,  label: 'Racha'         },
   achievement: { icon: 'target',    color: colors.info.DEFAULT,    label: 'Logro'         },
   manual:      { icon: 'image',     color: colors.text.secondary,  label: 'Post'          },

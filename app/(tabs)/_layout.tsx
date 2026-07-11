@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Pressable, StyleSheet } from 'react-native';
 import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 import { BlurView } from 'expo-blur';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius } from '@/theme/tokens';
 import { TabIcon } from '@/components/TabIcon';
 import { Text } from '@/components/ui/Text';
+import { registerTabSetter } from '@/lib/tabsNav';
 
 // Screens renderizadas directamente para habilitar PagerView swipe.
 // El deep-linking individual a /(tabs)/X se sustituye por el índice del PagerView.
@@ -42,6 +43,17 @@ export default function TabsLayout() {
     setActiveIndex(i);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   }, [activeIndex]);
+
+  // Permite a componentes fuera del layout (p. ej. el FAB del feed) cambiar de
+  // tab. Usa el mismo mecanismo que los botones para no desincronizar el indicador.
+  useEffect(
+    () =>
+      registerTabSetter((i) => {
+        pagerRef.current?.setPage(i);
+        setActiveIndex(i);
+      }),
+    [],
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg.base }}>

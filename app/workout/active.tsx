@@ -22,7 +22,7 @@ import { Icon } from '@/components/Icon';
 import { saveWorkout, ensureWorkoutSynced } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { useToast } from '@/components/ui/Toast';
-import { findPreviousSession, comparePerExercise, detectPRs, summarizeProgress } from '@/lib/workoutCompare';
+import { findPreviousSession, comparePerExercise, detectPRs, summarizeProgress, previousExerciseSets, historicMaxWeight } from '@/lib/workoutCompare';
 import { WorkoutHeader } from '@/components/workout/WorkoutHeader';
 import { SetProgressPills } from '@/components/workout/SetProgressPills';
 import { ExerciseHero } from '@/components/workout/ExerciseHero';
@@ -126,6 +126,7 @@ export default function ActiveWorkout() {
   const day = routine?.days.find((d) => d.id === selectedDayId) ?? routine?.days[0];
 
   const active = useWorkoutsStore((s) => s.active);
+  const history = useWorkoutsStore((s) => s.history);
   const startWorkout = useWorkoutsStore((s) => s.startWorkout);
   const updateSet = useWorkoutsStore((s) => s.updateSet);
   const toggleSetComplete = useWorkoutsStore((s) => s.toggleSetComplete);
@@ -142,6 +143,9 @@ export default function ActiveWorkout() {
   const [showSetSplash, setShowSetSplash] = useState(false);
   const [splashPhrase, setSplashPhrase] = useState('');
   const prevPhaseRef = useRef<Phase>('warmup');
+  // Ejercicios cuyo PR en vivo ya se celebró en esta sesión (evita repetir el
+  // splash de récord si el usuario mejora el mismo ejercicio en varias series).
+  const prCelebratedRef = useRef<Set<string>>(new Set());
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [restElapsed, setRestElapsed] = useState(0);
   const [setStartedAt, setSetStartedAt] = useState<number | null>(null);
@@ -340,6 +344,21 @@ export default function ActiveWorkout() {
     [active],
   );
 
+  // Series previas del ejercicio en curso (para mostrar "Anterior" en el log).
+  // Excluye la sesión activa para no compararse consigo misma.
+  // Dependencia en exerciseId (no en `active` completo): `active` cambia de
+  // referencia en cada updateSet (peso/reps de cualquier serie), lo que
+  // recalcularía este scan de todo el historial en cada tecla del stepper.
+  const currentExerciseId = active?.exercises[exIdx]?.exerciseId;
+  const activeId = active?.id;
+  const prevSets = useMemo(
+    () =>
+      currentExerciseId && activeId
+        ? previousExerciseSets(history, currentExerciseId, activeId)
+        : null,
+    [history, currentExerciseId, activeId],
+  );
+
   if (!routine || !day || !profile) {
     return (
       <Screen>
@@ -364,6 +383,8 @@ export default function ActiveWorkout() {
     !!active &&
     exIdx === totalEx - 1 &&
     setIdx === (currentEx?.sets.length ?? 1) - 1;
+  // Serie previa que corresponde a la serie actual (última previa si hoy hay más).
+  const prevSetForCurrent = prevSets ? prevSets[Math.min(setIdx, prevSets.length - 1)] : null;
 
   // ---- handlers ----
 
@@ -374,17 +395,24 @@ export default function ActiveWorkout() {
       exercises: day.exercises.map((e) => {
         const ex = exerciseById(e.exerciseId);
         const isBodyweight = ex?.equipment === 'bodyweight';
+        // Autocompleta peso/reps con lo que hiciste la última vez en este
+        // ejercicio. Si hay menos series previas que las de hoy, la última serie
+        // previa cubre las restantes; sin historial, valores por defecto.
+        const prev = previousExerciseSets(history, e.exerciseId);
         return {
           id: '',
           exerciseId: e.exerciseId,
           exerciseName: ex?.name ?? e.exerciseId,
           muscleGroup: ex?.muscle ?? 'core',
-          sets: Array.from({ length: e.targetSets }, () => ({
-            id: Math.random().toString(36).slice(2),
-            reps: e.targetRepsMin,
-            weightKg: isBodyweight ? 0 : 20,
-            isCompleted: false,
-          })),
+          sets: Array.from({ length: e.targetSets }, (_, i) => {
+            const src = prev ? prev[Math.min(i, prev.length - 1)] : null;
+            return {
+              id: Math.random().toString(36).slice(2),
+              reps: src?.reps ?? e.targetRepsMin,
+              weightKg: src?.weightKg ?? (isBodyweight ? 0 : 20),
+              isCompleted: false,
+            };
+          }),
         };
       }),
     });
@@ -403,6 +431,20 @@ export default function ActiveWorkout() {
   const handleLogSave = () => {
     toggleSetComplete(exIdx, setIdx);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // PR en vivo: si el peso de esta serie supera el máximo histórico del
+    // ejercicio (excluyendo esta sesión), celebra con splash una sola vez.
+    if (
+      currentEx &&
+      currentSet &&
+      active &&
+      !prCelebratedRef.current.has(currentEx.exerciseId)
+    ) {
+      const max = historicMaxWeight(history, currentEx.exerciseId, active.id);
+      if (max > 0 && currentSet.weightKg > max) {
+        prCelebratedRef.current.add(currentEx.exerciseId);
+        playSplash(PROGRESS_PHRASES.pr);
+      }
+    }
     setRestStartedAt(Date.now());
     setRestElapsed(0);
     setPhase('rest');
@@ -612,6 +654,7 @@ export default function ActiveWorkout() {
             exerciseName={currentEx.exerciseName}
             setNumber={setIdx + 1}
             totalSets={currentEx.sets.length}
+            previous={prevSetForCurrent}
             onWeightChange={(v) => updateSet(exIdx, setIdx, { weightKg: fromDisplay(v, profile.unit) })}
             onRepsChange={(v) => updateSet(exIdx, setIdx, { reps: v })}
             onSave={handleLogSave}
@@ -1219,6 +1262,7 @@ function LogPhase({
   exerciseName,
   setNumber,
   totalSets,
+  previous,
   onWeightChange,
   onRepsChange,
   onSave,
@@ -1229,6 +1273,7 @@ function LogPhase({
   exerciseName: string;
   setNumber: number;
   totalSets: number;
+  previous?: { weightKg: number; reps: number } | null;
   onWeightChange: (v: number) => void;
   onRepsChange: (v: number) => void;
   onSave: () => void;
@@ -1299,6 +1344,15 @@ function LogPhase({
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
       >
+        {/* Referencia rápida de lo que hiciste la última vez en esta serie */}
+        {previous && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <Icon name="clock" size={13} color={colors.text.muted} />
+            <Text variant="caption" tone="muted" numeric>
+              Anterior: {formatWeight(previous.weightKg, unit)} × {previous.reps}
+            </Text>
+          </View>
+        )}
         <BigStepperInput
           label={unit.toUpperCase()}
           value={displayWeight}
@@ -1624,7 +1678,7 @@ function Summary({
               ...(progress.prCount > 0 ? {
                 borderWidth: 1.5,
                 borderColor: 'rgba(255,215,0,0.75)',
-                shadowColor: '#FFD700',
+                shadowColor: colors.medal.gold,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.45,
                 shadowRadius: 12,
@@ -1638,7 +1692,7 @@ function Summary({
                   style={{
                     fontSize: fontSize.xl,
                     fontWeight: '800',
-                    color: progress.prCount > 0 ? '#FFD700' : colors.success,
+                    color: progress.prCount > 0 ? colors.medal.gold : colors.success,
                     textAlign: 'center',
                     letterSpacing: -0.3,
                   }}

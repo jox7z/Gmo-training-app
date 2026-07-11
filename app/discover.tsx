@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
-import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
+import { colors, radius, spacing, RANKS, RankId, podiumColor } from '@/theme/tokens';
 import { useSearchUsers, type SearchUserResult } from '@/lib/queries/search';
 import { useGlobalLeaderboard, type GlobalRankEntry } from '@/lib/queries/social';
 import { useEvents, type EventFilter } from '@/lib/queries/events';
@@ -437,11 +437,7 @@ function RankingRow({
   onOpen: () => void;
 }) {
   const info = rankInfo(entry.currentRank);
-  const posColor =
-    position === 1 ? '#FFD700'
-    : position === 2 ? '#C0C0C0'
-    : position === 3 ? '#CD7F32'
-    : colors.text.muted;
+  const posColor = podiumColor(position);
 
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>

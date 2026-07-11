@@ -111,6 +111,20 @@ the only place that decides where the user goes. Key invariants there:
 - **Muscle optimization** uses fractional set counting: a primary muscle gets 1 set per
   working set, each `secondary` muscle gets 0.5. See `Exercise` in `src/data/exercises.ts`
   and `src/lib/optimizationScore.ts`.
+- **PRs / 1RM / previous-session data** all derive from local `Workout[]` history via
+  pure helpers: `src/lib/workoutCompare.ts` (`detectPRs`, `historicMaxWeight` — live PR
+  splash in `app/workout/active.tsx` uses the same helper as the summary so they never
+  disagree; `previousExerciseSets` powers the per-set autofill + "Anterior" line) and
+  `src/lib/oneRepMax.ts` (Epley/Brzycki `estimate1RM`, `computeExerciseRecords` — always
+  filter `isCompleted && !isWarmup && weightKg > 0`). The Records screen is
+  `app/records.tsx` (whitelisted authed route), linked from the profile "Logros" tab.
+  All math stays in kg; convert only at render time.
+- **Medal colors** (podiums, PR gold) come from `colors.medal` + `podiumColor(position)`
+  in `src/theme/tokens.ts` — don't hardcode `#FFD700`/`#C0C0C0`/`#CD7F32` again.
+- **Tabs are a PagerView, not a navigator** (`app/(tabs)/_layout.tsx` holds a local
+  `activeIndex`): there is no navigable `/(tabs)/<tab>` route. To switch tabs from
+  outside, use the `registerTabSetter`/`goToTab` singleton in `src/lib/tabsNav.ts`
+  (used by `StartWorkoutFab`, the feed's floating "start workout" CTA).
 - **Achievements (logros)** — Duolingo-style tiered system, **fully client-side & offline**
   (no Supabase tables). `src/lib/achievements.ts` is the authoritative catalog + pure
   engine: each track has escalating *tiers* and a `measure(ctx)` derived entirely from

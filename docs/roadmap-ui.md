@@ -166,13 +166,13 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 
 | Item | Prioridad | Esfuerzo | Depende de | Dimensión |
 |---|---|---|---|---|
-| Tokenizar gold/plata/bronce + gradientes reutilizables en `src/theme/tokens.ts` | P0 | S | — | D8 |
+| Tokenizar gold/plata/bronce + gradientes reutilizables en `src/theme/tokens.ts` | P0 | S | — | D8 · ✅ 2026-07-11 (`colors.medal` + `podiumColor()`; los gradientes metálicos siguen en `RANKS[].gradient`) |
 | Añadir lineHeight/letterSpacing a tokens y a `Text.tsx`; migrar tipografía inline de `active.tsx` | P1 | M | — | D8 |
 | Matar los 89 hex hardcodeados (32 en `src/`, 57 en `app/`) → tokens | P1 | M | tokens de gradiente | D8 |
 | Extraer `SegmentedControl`, `IconButton`, `Chip` a `src/components/ui/` (hoy reimplementados ≥4 veces) | P1 | M | — | D8 |
-| Columna "anterior" + autofill por set en workout activo | P0 | M | — | D1 |
-| Banner de PR en vivo al completar set (la detección ya existe en `workoutCompare.ts`) | P1 | S | — | D5 |
-| CTA persistente "empezar entreno" (header del feed o botón flotante) | P0 | S–M | — | D2 |
+| Columna "anterior" + autofill por set en workout activo | P0 | M | — | D1 · ✅ 2026-07-11 (`previousExerciseSets` en `workoutCompare.ts`; autofill en warmup + línea "Anterior" en LogPhase) |
+| Banner de PR en vivo al completar set (la detección ya existe en `workoutCompare.ts`) | P1 | S | — | D5 · ✅ 2026-07-11 (`historicMaxWeight` + `playSplash`, 1 vez por ejercicio/sesión) |
+| CTA persistente "empezar entreno" (header del feed o botón flotante) | P0 | S–M | — | D2 · ✅ 2026-07-11 (FAB `StartWorkoutFab` en el feed: reanuda/empieza siguiente día/salta a Rutinas vía `tabsNav`) |
 | Degradación offline explícita en features sociales (mensaje, no spinner) | P2 | S | — | D7 |
 
 ### C1 — Assets críticos (P0 — bloqueado por ARTE, no por código)

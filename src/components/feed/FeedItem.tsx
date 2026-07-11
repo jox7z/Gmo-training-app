@@ -328,7 +328,7 @@ function WorkoutBody({ post }: { post: Post }) {
   );
 }
 
-const GOLD = '#FFD700';
+const GOLD = colors.medal.gold;
 
 export function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
   const glow = useRef(new Animated.Value(0)).current;

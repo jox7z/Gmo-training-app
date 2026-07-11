@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
-import { colors, radius, spacing, RANKS, type RankId } from '@/theme/tokens';
+import { colors, radius, spacing, RANKS, podiumColor, type RankId } from '@/theme/tokens';
 import {
   useEvent,
   useEventParticipants,
@@ -363,11 +363,7 @@ function ParticipantRow({
   onOpen: () => void;
 }) {
   const info = rankInfo(participant.currentRank);
-  const posColor =
-    position === 1 ? '#FFD700'
-    : position === 2 ? '#C0C0C0'
-    : position === 3 ? '#CD7F32'
-    : colors.text.muted;
+  const posColor = podiumColor(position);
 
   return (
     <Pressable
