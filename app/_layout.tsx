@@ -295,6 +295,7 @@ export default function RootLayout() {
       first === 'notifications' ||
       first === 'body' ||
       first === 'achievements' ||
+      first === 'records' ||
       first === 'communities';
 
     // Recovery flow: when the user opens the password reset deep link, Supabase
@@ -432,6 +433,7 @@ export default function RootLayout() {
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
             <Stack.Screen name="discover" options={{ animation: 'slide_from_right' }} />
+            <Stack.Screen name="records" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="communities/index" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen
               name="communities/new"

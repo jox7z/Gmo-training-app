@@ -27,7 +27,7 @@ import {
 } from '@/lib/workoutCompare';
 import { formatWeight } from '@/lib/units';
 
-const GOLD = '#FFD700';
+const GOLD = colors.medal.gold;
 
 const PROGRESS_LABEL = {
   pr:     '¡Nuevo récord personal!',
@@ -183,7 +183,7 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
               const isPR  = prs.has(ex.exerciseId);
               const comp  = comparisons.find((c) => c.exerciseId === ex.exerciseId);
               const badge = isPR
-                ? { label: 'PR', color: GOLD, bg: 'rgba(255,215,0,0.12)', border: 'rgba(255,215,0,0.45)' }
+                ? { label: 'PR', color: GOLD, bg: colors.medal.goldSoft, border: colors.medal.goldBorder }
                 : comp?.improved
                 ? { label: '▲ Mejora', color: colors.success, bg: colors.bg.elevated, border: colors.border }
                 : null;

@@ -81,7 +81,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 |---|---|---|---|
 | Push notifications (expo-notifications) | P0 | L | Desbloquea re-engagement social (likes/comentarios/seguidores) y el rest timer con notificación. **OJO:** desde SDK 53 el push remoto NO funciona en Expo Go → requiere development build (EAS); planificar ese salto aquí y alinearlo con Sentry y OAuth. El mismo salto desbloquea el Tier 2 visual (fase C3 de la Pista C). |
 | Rest timer que sobrevive background + notificación local | P0 | M | Cambiar tick por timestamps; depende de expo-notifications. Bug conocido: el cronómetro actual no se pausa al ir a background. |
-| Pantalla Records/PRs dedicada + 1RM estimado (Epley/Brzycki) | P0 | M | Los datos ya existen (`detectPRs` en `src/lib/workoutCompare.ts` + historial); solo falta UI + cálculo. |
+| Pantalla Records/PRs dedicada + 1RM estimado (Epley/Brzycki) | P0 | M | ✅ Aplicada 2026-07-11 — `src/lib/oneRepMax.ts` (Epley/Brzycki) + `app/records.tsx` (toggle de fórmula, unidades del perfil), enlazada desde el tab Logros del perfil. |
 | Sentry (crash reporting) mínimo | P1 | S | Instrumentar antes de crecer. |
 
 ### Fase B2 — Diferenciadores (Sprint 3–5)
@@ -115,17 +115,10 @@ De `docs/memory/checklist.md`:
 - Redondeo KG↔LB en workout activo
 - El generador reemplaza la rutina activa sin confirmar
 
-### Cierre pendiente — Coach IA (P0, S)
-
-La retirada está decidida y a medio cerrar:
+### Cierre pendiente — Coach IA (P0, S) — ✅ CERRADO 2026-07-11
 
 - La migración `0040_drop_ai_coach` **ya está aplicada en el Supabase live** (verificado vía MCP 2026-07-07): las tablas `ai_*` ya no existen en la DB
-- El borrado en código (`app/coach.tsx`, `src/lib/coach.ts`, repos/queries, edge function) y el archivo de la migración están **SIN commitear** en el working tree
-
-**Pasos:**
-
-1. Commitear el borrado en código + el archivo de migración 0040
-2. Limpiar referencias sobrantes en docs
+- El borrado en código + el archivo de la migración 0040 se commitearon en `feat/initial-app-foundation` (2026-07-11); CLAUDE.md documenta la retirada
 
 ---
 

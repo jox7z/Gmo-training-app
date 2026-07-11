@@ -11,6 +11,7 @@ import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FeedItem } from '@/components/feed/FeedItem';
+import { StartWorkoutFab } from '@/components/StartWorkoutFab';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { FeedEmptyState, FeedErrorState } from '@/components/feed/FeedEmptyState';
 import { CommentSheet } from '@/components/feed/CommentSheet';
@@ -394,7 +395,7 @@ export default function FeedHome() {
           contentContainerStyle={{
             paddingHorizontal: spacing.lg,
             paddingTop: spacing.lg,
-            paddingBottom: insets.bottom + 100,
+            paddingBottom: insets.bottom + 170,
           }}
           ListHeaderComponent={
             <Composer
@@ -433,6 +434,10 @@ export default function FeedHome() {
         postOwnerId={commentsPost?.userId ?? null}
         currentUserId={profile?.id ?? null}
         onClose={() => setCommentsPost(null)}
+      />
+
+      <StartWorkoutFab
+        style={{ position: 'absolute', right: spacing.lg, bottom: insets.bottom + 70 + spacing.lg }}
       />
     </SafeAreaView>
   );

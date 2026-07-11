@@ -1,4 +1,4 @@
-import { Workout, WorkoutExercise } from '@/store/workouts';
+import { Workout, WorkoutExercise, SetEntry } from '@/store/workouts';
 
 /** Top-set weight for a single exercise (completed non-warmup sets only). */
 export function exerciseTopWeight(ex: WorkoutExercise): number {
@@ -17,6 +17,46 @@ export function exerciseTopReps(ex: WorkoutExercise): number {
   const topWeight = Math.max(...completed.map((s) => s.weightKg));
   const topSets = completed.filter((s) => s.weightKg === topWeight);
   return Math.max(...topSets.map((s) => s.reps));
+}
+
+/**
+ * Devuelve las series (completadas, no de calentamiento) del ejercicio
+ * `exerciseId` en la sesión más reciente que lo contenga. `history` ya viene
+ * ordenado descendente por `startedAt`, así que la primera coincidencia es la
+ * más reciente. Se puede excluir un workout (p. ej. el que está en curso) con
+ * `excludeWorkoutId`. Devuelve `null` si nunca se registró ese ejercicio.
+ *
+ * Uso: mostrar "Anterior" y autocompletar peso/reps por defecto al empezar.
+ */
+export function previousExerciseSets(
+  history: Workout[],
+  exerciseId: string,
+  excludeWorkoutId?: string,
+): SetEntry[] | null {
+  for (const w of history) {
+    if (w.id === excludeWorkoutId) continue;
+    const ex = w.exercises.find((e) => e.exerciseId === exerciseId);
+    if (!ex) continue;
+    const sets = ex.sets.filter((s) => s.isCompleted && !s.isWarmup);
+    if (sets.length > 0) return sets;
+  }
+  return null;
+}
+
+/**
+ * Máximo peso histórico (top-set) del ejercicio `exerciseId` a lo largo de
+ * `history`, excluyendo opcionalmente `excludeWorkoutId`. Devuelve 0 si nunca
+ * se registró con peso. Base para detectar PRs en vivo y al cerrar el workout.
+ */
+export function historicMaxWeight(
+  history: Workout[],
+  exerciseId: string,
+  excludeWorkoutId?: string,
+): number {
+  return history
+    .filter((w) => w.id !== excludeWorkoutId)
+    .flatMap((w) => w.exercises.filter((e) => e.exerciseId === exerciseId))
+    .reduce((max, e) => Math.max(max, exerciseTopWeight(e)), 0);
 }
 
 /**
@@ -129,10 +169,7 @@ export function detectPRs(history: Workout[], current: Workout): Set<string> {
     const curTop = exerciseTopWeight(ex);
     if (curTop <= 0) continue;
 
-    const historicMax = history
-      .filter((w) => w.id !== current.id)
-      .flatMap((w) => w.exercises.filter((e) => e.exerciseId === ex.exerciseId))
-      .reduce((max, e) => Math.max(max, exerciseTopWeight(e)), 0);
+    const historicMax = historicMaxWeight(history, ex.exerciseId, current.id);
 
     if (curTop > historicMax) {
       prs.add(ex.exerciseId);
