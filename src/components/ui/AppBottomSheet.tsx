@@ -16,6 +16,7 @@ import {
   BottomSheetModal,
   BottomSheetBackdrop,
   type BottomSheetBackdropProps,
+  type BottomSheetFooterProps,
 } from '@gorhom/bottom-sheet';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { Text } from './Text';
@@ -33,6 +34,12 @@ export interface AppBottomSheetProps {
   enableContentPanningGesture?: boolean;
   /** Cabecera opcional (Text semibold centrado). */
   title?: string;
+  /**
+   * Footer nativo de gorhom, pinneado sobre el teclado. Úsalo para inputs fijos
+   * (p. ej. la barra de comentarios): recibe `animatedFooterPosition` y debe
+   * renderizar `<BottomSheetFooter {...props}>`. No lo montes como `children`.
+   */
+  footerComponent?: React.FC<BottomSheetFooterProps>;
   children: React.ReactNode;
 }
 
@@ -46,6 +53,7 @@ export const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(
       keyboardBehavior,
       enableContentPanningGesture = true,
       title,
+      footerComponent,
       children,
     },
     ref,
@@ -86,6 +94,7 @@ export const AppBottomSheet = forwardRef<BottomSheetModal, AppBottomSheetProps>(
         enableDynamicSizing={enableDynamicSizing}
         onDismiss={handleDismiss}
         backdropComponent={renderBackdrop}
+        footerComponent={footerComponent}
         backgroundStyle={{
           backgroundColor: colors.bg.card,
           borderTopLeftRadius: radius.xl,
