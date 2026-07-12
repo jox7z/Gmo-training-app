@@ -5,6 +5,11 @@
  * con todos los ejercicios entrenados (con historial), filtrables por grupo
  * muscular, cada uno con su imagen de demostración. Al tocar uno, lo selecciona
  * y cierra.
+ *
+ * TODO(c4): eliminar cuando ExerciseProgressModal migre a AppBottomSheet — su
+ * único consumidor. Mientras ese padre sea un Modal nativo, un sheet portaleado
+ * al root quedaría DETRÁS del modal en iOS, así que este Modal se conserva.
+ * Los pickers de workout/active y routine/[id] ya usan ExercisePickerSheet.
  */
 
 import { useEffect, useMemo, useState } from 'react';

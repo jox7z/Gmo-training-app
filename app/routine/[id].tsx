@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
-import { View, ScrollView, Modal, FlatList } from 'react-native';
+import { useState } from 'react';
+import { View, ScrollView } from 'react-native';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
-import { Image } from 'expo-image';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -14,15 +14,8 @@ import { useRoutinesStore, Routine, RoutineDay, RoutineDayExercise, nid } from '
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { saveRoutine } from '@/lib/repos/routines';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import {
-  EXERCISES,
-  exerciseById,
-  MuscleGroup,
-  MUSCLE_FILTER_GROUPS,
-  MUSCLE_GROUP_LABELS,
-  EQUIPMENT_LABELS,
-} from '@/data/exercises';
-import { exerciseImage } from '@/data/exerciseImages';
+import { exerciseById } from '@/data/exercises';
+import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
 import { Icon } from '@/components/Icon';
 
 const EMPTY_ROUTINE = (): Routine => ({
@@ -43,7 +36,6 @@ export default function RoutineEditor() {
   const [routine, setRoutine] = useState<Routine>(existing ?? EMPTY_ROUTINE());
   const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerGroup, setPickerGroup] = useState<string>('all');
 
   const day = routine.days[activeDayIdx];
 
@@ -117,7 +109,10 @@ export default function RoutineEditor() {
     router.back();
   };
 
+  // Provider LOCAL: esta ruta se presenta como modal nativo (presentation:'modal');
+  // el portal al provider del root quedaría DETRÁS del modal en iOS.
   return (
+    <BottomSheetModalProvider>
     <Screen padded={false}>
       <View
         style={{
@@ -277,14 +272,14 @@ export default function RoutineEditor() {
         />
       </ScrollView>
 
-      <ExercisePicker
+      <ExercisePickerSheet
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
-        group={pickerGroup}
-        onGroupChange={setPickerGroup}
-        onSelect={addExercise}
+        onSelect={(ex) => addExercise(ex.id)}
+        title="Ejercicios"
       />
     </Screen>
+    </BottomSheetModalProvider>
   );
 }
 
@@ -363,138 +358,3 @@ function StepperField({
   );
 }
 
-function ExercisePicker({
-  visible,
-  onClose,
-  group,
-  onGroupChange,
-  onSelect,
-}: {
-  visible: boolean;
-  onClose: () => void;
-  group: string;
-  onGroupChange: (g: string) => void;
-  onSelect: (id: string) => void;
-}) {
-  const filtered = useMemo(() => {
-    if (group === 'all') return EXERCISES;
-    const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
-    if (!g) return EXERCISES;
-    return EXERCISES.filter((e) => g.muscles.includes(e.muscle as MuscleGroup));
-  }, [group]);
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={{ flex: 1, backgroundColor: colors.bg.overlay, justifyContent: 'flex-end' }}>
-        {/* Contenedor con altura fija para evitar saltos al filtrar */}
-        <View
-          style={{
-            backgroundColor: colors.bg.base,
-            borderTopLeftRadius: radius.xl,
-            borderTopRightRadius: radius.xl,
-            height: '85%',
-            padding: spacing.lg,
-          }}
-        >
-          {/* Header fijo */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text variant="title">Ejercicios</Text>
-            {/* Botón cerrar modal */}
-            <PressableScale onPress={onClose} hitSlop={12} pressScale={0.88}>
-              <Icon name="close" size={18} color={colors.text.muted} />
-            </PressableScale>
-          </View>
-
-          {/* Filtros de grupo — fijos arriba */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginTop: spacing.md, flexGrow: 0 }}
-            contentContainerStyle={{ gap: spacing.sm }}
-          >
-            {MUSCLE_FILTER_GROUPS.map((g) => {
-              const active = g.id === group;
-              return (
-                // Chip de filtro muscular
-                <PressableScale
-                  key={g.id}
-                  onPress={() => onGroupChange(g.id)}
-                  pressScale={0.95}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 14,
-                    borderRadius: radius.full,
-                    backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                    borderWidth: 1,
-                    borderColor: active ? colors.primary.DEFAULT : colors.border,
-                  }}
-                >
-                  <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
-                    {g.label}
-                  </Text>
-                </PressableScale>
-              );
-            })}
-          </ScrollView>
-
-          {/* Lista con flex:1 para ocupar el espacio restante */}
-          <FlatList
-            data={filtered}
-            keyExtractor={(e) => e.id}
-            style={{ marginTop: spacing.md, flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const img = exerciseImage(item.id);
-              return (
-                // Fila ejercicio del picker — escala 0.97
-                <PressableScale
-                  onPress={() => {
-                    onSelect(item.id);
-                    onClose();
-                  }}
-                  pressScale={0.97}
-                >
-                  <Card padding="md" style={{ marginBottom: spacing.sm }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                      {/* Imagen / fallback */}
-                      <View
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: radius.md,
-                          overflow: 'hidden',
-                          backgroundColor: colors.bg.elevated,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {img !== undefined ? (
-                          <Image
-                            source={img}
-                            style={{ width: '100%', height: '100%' }}
-                            contentFit="cover"
-                            transition={120}
-                          />
-                        ) : (
-                          <Icon name="dumbbell" size={20} color={colors.text.muted} />
-                        )}
-                      </View>
-                      {/* Nombre + músculo */}
-                      <View style={{ flex: 1 }}>
-                        <Text weight="semibold" numberOfLines={1}>{item.name}</Text>
-                        <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                          {MUSCLE_GROUP_LABELS[item.muscle]} · {EQUIPMENT_LABELS[item.equipment]}
-                        </Text>
-                      </View>
-                    </View>
-                  </Card>
-                </PressableScale>
-              );
-            }}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-}

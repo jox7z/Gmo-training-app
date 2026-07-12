@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, Modal, FlatList } from 'react-native';
+import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView } from 'react-native';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,8 +16,9 @@ import { useWorkoutsStore, Workout, WorkoutExercise } from '@/store/workouts';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { useAchievementsStore, type UnlockedAchievement } from '@/store/achievements';
 import { AchievementUnlockModal } from '@/components/achievements/AchievementUnlockModal';
-import { exerciseById, EXERCISES, MUSCLE_FILTER_GROUPS, MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/data/exercises';
+import { exerciseById, MUSCLE_FILTER_GROUPS, MUSCLE_GROUP_LABELS } from '@/data/exercises';
 import { exerciseImage } from '@/data/exerciseImages';
+import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
 import { formatDuration, toDisplay, fromDisplay, formatWeight } from '@/lib/units';
 import { Icon } from '@/components/Icon';
 import { saveWorkout, ensureWorkoutSynced } from '@/lib/repos/workouts';
@@ -378,6 +380,13 @@ export default function ActiveWorkout() {
   // ---- derived state ----
   const currentEx  = active?.exercises[exIdx];
   const currentSet = currentEx?.sets[setIdx];
+
+  // El selector de cambio arranca filtrado por el músculo del ejercicio actual
+  // y destaca sus equivalentes (mismo músculo primero).
+  const currentMuscle = currentEx ? exerciseById(currentEx.exerciseId)?.muscle : undefined;
+  const swapInitialGroup =
+    MUSCLE_FILTER_GROUPS.find((g) => currentMuscle && g.muscles.includes(currentMuscle))?.id ??
+    'all';
   const totalEx    = active?.exercises.length ?? 0;
   const isLastSet  =
     !!active &&
@@ -585,7 +594,10 @@ export default function ActiveWorkout() {
     );
   }
 
+  // Provider LOCAL: esta ruta se presenta como modal nativo (fullScreenModal);
+  // el portal al provider del root quedaría DETRÁS del modal en iOS.
   return (
+    <BottomSheetModalProvider>
     <View style={{ flex: 1, backgroundColor: colors.bg.base }}>
       {/* Header: close + contexto + chip de tiempo + barra de progreso global */}
       <View style={{ paddingTop: insets.top + spacing.md, paddingBottom: spacing.sm }}>
@@ -803,14 +815,18 @@ export default function ActiveWorkout() {
       )}
 
       {/* Cambio de ejercicio solo para esta sesión */}
-      <SwapExerciseModal
+      <ExercisePickerSheet
         visible={swapOpen}
-        currentExerciseId={currentEx?.exerciseId ?? ''}
-        usedExerciseIds={usedExerciseIds}
         onClose={() => setSwapOpen(false)}
-        onSelect={handleSwapSelect}
+        onSelect={(ex) => handleSwapSelect(ex.id)}
+        excludeIds={usedExerciseIds}
+        title="Cambiar ejercicio"
+        subtitle="Solo para esta sesión — tu rutina queda igual."
+        initialMuscle={swapInitialGroup}
+        highlightMuscle={currentMuscle}
       />
     </View>
+    </BottomSheetModalProvider>
   );
 }
 
@@ -1085,171 +1101,6 @@ function SetPhase({
 
       <Button title="Terminé la serie" variant="primary" size="lg" fullWidth onPress={onDone} />
     </>
-  );
-}
-
-// ---- Swap exercise modal (cambio solo para esta sesión) ----
-
-function SwapExerciseModal({
-  visible,
-  currentExerciseId,
-  usedExerciseIds,
-  onClose,
-  onSelect,
-}: {
-  visible: boolean;
-  currentExerciseId: string;
-  usedExerciseIds: string[];
-  onClose: () => void;
-  onSelect: (id: string) => void;
-}) {
-  const current = exerciseById(currentExerciseId);
-  const defaultGroup = useMemo(
-    () => MUSCLE_FILTER_GROUPS.find((g) => current && g.muscles.includes(current.muscle))?.id ?? 'all',
-    [current],
-  );
-  const [group, setGroup] = useState(defaultGroup);
-
-  // Cada vez que se abre, arranca filtrado por el músculo del ejercicio actual.
-  useEffect(() => {
-    if (visible) setGroup(defaultGroup);
-  }, [visible, defaultGroup]);
-
-  const filtered = useMemo(() => {
-    const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
-    let list = EXERCISES.filter(
-      (e) => e.id !== currentExerciseId && !usedExerciseIds.includes(e.id),
-    );
-    if (g && g.muscles.length > 0) {
-      list = list.filter((e) => g.muscles.includes(e.muscle));
-    }
-    if (current) {
-      // Mismo músculo exacto primero: son los reemplazos más naturales.
-      list = [...list].sort(
-        (a, b) => Number(b.muscle === current.muscle) - Number(a.muscle === current.muscle),
-      );
-    }
-    return list;
-  }, [group, currentExerciseId, usedExerciseIds, current]);
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: colors.bg.overlay, justifyContent: 'flex-end' }}>
-        <View
-          style={{
-            backgroundColor: colors.bg.base,
-            borderTopLeftRadius: radius.xl,
-            borderTopRightRadius: radius.xl,
-            height: '85%',
-            padding: spacing.lg,
-          }}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text variant="title">Cambiar ejercicio</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
-              <Icon name="close" size={18} color={colors.text.muted} />
-            </Pressable>
-          </View>
-          <Text variant="caption" tone="muted" style={{ marginTop: 4 }}>
-            Solo para esta sesión — tu rutina queda igual.
-          </Text>
-
-          {/* Filtros de grupo muscular */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginTop: spacing.md, flexGrow: 0 }}
-            contentContainerStyle={{ gap: spacing.sm }}
-          >
-            {MUSCLE_FILTER_GROUPS.map((g) => {
-              const active = g.id === group;
-              return (
-                <Pressable
-                  key={g.id}
-                  onPress={() => setGroup(g.id)}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 14,
-                    borderRadius: radius.full,
-                    backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                    borderWidth: 1,
-                    borderColor: active ? colors.primary.DEFAULT : colors.border,
-                  }}
-                >
-                  <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
-                    {g.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          <FlatList
-            data={filtered}
-            keyExtractor={(e) => e.id}
-            style={{ marginTop: spacing.md, flex: 1 }}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const img = exerciseImage(item.id);
-              const sameMuscle = current && item.muscle === current.muscle;
-              return (
-                <Pressable onPress={() => onSelect(item.id)}>
-                  <Card padding="md" style={{ marginBottom: spacing.sm }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                      <View
-                        style={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: radius.md,
-                          overflow: 'hidden',
-                          backgroundColor: colors.bg.elevated,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {img !== undefined ? (
-                          <Image
-                            source={img}
-                            style={{ width: '100%', height: '100%' }}
-                            contentFit="cover"
-                            transition={120}
-                          />
-                        ) : (
-                          <Icon name="dumbbell" size={20} color={colors.text.muted} />
-                        )}
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text weight="semibold" numberOfLines={1}>{item.name}</Text>
-                        <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                          {MUSCLE_GROUP_LABELS[item.muscle]} · {EQUIPMENT_LABELS[item.equipment]}
-                        </Text>
-                      </View>
-                      {sameMuscle && (
-                        <View
-                          style={{
-                            paddingHorizontal: spacing.sm,
-                            paddingVertical: 3,
-                            borderRadius: radius.full,
-                            backgroundColor: colors.primary.muted,
-                            borderWidth: 1,
-                            borderColor: colors.primary.DEFAULT,
-                          }}
-                        >
-                          <Text variant="caption" weight="bold" style={{ color: colors.primary.DEFAULT }}>
-                            Equivalente
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  </Card>
-                </Pressable>
-              );
-            }}
-          />
-        </View>
-      </View>
-    </Modal>
   );
 }
 
