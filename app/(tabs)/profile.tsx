@@ -17,6 +17,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { colors, radius, spacing, rankFromPoints } from '@/theme/tokens';
 import { RANK_IMAGES } from '@/theme/rankImages';
 import { Loader } from '@/components/ui/Loader';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useAppStore } from '@/store/app';
 import { AchievementMedal } from '@/components/achievements/AchievementMedal';
 import { evaluateAchievements } from '@/lib/achievements';
@@ -272,7 +273,11 @@ export default function Profile() {
         {/* ── TAB: PUBLICACIONES ── */}
         {activeTab === 'posts' && (
           userPostsQuery.isLoading && userPosts.length === 0 ? (
-            <TabEmpty icon="image" message="Cargando publicaciones…" loading />
+            <View style={{ gap: spacing.md }}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} width="100%" height={180} radius={radius['2xl']} />
+              ))}
+            </View>
           ) : userPosts.length === 0 ? (
             <TabEmpty icon="image" message="Aún no hay publicaciones." />
           ) : (

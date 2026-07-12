@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { FlashList } from '@shopify/flash-list';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
-import { Loader } from '@/components/ui/Loader';
+import { SkeletonRow } from '@/components/ui/Skeleton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { useNotifications, useMarkRead, type Notification } from '@/lib/queries/notifications';
@@ -266,7 +266,11 @@ export default function NotificationsScreen() {
 
       {/* Content */}
       {isInitialLoading ? (
-        <Loader fullScreen />
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonRow key={i} />
+          ))}
+        </View>
       ) : (
         <FlashList<Notification>
           data={notifications}

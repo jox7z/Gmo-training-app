@@ -17,6 +17,7 @@ import { useEvents, type EventFilter } from '@/lib/queries/events';
 import { type CommunityEvent } from '@/lib/repos/events';
 import { EventCard } from '@/components/EventCard';
 import { CommunitiesExplorer } from '@/components/communities/CommunitiesExplorer';
+import { SkeletonRow } from '@/components/ui/Skeleton';
 
 type HubTab = 'search' | 'events' | 'ranking' | 'communities';
 
@@ -357,8 +358,10 @@ function EventsTab() {
       }}
       ListEmptyComponent={
         eventsQuery.isLoading ? (
-          <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.primary.DEFAULT} />
+          <View>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
           </View>
         ) : (
           <EmptyState
@@ -411,8 +414,10 @@ function RankingTab() {
       }}
       ListEmptyComponent={
         leaderboardQuery.isLoading ? (
-          <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.primary.DEFAULT} />
+          <View>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
           </View>
         ) : (
           <EmptyState
