@@ -1,26 +1,24 @@
 /**
  * ExerciseProgressModal — gráfica de progreso por ejercicio.
  *
- * Modelado sobre WeightDetailModal.tsx: mismo layout de header, período
- * y stats. Añade selector de ejercicio (chips) y toggle Peso / Reps.
+ * Modelado sobre WeightDetailModal.tsx: misma hoja (AppBottomSheet), período
+ * y stats. Añade selector de ejercicio y toggle Peso / Reps. El gesto de
+ * arrastre sobre el contenido está deshabilitado para no pelear con el
+ * long-press del tooltip del chart. El picker de ejercicio es un segundo
+ * BottomSheetModal apilado (stacking nativo de gorhom v5), restringido a
+ * ejercicios entrenados vía `onlyIds`.
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import {
-  Modal,
-  View,
-  Pressable,
-  ScrollView,
-  useWindowDimensions,
-} from 'react-native';
+import { View, Pressable, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
 import { TimeSeriesChart } from '@/components/TimeSeriesChart';
-import { ExercisePickerModal } from '@/components/ExercisePickerModal';
+import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
 import { exerciseImage } from '@/data/exerciseImages';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { toDisplay, formatWeight } from '@/lib/units';
@@ -68,6 +66,7 @@ export function ExerciseProgressModal({
   const setPinnedExercise = useAppStore((s) => s.setPinnedExercise);
 
   const exercises = useMemo(() => listTrainedExercises(history), [history]);
+  const trainedIds = useMemo(() => exercises.map((e) => e.exerciseId), [exercises]);
 
   const [selectedId, setSelectedId] = useState<string | undefined>(
     initialExerciseId ?? exercises[0]?.exerciseId,
@@ -138,48 +137,14 @@ export function ExerciseProgressModal({
     : (v: number) => `${Math.round(v)} r`;
 
   return (
-    <Modal
+    <AppBottomSheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      snapPoints={['80%']}
+      enableContentPanningGesture={false}
+      title={selectedName || 'Progreso'}
     >
-      <StatusBar style="light" />
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            gap: spacing.md,
-          }}
-        >
-          <Text variant="heading" style={{ flex: 1 }} numberOfLines={1}>
-            {selectedName}
-          </Text>
-          <Pressable onPress={onClose} hitSlop={8}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: colors.bg.elevated,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Icon name="close" size={16} color={colors.text.primary} />
-            </View>
-          </Pressable>
-        </View>
-
-        <ScrollView
+        <BottomSheetScrollView
           contentContainerStyle={{ paddingBottom: spacing['3xl'] }}
           showsVerticalScrollIndicator={false}
         >
@@ -433,16 +398,20 @@ export function ExerciseProgressModal({
               </View>
             </Card>
           )}
-        </ScrollView>
+        </BottomSheetScrollView>
 
-        <ExercisePickerModal
+        {/* Segundo sheet apilado sobre éste (stacking nativo de gorhom v5). */}
+        <ExercisePickerSheet
           visible={showPicker}
           onClose={() => setShowPicker(false)}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={(ex) => {
+            setSelectedId(ex.id);
+            setShowPicker(false);
+          }}
+          onlyIds={trainedIds}
+          title="Elegir ejercicio"
         />
-      </SafeAreaView>
-    </Modal>
+    </AppBottomSheet>
   );
 }
 

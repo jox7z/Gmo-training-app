@@ -37,6 +37,8 @@ interface Props {
   onSelect: (exercise: Exercise) => void;
   /** IDs a ocultar de la lista (ejercicio actual, ya usados, etc.). */
   excludeIds?: string[];
+  /** Si se pasa, restringe la lista a estos IDs (p. ej. solo entrenados). */
+  onlyIds?: string[];
   /** Cabecera de la hoja. */
   title?: string;
   /** Línea secundaria bajo el título (p. ej. el aviso del cambio de sesión). */
@@ -61,6 +63,7 @@ export function ExercisePickerSheet({
   onClose,
   onSelect,
   excludeIds,
+  onlyIds,
   title = 'Ejercicios',
   subtitle,
   initialMuscle = 'all',
@@ -77,10 +80,11 @@ export function ExercisePickerSheet({
   }, [visible, initialMuscle]);
 
   const exclude = useMemo(() => new Set(excludeIds ?? []), [excludeIds]);
+  const only = useMemo(() => (onlyIds ? new Set(onlyIds) : null), [onlyIds]);
 
   const filtered = useMemo(() => {
     const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
-    let list = EXERCISES.filter((e) => !exclude.has(e.id));
+    let list = EXERCISES.filter((e) => !exclude.has(e.id) && (only === null || only.has(e.id)));
     if (g && g.muscles.length > 0) {
       list = list.filter((e) => g.muscles.includes(e.muscle));
     }
@@ -93,7 +97,7 @@ export function ExercisePickerSheet({
       );
     }
     return list;
-  }, [group, query, exclude, highlightMuscle]);
+  }, [group, query, exclude, only, highlightMuscle]);
 
   const renderItem = ({ item }: ListRenderItemInfo<Exercise>) => {
     const img = exerciseImage(item.id);
