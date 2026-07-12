@@ -37,8 +37,15 @@ interface Props {
   onSelect: (exercise: Exercise) => void;
   /** IDs a ocultar de la lista (ejercicio actual, ya usados, etc.). */
   excludeIds?: string[];
-  /** Si se pasa, restringe la lista a estos IDs (p. ej. solo entrenados). */
+  /**
+   * Si se pasa, restringe la lista a estos IDs (p. ej. solo entrenados) y la
+   * ordena según el orden del array (el caller decide la prioridad).
+   */
   onlyIds?: string[];
+  /** Ejercicio actualmente seleccionado: se resalta con borde y check. */
+  selectedId?: string;
+  /** Subtítulo por ID (p. ej. "5 sesiones"); si falta, muestra músculo · equipo. */
+  metaById?: Record<string, string>;
   /** Cabecera de la hoja. */
   title?: string;
   /** Línea secundaria bajo el título (p. ej. el aviso del cambio de sesión). */
@@ -64,6 +71,8 @@ export function ExercisePickerSheet({
   onSelect,
   excludeIds,
   onlyIds,
+  selectedId,
+  metaById,
   title = 'Ejercicios',
   subtitle,
   initialMuscle = 'all',
@@ -85,6 +94,11 @@ export function ExercisePickerSheet({
   const filtered = useMemo(() => {
     const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
     let list = EXERCISES.filter((e) => !exclude.has(e.id) && (only === null || only.has(e.id)));
+    if (onlyIds) {
+      // Respeta el orden del caller (p. ej. entrenados por recencia+frecuencia).
+      const orderIdx = new Map(onlyIds.map((id, i) => [id, i]));
+      list = [...list].sort((a, b) => (orderIdx.get(a.id) ?? 0) - (orderIdx.get(b.id) ?? 0));
+    }
     if (g && g.muscles.length > 0) {
       list = list.filter((e) => g.muscles.includes(e.muscle));
     }
@@ -97,14 +111,21 @@ export function ExercisePickerSheet({
       );
     }
     return list;
-  }, [group, query, exclude, only, highlightMuscle]);
+  }, [group, query, exclude, only, onlyIds, highlightMuscle]);
 
   const renderItem = ({ item }: ListRenderItemInfo<Exercise>) => {
     const img = exerciseImage(item.id);
     const equivalent = highlightMuscle !== undefined && item.muscle === highlightMuscle;
+    const selected = selectedId === item.id;
     return (
       <PressableScale onPress={() => onSelect(item)} pressScale={0.97}>
-        <Card padding="md" style={{ marginBottom: spacing.sm }}>
+        <Card
+          padding="md"
+          style={[
+            { marginBottom: spacing.sm },
+            selected && { borderWidth: 1, borderColor: colors.primary.DEFAULT },
+          ]}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             {/* Imagen / fallback */}
             <View
@@ -136,9 +157,11 @@ export function ExercisePickerSheet({
                 {item.name}
               </Text>
               <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
-                {MUSCLE_GROUP_LABELS[item.muscle]} · {EQUIPMENT_LABELS[item.equipment]}
+                {metaById?.[item.id] ??
+                  `${MUSCLE_GROUP_LABELS[item.muscle]} · ${EQUIPMENT_LABELS[item.equipment]}`}
               </Text>
             </View>
+            {selected && <Icon name="check" size={16} color={colors.primary.DEFAULT} />}
             {equivalent && (
               <View
                 style={{

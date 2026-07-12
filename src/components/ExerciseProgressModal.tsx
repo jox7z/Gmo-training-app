@@ -67,6 +67,13 @@ export function ExerciseProgressModal({
 
   const exercises = useMemo(() => listTrainedExercises(history), [history]);
   const trainedIds = useMemo(() => exercises.map((e) => e.exerciseId), [exercises]);
+  const sessionsById = useMemo(
+    () =>
+      Object.fromEntries(
+        exercises.map((e) => [e.exerciseId, `${e.sessions} ${e.sessions === 1 ? 'sesión' : 'sesiones'}`]),
+      ),
+    [exercises],
+  );
 
   const [selectedId, setSelectedId] = useState<string | undefined>(
     initialExerciseId ?? exercises[0]?.exerciseId,
@@ -409,6 +416,8 @@ export function ExerciseProgressModal({
             setShowPicker(false);
           }}
           onlyIds={trainedIds}
+          selectedId={selectedId}
+          metaById={sessionsById}
           title="Elegir ejercicio"
         />
     </AppBottomSheet>
