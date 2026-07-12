@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, View, Pressable, Image, Modal, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
 import { BicepIcon } from '@/components/BicepIcon';
@@ -546,6 +550,7 @@ export function FeedItem({
   onShare,
   onOpenProfile,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const info = useMemo(() => rankInfo(post.user.currentRank), [post.user.currentRank]);
   const relative = useMemo(() => formatRelative(post.createdAt), [post.createdAt]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -700,35 +705,27 @@ export function FeedItem({
         <Card variant="raised" padding="lg">{cardInner}</Card>
       )}
 
-      {/* Owner menu */}
-      <Modal
-        transparent
-        visible={menuOpen}
-        animationType="fade"
-        onRequestClose={() => setMenuOpen(false)}
-      >
-        <Pressable
-          onPress={() => setMenuOpen(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
-        >
-          <View
+      {/* Owner menu — action sheet. Se monta solo al abrir: nunca dejar una hoja
+          permanente por fila reciclada de la FlashList. */}
+      {menuOpen && (
+        <AppBottomSheet visible onClose={() => setMenuOpen(false)} enableDynamicSizing>
+          <BottomSheetView
             style={{
-              backgroundColor: colors.bg.elevated,
-              borderTopLeftRadius: radius.xl,
-              borderTopRightRadius: radius.xl,
-              padding: spacing.lg,
-              gap: spacing.sm,
+              paddingHorizontal: spacing.lg,
+              paddingTop: spacing.sm,
+              paddingBottom: insets.bottom + spacing.lg,
+              gap: spacing.xs,
             }}
           >
-            <Pressable onPress={askDelete} style={{ paddingVertical: spacing.md }}>
+            <PressableScale onPress={askDelete} style={{ paddingVertical: spacing.md }}>
               <Text weight="bold" tone="danger">Eliminar publicación</Text>
-            </Pressable>
-            <Pressable onPress={() => setMenuOpen(false)} style={{ paddingVertical: spacing.md }}>
+            </PressableScale>
+            <PressableScale onPress={() => setMenuOpen(false)} style={{ paddingVertical: spacing.md }}>
               <Text tone="secondary">Cancelar</Text>
-            </Pressable>
-          </View>
-        </Pressable>
-      </Modal>
+            </PressableScale>
+          </BottomSheetView>
+        </AppBottomSheet>
+      )}
 
       {/* Confirm delete */}
       <Modal

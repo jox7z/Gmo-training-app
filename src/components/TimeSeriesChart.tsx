@@ -1,15 +1,19 @@
 /**
- * TimeSeriesChart — primitivo SVG de línea para series temporales.
+ * TimeSeriesChart — primitivo de línea para series temporales.
  *
- * Acepta puntos { ms: number; value: number }[] con X proporcional a la
- * fecha (ms epoch) e Y autoescalada. Con menos de 2 puntos muestra un
- * estado vacío.
+ * Acepta puntos { ms: number; value: number }[] con Y autoescalada. Con menos
+ * de 2 puntos muestra un estado vacío. Internamente usa react-native-gifted-charts
+ * (LineChart) para tener ejes X, tooltips e interacción integrados.
+ *
+ * NOTA: gifted-charts espacia los puntos por índice (equidistantes), no de forma
+ * proporcional al timestamp. Aceptamos esa divergencia respecto al SVG anterior a
+ * cambio de un eje X con fechas, tooltip y curva con área.
  */
 
 import { useMemo } from 'react';
 import { View, useWindowDimensions } from 'react-native';
-import Svg, { Line, Path, Circle, Text as SvgText } from 'react-native-svg';
-import { colors, spacing } from '@/theme/tokens';
+import { LineChart, type lineDataItem } from 'react-native-gifted-charts';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { Icon } from '@/components/Icon';
 import { Text } from '@/components/ui/Text';
 
@@ -17,6 +21,9 @@ export interface TimeSeriesPoint {
   ms: number;
   value: number;
 }
+
+// gifted no tipa campos extra en los items; añadimos `ms` para el tooltip.
+type ChartItem = lineDataItem & { ms: number };
 
 interface Props {
   data: TimeSeriesPoint[];
@@ -29,6 +36,28 @@ interface Props {
   emptyMessage?: string;
 }
 
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+function formatDateShort(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getDate()} ${MESES[d.getMonth()]}`;
+}
+
+// Muestreo uniforme conservando primer y último punto (rango "Todo" trae cientos).
+function decimate<T>(arr: T[], max: number): T[] {
+  if (arr.length <= max) return arr;
+  const out: T[] = [];
+  const step = (arr.length - 1) / (max - 1);
+  for (let i = 0; i < max; i++) out.push(arr[Math.round(i * step)]);
+  return out;
+}
+
+const MAX_POINTS = 60;
+// gifted añade una franja de etiquetas X bajo la gráfica; la descontamos del
+// alto para respetar el chartHeight total aproximado.
+const X_LABEL_STRIP = 24;
+const Y_AXIS_WIDTH = 38;
+
 export function TimeSeriesChart({
   data,
   chartWidth: propWidth,
@@ -39,30 +68,31 @@ export function TimeSeriesChart({
   const { width: screenWidth } = useWindowDimensions();
   const chartWidth = propWidth ?? screenWidth - spacing.lg * 4;
 
-  const axisPad = 38;
-  const innerW = chartWidth - axisPad;
-  const innerH = chartHeight - 28;
+  const sorted = useMemo(() => [...data].sort((a, b) => a.ms - b.ms), [data]);
 
-  const sorted = useMemo(
-    () => [...data].sort((a, b) => a.ms - b.ms),
-    [data],
-  );
-
-  const range = useMemo(() => {
-    if (sorted.length === 0) return { min: 0, max: 1 };
+  // Desplazamos el origen del eje Y al mínimo (con padding) para no aplastar la
+  // curva contra el techo cuando los valores viven en un rango estrecho (p.ej.
+  // 78–85 kg). gifted reañade el offset a las etiquetas del eje Y.
+  const yAxisOffset = useMemo(() => {
+    if (sorted.length === 0) return 0;
     const values = sorted.map((p) => p.value);
     const min = Math.min(...values);
     const max = Math.max(...values);
-    if (min === max) return { min: min - 1, max: max + 1 };
-    const pad = (max - min) * 0.15;
-    return { min: min - pad, max: max + pad };
+    if (min === max) return min - 1;
+    return min - (max - min) * 0.15;
   }, [sorted]);
 
-  const msRange = useMemo(() => {
-    if (sorted.length < 2) return { minMs: 0, maxMs: 1 };
-    const minMs = sorted[0].ms;
-    const maxMs = sorted[sorted.length - 1].ms;
-    return { minMs, maxMs: minMs === maxMs ? minMs + 1 : maxMs };
+  const items = useMemo<ChartItem[]>(() => {
+    const decimated = decimate(sorted, MAX_POINTS);
+    const n = decimated.length;
+    // Etiquetas X en ~4 índices repartidos.
+    const labelIdx = new Set([0, Math.floor(n / 3), Math.floor((2 * n) / 3), n - 1]);
+    return decimated.map((p, i) => ({
+      value: p.value,
+      ms: p.ms,
+      label: labelIdx.has(i) ? formatDateShort(p.ms) : undefined,
+      labelTextStyle: { color: colors.text.muted, fontSize: 10 },
+    }));
   }, [sorted]);
 
   if (sorted.length < 2) {
@@ -80,46 +110,74 @@ export function TimeSeriesChart({
     );
   }
 
-  const xFor = (ms: number): number => {
-    const ratio = (ms - msRange.minMs) / (msRange.maxMs - msRange.minMs);
-    return axisPad + ratio * innerW;
-  };
-
-  const yFor = (v: number): number => {
-    const t = (v - range.min) / (range.max - range.min);
-    return chartHeight - 16 - t * innerH;
-  };
-
-  const points = sorted.map((p) => ({ x: xFor(p.ms), y: yFor(p.value), raw: p }));
-
-  const pathD = points
-    .map((pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`)
-    .join(' ');
-
   return (
-    <Svg width={chartWidth} height={chartHeight}>
-      {/* Y-axis labels */}
-      <SvgText x={0} y={14} fontSize={10} fill={colors.text.muted}>
-        {formatLabel(range.max)}
-      </SvgText>
-      <SvgText x={0} y={chartHeight - 18} fontSize={10} fill={colors.text.muted}>
-        {formatLabel(range.min)}
-      </SvgText>
-      {/* Baseline */}
-      <Line
-        x1={axisPad}
-        x2={chartWidth}
-        y1={chartHeight - 16}
-        y2={chartHeight - 16}
-        stroke={colors.border}
-        strokeWidth={1}
+    <View style={{ height: chartHeight, overflow: 'hidden' }}>
+      <LineChart
+        data={items}
+        width={chartWidth - Y_AXIS_WIDTH}
+        height={chartHeight - X_LABEL_STRIP}
+        adjustToWidth
+        disableScroll
+        initialSpacing={8}
+        endSpacing={8}
+        yAxisLabelWidth={Y_AXIS_WIDTH}
+        noOfSections={3}
+        yAxisOffset={yAxisOffset}
+        formatYLabel={(v) => formatLabel(Number(v))}
+        yAxisTextStyle={{ color: colors.text.muted, fontSize: 10 }}
+        yAxisColor="transparent"
+        xAxisColor={colors.border}
+        rulesColor={colors.border}
+        rulesType="dashed"
+        curved
+        color={colors.primary.DEFAULT}
+        thickness={2}
+        hideDataPoints={items.length > 30}
+        dataPointsColor={colors.primary.DEFAULT}
+        dataPointsRadius={3}
+        areaChart
+        startFillColor={colors.primary.DEFAULT}
+        endFillColor={colors.primary.DEFAULT}
+        startOpacity={0.12}
+        endOpacity={0}
+        pointerConfig={{
+          // Los charts viven en ScrollViews: el pan sólo debe activarse con
+          // long-press para no robar el scroll vertical.
+          activatePointersOnLongPress: true,
+          activatePointersDelay: 150,
+          pointerColor: colors.primary.DEFAULT,
+          pointerStripColor: colors.border,
+          pointerStripUptoDataPoint: true,
+          radius: 5,
+          autoAdjustPointerLabelPosition: true,
+          pointerLabelWidth: 110,
+          pointerLabelHeight: 48,
+          pointerLabelComponent: (pts: ChartItem[]) => {
+            const pt = pts?.[0];
+            if (!pt) return null;
+            return (
+              <View
+                style={{
+                  width: 110,
+                  backgroundColor: colors.bg.card,
+                  borderColor: colors.border,
+                  borderWidth: 1,
+                  borderRadius: radius.md,
+                  paddingVertical: spacing.xs,
+                  paddingHorizontal: spacing.sm,
+                }}
+              >
+                <Text weight="bold" numeric>
+                  {formatLabel(pt.value ?? 0)}
+                </Text>
+                <Text variant="caption" tone="muted">
+                  {formatDateShort(pt.ms)}
+                </Text>
+              </View>
+            );
+          },
+        }}
       />
-      {/* Line */}
-      <Path d={pathD} stroke={colors.primary.DEFAULT} strokeWidth={2} fill="none" />
-      {/* Dots */}
-      {points.map((pt, i) => (
-        <Circle key={i} cx={pt.x} cy={pt.y} r={3} fill={colors.primary.DEFAULT} />
-      ))}
-    </Svg>
+    </View>
   );
 }

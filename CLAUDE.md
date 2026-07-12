@@ -158,6 +158,32 @@ the only place that decides where the user goes. Key invariants there:
 
 - All UI colors/spacing/radii/ranks come from `src/theme/tokens.ts`; reusable UI
   primitives are in `src/components/ui/`. The app is dark-mode only.
+- **Loading skeletons:** use the shared `src/components/ui/Skeleton.tsx` primitive
+  (`Skeleton`, `SkeletonCircle`, `SkeletonRow`) for every load placeholder — never a
+  bare `ActivityIndicator`/`Loader` on initial content load. It's a single Reanimated 4
+  shimmer loop (LinearGradient sweep over `colors.bg.elevated`, band = `colors.bg.shimmer`)
+  that honors `useReducedMotion`. Don't reintroduce classic `Animated.loop`/`new Animated.Value`
+  for skeletons (`FeedSkeleton` is built on this primitive; `react-native-skeleton-placeholder`
+  was rejected — its `react-native-linear-gradient` peer isn't in Expo Go). List skeletons
+  only replace the *initial* empty/loading state, not pagination footers or inline search spinners.
+- **Bottom sheets:** every sheet that slides up from the bottom goes through
+  `src/components/ui/AppBottomSheet.tsx` (declarative `visible`/`onClose` wrapper over
+  `@gorhom/bottom-sheet` v5 `BottomSheetModal` — baked-in backdrop, handle, `bg.card`
+  surface). Inside a sheet use gorhom's scrollables/inputs (`BottomSheetFlatList`,
+  `BottomSheetScrollView`, `BottomSheetTextInput`; fixed inputs via `footerComponent`),
+  never the RN ones. If the sheet contains a chart with long-press tooltips, pass
+  `enableContentPanningGesture={false}`. Screens presented as native modals
+  (`workout/active`, `routine/[id]`) mount a LOCAL `BottomSheetModalProvider` — the
+  root portal renders BEHIND native modals on iOS. Deliberate `Modal` exceptions
+  (do not migrate): `AchievementUnlockModal`, `WorkoutResultsModal`, FeedItem's
+  centered confirm-delete, `ReactionPicker` popover. Shared pickers:
+  `ExercisePickerSheet` (search + muscle chips; `onlyIds`/`excludeIds`) and
+  `comments/CommentSheetView` (thin containers `CommentSheet`/`EventCommentSheet`
+  inject queries).
+- **Charts:** built on `react-native-gifted-charts` (`TimeSeriesChart` = LineChart
+  with long-press tooltip via `pointerConfig`; Progress activity bars = BarChart).
+  Don't hand-roll new SVG charts. Known accepted divergence: gifted spaces points
+  by index, not proportionally to timestamps.
 - **Press feedback:** use `src/components/ui/PressableScale.tsx` (Reanimated spring
   scale + optional haptic) instead of bare `Pressable` for tappable cards/icons.
   `Button` has its own built-in effect — don't wrap it. List items in the training

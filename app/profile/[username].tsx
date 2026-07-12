@@ -13,6 +13,7 @@ import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { Loader } from '@/components/ui/Loader';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import {
   useIsFollowing,
@@ -269,9 +270,13 @@ export default function PublicProfile() {
         )}
         ListEmptyComponent={
           userPostsQuery.isLoading ? (
-            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
-              <Text variant="caption" tone="muted">Cargando publicaciones…</Text>
-            </Card>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
+              {Array.from({ length: 6 }).map((_, i) => (
+                <View key={i} style={{ width: '47%', aspectRatio: 1, flexGrow: 1 }}>
+                  <Skeleton width="100%" height="100%" radius={radius.lg} />
+                </View>
+              ))}
+            </View>
           ) : (
             <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
               <Icon name="image" size={32} color={colors.text.muted} />

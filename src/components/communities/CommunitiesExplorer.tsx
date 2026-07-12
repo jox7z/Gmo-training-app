@@ -4,7 +4,6 @@ import {
   TextInput,
   Pressable,
   ScrollView,
-  ActivityIndicator,
   FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -13,6 +12,7 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
+import { SkeletonRow } from '@/components/ui/Skeleton';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useCommunities } from '@/lib/queries/communities';
 import { CommunityCard } from './CommunityCard';
@@ -139,8 +139,10 @@ export function CommunitiesExplorer() {
       }}
       ListEmptyComponent={
         query.isLoading ? (
-          <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.primary.DEFAULT} />
+          <View>
+            {Array.from({ length: 3 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
           </View>
         ) : (
           <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.xl }}>

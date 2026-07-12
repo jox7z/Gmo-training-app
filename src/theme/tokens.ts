@@ -5,6 +5,8 @@ export const colors = {
     card: '#1C1C1E',
     cardEdge: '#111113',
     overlay: 'rgba(0,0,0,0.7)',
+    // Barrido de los skeletons de carga (banda clara que recorre la caja).
+    shimmer: 'rgba(255,255,255,0.06)',
   },
   primary: {
     DEFAULT: '#FF3B3B',

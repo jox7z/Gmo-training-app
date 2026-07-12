@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Rect, Line, Path, Circle, Text as SvgText } from 'react-native-svg';
+import { BarChart, type barDataItem } from 'react-native-gifted-charts';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
@@ -18,6 +18,7 @@ import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, podiumColor, 
 import { RANK_IMAGES } from '@/theme/rankImages';
 import { useAppStore, type Unit } from '@/store/app';
 import { StreakRing } from '@/components/StreakRing';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useWorkoutsStore } from '@/store/workouts';
 import { listTrainedExercises, buildExerciseTimeline, type ExercisePeriod } from '@/lib/exerciseProgress';
 import { exerciseImage } from '@/data/exerciseImages';
@@ -264,6 +265,21 @@ function AveragesCard({ summary }: { summary: ProgressSummary }) {
   );
 }
 
+// Iniciales de día de la semana indexadas por Date.getDay() (0=domingo).
+const DIAS_SEMANA = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+// `day` llega como "YYYY-MM-DD" del RPC; parseamos a fecha local para no
+// desfasar el día de la semana por zona horaria.
+function dayParts(day: string): { d: number; m: number; wd: number } {
+  const [y, m, d] = day.split('-').map(Number);
+  const dt = new Date(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+  return { d: d ?? 1, m: (m ?? 1) - 1, wd: dt.getDay() };
+}
+
+// Item de barra con campo extra `dateLabel` para el tooltip (gifted no lo tipa).
+type TimelineBar = barDataItem & { dateLabel: string };
+
 function TimelineCard({
   data,
   loading,
@@ -275,16 +291,31 @@ function TimelineCard({
   // 2x spacing.lg de padding externo del scroll + 2x spacing.lg padding interno de la Card
   const chartWidth = width - spacing.lg * 4;
   const chartHeight = 160;
-  const axisPad = 24;
-  const innerW = chartWidth - axisPad;
-  const innerH = chartHeight - 20;
 
   const maxMinutes = useMemo(() => {
     const max = data.reduce((m, p) => Math.max(m, p.activeSeconds / 60), 0);
     return max > 0 ? Math.ceil(max / 5) * 5 : 5;
   }, [data]);
 
-  const barW = data.length > 0 ? innerW / data.length : 0;
+  // Con muchos días las iniciales se solapan: mostramos una de cada `stride`
+  // (7d → todas; 30d/90d → repartidas) para mantener el eje legible.
+  const bars = useMemo<TimelineBar[]>(() => {
+    const stride = Math.max(1, Math.ceil(data.length / 14));
+    return data.map((p, i) => {
+      const minutes = p.activeSeconds / 60;
+      const { d, m, wd } = dayParts(p.day);
+      return {
+        value: minutes,
+        label: i % stride === 0 ? DIAS_SEMANA[wd] ?? '' : '',
+        frontColor: minutes > 0 ? colors.primary.DEFAULT : colors.bg.elevated,
+        dateLabel: `${d} ${MESES_CORTOS[m]}`,
+      };
+    });
+  }, [data]);
+
+  // Ancho de barra ajustado al espacio disponible; gifted reparte el resto como
+  // separación vía adjustToWidth.
+  const barWidth = data.length > 0 ? Math.max(2, Math.floor((chartWidth / data.length) * 0.6)) : 0;
 
   return (
     <Card variant="raised" padding="lg">
@@ -299,40 +330,52 @@ function TimelineCard({
             <Text variant="caption" tone="muted">Sin datos para este período</Text>
           </View>
         ) : (
-          <Svg width={chartWidth} height={chartHeight}>
-            {/* Y axis label top */}
-            <SvgText x={0} y={12} fontSize={10} fill={colors.text.muted}>
-              {maxMinutes}m
-            </SvgText>
-            {/* Baseline */}
-            <Line
-              x1={axisPad}
-              x2={chartWidth}
-              y1={chartHeight - 16}
-              y2={chartHeight - 16}
-              stroke={colors.border}
-              strokeWidth={1}
+          <View>
+            <Text variant="caption" tone="muted" style={{ textAlign: 'right', marginBottom: spacing.xs }}>
+              máx {maxMinutes} min
+            </Text>
+            <BarChart
+              data={bars}
+              width={chartWidth}
+              height={120}
+              barWidth={barWidth}
+              minHeight={2}
+              barBorderRadius={2}
+              frontColor={colors.primary.DEFAULT}
+              maxValue={maxMinutes}
+              initialSpacing={spacing.xs}
+              adjustToWidth
+              disableScroll
+              hideRules
+              yAxisThickness={0}
+              hideYAxisText
+              yAxisLabelWidth={0}
+              xAxisColor={colors.border}
+              xAxisThickness={1}
+              xAxisLabelTextStyle={{ color: colors.text.muted, fontSize: 10 }}
+              renderTooltip={(item: TimelineBar) => (
+                <View
+                  style={{
+                    width: 96,
+                    backgroundColor: colors.bg.card,
+                    borderColor: colors.border,
+                    borderWidth: 1,
+                    borderRadius: radius.md,
+                    paddingVertical: spacing.xs,
+                    paddingHorizontal: spacing.sm,
+                    marginBottom: spacing.xs,
+                  }}
+                >
+                  <Text weight="bold" numeric>
+                    {Math.round(item.value ?? 0)} min
+                  </Text>
+                  <Text variant="caption" tone="muted">
+                    {item.dateLabel}
+                  </Text>
+                </View>
+              )}
             />
-            {/* Bars */}
-            {data.map((p, i) => {
-              const minutes = p.activeSeconds / 60;
-              const h = maxMinutes > 0 ? (minutes / maxMinutes) * innerH : 0;
-              const x = axisPad + i * barW + barW * 0.15;
-              const y = chartHeight - 16 - h;
-              const w = barW * 0.7;
-              return (
-                <Rect
-                  key={p.day}
-                  x={x}
-                  y={y}
-                  width={w}
-                  height={Math.max(0, h)}
-                  rx={2}
-                  fill={h > 0 ? colors.primary.DEFAULT : colors.bg.elevated}
-                />
-              );
-            })}
-          </Svg>
+          </View>
         )}
       </View>
       {data.length > 0 && (
@@ -381,12 +424,24 @@ function ProgressSkeleton() {
     <View style={{ gap: spacing.md }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
         {[0, 1, 2, 3].map((i) => (
-          <Card key={i} padding="lg" style={{ width: '47%', flexGrow: 1, height: 110 }} />
+          <Card key={i} padding="lg" style={{ width: '47%', flexGrow: 1, height: 110, gap: spacing.sm }}>
+            <Skeleton width="55%" height={10} />
+            <Skeleton width="75%" height={26} />
+          </Card>
         ))}
       </View>
-      <Card padding="lg" style={{ height: 100 }} />
-      <Card padding="lg" style={{ height: 130 }} />
-      <Card padding="lg" style={{ height: 220 }} />
+      <Card padding="lg" style={{ height: 100, gap: spacing.sm }}>
+        <Skeleton width="40%" height={12} />
+        <Skeleton width="100%" height={40} />
+      </Card>
+      <Card padding="lg" style={{ height: 130, gap: spacing.sm }}>
+        <Skeleton width="45%" height={12} />
+        <Skeleton width="100%" height={60} />
+      </Card>
+      <Card padding="lg" style={{ height: 220, gap: spacing.sm }}>
+        <Skeleton width="50%" height={12} />
+        <Skeleton width="100%" height={150} />
+      </Card>
     </View>
   );
 }

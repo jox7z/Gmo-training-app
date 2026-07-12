@@ -187,10 +187,10 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 
 | # | Item | Prioridad | Esfuerzo | Depende de | Dimensión |
 |---|---|---|---|---|---|
-| 1 | `react-native-skeleton-placeholder` — unificar los 3 tratamientos de loading | P1 | S | — | D7 |
-| 2 | `@gorhom/bottom-sheet` v5 — consolidar los 11 modales improvisados (mayor impacto UX) | P0 | M–L | — | D1/D4/D8 |
+| 1 | ~~`react-native-skeleton-placeholder`~~ → primitivo propio `src/components/ui/Skeleton.tsx` — unificar los 3 tratamientos de loading | P1 | S | — | D7 · ✅ 2026-07-12 (la librería exige el peer nativo `react-native-linear-gradient`, que NO está en Expo Go → shimmer propio con Reanimated 4 + expo-linear-gradient; aplicado en feed, progreso, discover, comunidades, notificaciones y perfiles) |
+| 2 | `@gorhom/bottom-sheet` v5 — consolidar los 11 modales improvisados (mayor impacto UX) | P0 | M–L | — | D1/D4/D8 · ✅ 2026-07-12 (wrapper `AppBottomSheet` + migrados: action sheet de FeedItem, ExercisePickerSheet ×3 pantallas, CommentSheet unificado posts/eventos, WeightDetail, ExerciseProgress con picker apilado. Exclusiones deliberadas como `Modal`: AchievementUnlockModal, WorkoutResultsModal, confirm-delete de FeedItem, ReactionPicker popover. Rutas modales nativas montan `BottomSheetModalProvider` local) |
 | 3 | `lucide-react-native` — migración incremental vía fachada `Icon.tsx` (~48 iconos, 3 sistemas → 1) | P1 | M | — | D8 |
-| 4 | `react-native-gifted-charts` — ejes, tooltips y selector de rango en TimeSeriesChart/WeightChart/barras de progreso | P0 | M | — | D3 |
+| 4 | `react-native-gifted-charts` — ejes, tooltips y selector de rango en TimeSeriesChart/WeightChart/barras de progreso | P0 | M | — | D3 · ✅ 2026-07-12 (TimeSeriesChart sobre `LineChart` con tooltip por long-press; barras de actividad de Progreso sobre `BarChart` con labels de día. Divergencia aceptada: gifted espacia por índice, no proporcional al timestamp) |
 | 5 | `lottie-react-native` + ilustraciones en empty states y onboarding | P1 | S–M | C1 ilustraciones | D7/D6 |
 | 6 | `react-native-reanimated-carousel` — onboarding visual | P2 | S–M | — | D6 |
 | 7 | ThumbHash en `expo-image` + `recyclingKey` en FlashList (feed) | P2 | S | — | D7 |

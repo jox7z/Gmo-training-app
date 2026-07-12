@@ -22,6 +22,7 @@ import { Icon } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
 import { EventCard } from '@/components/EventCard';
 import { FeedItem } from '@/components/feed/FeedItem';
+import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { CommentSheet } from '@/components/feed/CommentSheet';
 import { colors, radius, spacing, RANKS } from '@/theme/tokens';
 import {
@@ -495,8 +496,8 @@ function MuroTab({
 
   if (feedQuery.isLoading) {
     return (
-      <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
-        <ActivityIndicator color={colors.primary.DEFAULT} />
+      <View style={{ padding: spacing.lg }}>
+        <FeedSkeleton count={2} />
       </View>
     );
   }

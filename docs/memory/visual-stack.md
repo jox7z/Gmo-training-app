@@ -2,7 +2,7 @@
 
 > Fuente única del tooling de UI/visualización e imágenes de Gmo Training.
 > `CLAUDE.md`, `README.md` y `docs/memory/overview.md` enlazan aquí en vez de
-> duplicar el detalle. Última revisión: 2026-06-30.
+> duplicar el detalle. Última revisión: 2026-07-12.
 
 ## Estrategia de build (por fases)
 
@@ -32,10 +32,10 @@ react-native-worklets 0.5 · New Architecture (Fabric) activada**. Ya presentes:
 | Necesidad | Librería / repo | Reemplaza / mejora |
 |---|---|---|
 | Iconografía | **lucide-react-native** — github.com/lucide-icons/lucide | sistema SVG custom `src/components/Icon.tsx` |
-| Charts de progreso | **react-native-gifted-charts** — github.com/Abhinandan-Kushwaha/react-native-gifted-charts | `TimeSeriesChart.tsx`, `WeightChart.tsx` (SVG hand-rolled) |
+| Charts de progreso | **react-native-gifted-charts** `1.4.77` ✅ adoptada 2026-07-12 — github.com/Abhinandan-Kushwaha/react-native-gifted-charts | `TimeSeriesChart.tsx` (LineChart + tooltip long-press) y barras de actividad de Progreso (BarChart). Sus peers de gradiente son opcionales → Expo Go OK. Divergencia aceptada: espacia por índice, no proporcional al timestamp |
 | Placeholders de imagen | **ThumbHash** — github.com/evanw/thumbhash (+ wrapper RN) | placeholder de `expo-image` + `recyclingKey` en FlashList |
-| Skeletons reales | **react-native-skeleton-placeholder** — github.com/chramos/react-native-skeleton-placeholder | `feed/FeedSkeleton.tsx` (opacity loop) + Progreso |
-| Bottom sheets | **@gorhom/bottom-sheet** v5 — github.com/gorhom/react-native-bottom-sheet | exercise picker, filtros, detalle de logro, comment sheets |
+| Skeletons reales | Primitivo propio **`src/components/ui/Skeleton.tsx`** ✅ 2026-07-12 (Reanimated 4 + expo-linear-gradient) | los 3 tratamientos de loading; ver exclusión de `react-native-skeleton-placeholder` abajo |
+| Bottom sheets | **@gorhom/bottom-sheet** v5 `5.2.14` ✅ adoptada 2026-07-12 — github.com/gorhom/react-native-bottom-sheet | wrapper `src/components/ui/AppBottomSheet.tsx`: action sheet de feed, `ExercisePickerSheet`, `CommentSheetView`, WeightDetail/ExerciseProgress. Provider en root + provider LOCAL en rutas modales nativas (`workout/active`, `routine/[id]`) |
 | Carousels | **react-native-reanimated-carousel** v5 — github.com/dohooo/react-native-reanimated-carousel | onboarding, galerías de ejercicios/logros |
 | Animaciones vectoriales | **lottie-react-native** (incluida en Expo Go) — github.com/lottie-react-native/lottie-react-native | empty states, onboarding, micro-celebraciones |
 | Ilustraciones (CC0) | **unDraw** (undraw.co) · **Open Peeps/Doodles** (openpeeps.com) | empty states + onboarding |
@@ -65,7 +65,8 @@ react-native-worklets 0.5 · New Architecture (Fabric) activada**. Ya presentes:
 | `react-native-confetti-cannon` | Abandonada (2021) | react-native-fast-confetti |
 | `react-native-toast-message` | Animaciones rotas en Expo 54 (issue #583) | burnt (Tier 2) |
 | `react-native-fast-image` | Sin soporte Fabric | expo-image (ya presente) |
-| `moti/skeleton` | Requiere Reanimated 3 | react-native-skeleton-placeholder |
+| `moti/skeleton` | Requiere Reanimated 3 | `src/components/ui/Skeleton.tsx` |
+| `react-native-skeleton-placeholder` | Exige el peer **nativo** `react-native-linear-gradient`, que no está en Expo Go → rompería la regla Tier 1 | `src/components/ui/Skeleton.tsx` (Reanimated 4 + expo-linear-gradient) |
 
 ## Estrategia de imágenes y assets
 

@@ -1,20 +1,17 @@
 /**
- * WeightDetailModal — ventana extendida del chart de peso.
+ * WeightDetailModal — hoja extendida del chart de peso.
  *
  * Muestra el gráfico a tamaño completo con filtro de período
  * (7d / 30d / 90d / Todo) y estadísticas detalladas del rango.
+ * Vive sobre AppBottomSheet; el gesto de arrastre sobre el contenido está
+ * deshabilitado para no pelear con el long-press del tooltip del chart.
  */
 
 import { useState, useMemo } from 'react';
-import {
-  Modal,
-  View,
-  Pressable,
-  ScrollView,
-  useWindowDimensions,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { View, Pressable, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
+import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
@@ -135,47 +132,13 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
       : colors.text.muted;
 
   return (
-    <Modal
+    <AppBottomSheet
       visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onClose={onClose}
+      snapPoints={['80%']}
+      enableContentPanningGesture={false}
+      title="Evolución del peso"
     >
-      <StatusBar style="light" />
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }}>
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-            gap: spacing.md,
-          }}
-        >
-          <Text variant="heading" style={{ flex: 1 }}>
-            Evolución del peso
-          </Text>
-          <Pressable onPress={onClose} hitSlop={8}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: colors.bg.elevated,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Icon name="close" size={16} color={colors.text.primary} />
-            </View>
-          </Pressable>
-        </View>
-
         {/* Filtro de período */}
         <View
           style={{
@@ -296,7 +259,7 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
           )}
         </View>
 
-        <ScrollView
+        <BottomSheetScrollView
           contentContainerStyle={{
             padding: spacing.lg,
             paddingBottom: insets.bottom + spacing.xl,
@@ -431,9 +394,8 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
               </Text>
             </Card>
           ) : null}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+        </BottomSheetScrollView>
+    </AppBottomSheet>
   );
 }
 

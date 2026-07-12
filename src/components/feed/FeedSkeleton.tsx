@@ -1,58 +1,21 @@
-import { useEffect, useRef } from 'react';
-import { Animated, View } from 'react-native';
+import { View } from 'react-native';
 import { Card } from '@/components/ui/Card';
-import { colors, radius, spacing } from '@/theme/tokens';
-
-function ShimmerBar({ width, height = 12, radius: r = 6, style }: { width: number | string; height?: number; radius?: number; style?: any }) {
-  const opacity = useRef(new Animated.Value(0.5)).current;
-
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [opacity]);
-
-  return (
-    <Animated.View
-      style={[
-        {
-          width: width as any,
-          height,
-          borderRadius: r,
-          backgroundColor: colors.bg.elevated,
-          opacity,
-        },
-        style,
-      ]}
-    />
-  );
-}
+import { Skeleton, SkeletonCircle } from '@/components/ui/Skeleton';
+import { colors, spacing } from '@/theme/tokens';
 
 function FeedItemSkeleton() {
   return (
     <Card padding="lg" style={{ marginBottom: spacing.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <Animated.View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: colors.bg.elevated,
-          }}
-        />
+        <SkeletonCircle size={44} />
         <View style={{ marginLeft: spacing.md, flex: 1, gap: 6 }}>
-          <ShimmerBar width={140} height={14} />
-          <ShimmerBar width={90} height={10} />
+          <Skeleton width={140} height={14} />
+          <Skeleton width={90} height={10} />
         </View>
       </View>
       <View style={{ marginTop: spacing.lg, gap: 8 }}>
-        <ShimmerBar width="80%" height={18} />
-        <ShimmerBar width="50%" height={12} />
+        <Skeleton width="80%" height={18} />
+        <Skeleton width="50%" height={12} />
       </View>
       <View
         style={{
@@ -64,9 +27,9 @@ function FeedItemSkeleton() {
           borderTopColor: colors.border,
         }}
       >
-        <ShimmerBar width={48} height={28} radius={14} />
-        <ShimmerBar width={48} height={28} radius={14} />
-        <ShimmerBar width={48} height={28} radius={14} />
+        <Skeleton width={48} height={28} radius={14} />
+        <Skeleton width={48} height={28} radius={14} />
+        <Skeleton width={48} height={28} radius={14} />
       </View>
     </Card>
   );
