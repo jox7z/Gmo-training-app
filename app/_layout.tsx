@@ -3,6 +3,7 @@ import { AppState, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -382,6 +383,10 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
+          {/* BottomSheetModalProvider va DENTRO de ToastProvider: este pinta su
+              overlay después de children, así que los toasts quedan por encima
+              de cualquier hoja inferior abierta. */}
+          <BottomSheetModalProvider>
           <Stack
             screenOptions={{
               headerShown: false,
@@ -459,6 +464,7 @@ export default function RootLayout() {
               options={{ animation: 'slide_from_right' }}
             />
           </Stack>
+          </BottomSheetModalProvider>
           </ToastProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
