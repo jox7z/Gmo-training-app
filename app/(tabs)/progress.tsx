@@ -18,6 +18,7 @@ import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, podiumColor, 
 import { RANK_IMAGES } from '@/theme/rankImages';
 import { useAppStore, type Unit } from '@/store/app';
 import { StreakRing } from '@/components/StreakRing';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useWorkoutsStore } from '@/store/workouts';
 import { listTrainedExercises, buildExerciseTimeline, type ExercisePeriod } from '@/lib/exerciseProgress';
 import { exerciseImage } from '@/data/exerciseImages';
@@ -381,12 +382,24 @@ function ProgressSkeleton() {
     <View style={{ gap: spacing.md }}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
         {[0, 1, 2, 3].map((i) => (
-          <Card key={i} padding="lg" style={{ width: '47%', flexGrow: 1, height: 110 }} />
+          <Card key={i} padding="lg" style={{ width: '47%', flexGrow: 1, height: 110, gap: spacing.sm }}>
+            <Skeleton width="55%" height={10} />
+            <Skeleton width="75%" height={26} />
+          </Card>
         ))}
       </View>
-      <Card padding="lg" style={{ height: 100 }} />
-      <Card padding="lg" style={{ height: 130 }} />
-      <Card padding="lg" style={{ height: 220 }} />
+      <Card padding="lg" style={{ height: 100, gap: spacing.sm }}>
+        <Skeleton width="40%" height={12} />
+        <Skeleton width="100%" height={40} />
+      </Card>
+      <Card padding="lg" style={{ height: 130, gap: spacing.sm }}>
+        <Skeleton width="45%" height={12} />
+        <Skeleton width="100%" height={60} />
+      </Card>
+      <Card padding="lg" style={{ height: 220, gap: spacing.sm }}>
+        <Skeleton width="50%" height={12} />
+        <Skeleton width="100%" height={150} />
+      </Card>
     </View>
   );
 }
