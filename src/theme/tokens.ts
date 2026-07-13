@@ -33,10 +33,16 @@ export const colors = {
   border: '#27272A',
   borderStrong: '#3F3F46',
   success: '#22C55E',
+  successSoft: 'rgba(34,197,94,0.15)',
   successDark: '#15803D',
   danger: '#EF4444',
+  dangerSoft: 'rgba(239,68,68,0.15)',
   dangerDark: '#B91C1C',
   warning: '#F59E0B',
+  // Marca de Instagram — usada en tarjetas/enlaces de perfil.
+  social: { instagram: '#E1306C' },
+  // Paleta decorativa (confetti de celebración, avatares generados).
+  decorative: { violet: '#8B5CF6', pink: '#EC4899' },
   // Colores de medalla (podios, PRs, rangos metálicos). Centralizados para no
   // repetir literales '#FFD700' por toda la app.
   medal: {
@@ -82,6 +88,7 @@ export const fontSize = {
   '3xl': 38,
   '4xl': 48,
   '5xl': 60,
+  timer: 64, // timer de serie del workout (único tamaño fuera de la escala nxl)
   '6xl': 72,
 } as const;
 
@@ -92,6 +99,17 @@ export const fontWeight = {
   bold: '700' as const,
   black: '900' as const,
 };
+
+export const letterSpacing = {
+  tightest: -2,   // timers gigantes (serie/descanso)
+  tighter: -1,    // títulos de celebración
+  tight: -0.5,    // títulos grandes / hero
+  normal: 0,
+  snug: 0.3,      // frases destacadas
+  wide: 1,        // labels pequeños
+  wider: 2,       // labels medianos espaciados
+  widest: 4,      // overlines de sección (mayúsculas)
+} as const;
 
 export const shadow = {
   glowPrimary: {
@@ -125,7 +143,7 @@ export const RANKS = [
   { id: 'platinum', label: 'Platinum', min: 2000,  color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] as [string, string] },
   { id: 'diamond',  label: 'Diamond',  min: 4000,  color: '#00D4FF', gradient: ['#0066FF', '#00D4FF'] as [string, string] },
   { id: 'elite',    label: 'Elite',    min: 7000,  color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] as [string, string] },
-  { id: 'titan',    label: 'Titan',    min: 12000, color: '#8B5CF6', gradient: ['#6D28D9', '#8B5CF6'] as [string, string] },
+  { id: 'titan',    label: 'Titan',    min: 12000, color: colors.decorative.violet, gradient: ['#6D28D9', '#8B5CF6'] as [string, string] },
   { id: 'olympus',  label: 'Olympus',  min: 20000, color: '#FF7A00', gradient: ['#FF3B3B', '#FF7A00'] as [string, string] },
 ] as const;
 
