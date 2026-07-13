@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
+import { IconButton } from '@/components/ui/IconButton';
 import { Loader } from '@/components/ui/Loader';
 import { colors, spacing, RANKS, RankId } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
@@ -100,22 +101,7 @@ export default function Connections() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="chevron-left" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
+        <IconButton icon="chevron-left" onPress={() => router.back()} iconSize={18} />
         <View style={{ flex: 1 }}>
           <Text variant="caption" tone="muted">{subtitle}</Text>
           <Text variant="heading">{title}</Text>

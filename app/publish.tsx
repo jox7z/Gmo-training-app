@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { Stat } from '@/components/ui/Stat';
 import { Avatar } from '@/components/Avatar';
@@ -146,22 +147,7 @@ function Header({ title, onClose }: { title: string; onClose: () => void }) {
         borderBottomColor: colors.border,
       }}
     >
-      <Pressable onPress={onClose} hitSlop={8}>
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: colors.bg.elevated,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Icon name="close" size={16} color={colors.text.primary} />
-        </View>
-      </Pressable>
+      <IconButton icon="close" onPress={onClose} />
       <Text variant="heading" style={{ flex: 1 }}>{title}</Text>
     </View>
   );

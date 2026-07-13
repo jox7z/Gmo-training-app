@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
@@ -129,22 +130,7 @@ export default function NewBodyMeasurement() {
             borderBottomColor: colors.border,
           }}
         >
-          <Pressable onPress={close} hitSlop={8}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: colors.bg.elevated,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Icon name="close" size={16} color={colors.text.primary} />
-            </View>
-          </Pressable>
+          <IconButton icon="close" onPress={close} />
           <Text variant="heading" style={{ flex: 1 }}>Nueva medición</Text>
         </View>
 

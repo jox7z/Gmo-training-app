@@ -21,6 +21,8 @@ interface Props {
   badgeCount?: number;
   disabled?: boolean;
   hitSlop?: number;
+  /** Los closes/backs de header no vibran; actívalo solo en acciones con peso. */
+  haptic?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -50,6 +52,7 @@ export function IconButton({
   badgeCount,
   disabled,
   hitSlop = 8,
+  haptic = false,
   style,
 }: Props) {
   const t = TONES[tone];
@@ -62,6 +65,7 @@ export function IconButton({
       disabled={disabled}
       pressScale={pressScale}
       hitSlop={hitSlop}
+      haptic={haptic}
       style={style}
     >
       <View

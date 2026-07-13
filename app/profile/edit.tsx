@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { Loader } from '@/components/ui/Loader';
@@ -224,22 +225,7 @@ export default function EditProfile() {
             borderBottomColor: colors.border,
           }}
         >
-          <PressableScale onPress={() => router.back()} hitSlop={10} pressScale={0.9} haptic={false}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Icon name="close" size={16} color={colors.text.primary} />
-            </View>
-          </PressableScale>
+          <IconButton icon="close" onPress={() => router.back()} hitSlop={10} />
           <Text variant="heading" weight="bold">Editar perfil</Text>
           <PressableScale onPress={handleSave} hitSlop={10} disabled={!canSave} pressScale={0.92}>
             <Text variant="body" weight="bold" tone={canSave ? 'brand' : 'muted'}>
