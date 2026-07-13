@@ -24,14 +24,15 @@ Stack: **Expo SDK 54 · React Native 0.81 · React 19 · Reanimated ~4.1 ·
 react-native-worklets 0.5 · New Architecture (Fabric) activada**. Ya presentes:
 `expo-image`, `expo-blur`, `expo-linear-gradient`, `react-native-svg`,
 `react-native-gesture-handler`, `react-native-pager-view`, `@shopify/flash-list`,
-`react-native-body-highlighter`. Toda librería nueva debe verificarse compatible con
-**New Arch + Reanimated 4**.
+`react-native-body-highlighter` (en uso real: `MuscleMap` en Rutinas y el heatmap
+semanal `WeeklyMuscleHeatmapCard` en Progreso desde 2026-07-12). Toda librería nueva
+debe verificarse compatible con **New Arch + Reanimated 4**.
 
 ## Tier 1 — Compatible con Expo Go (adoptar ya)
 
 | Necesidad | Librería / repo | Reemplaza / mejora |
 |---|---|---|
-| Iconografía | **lucide-react-native** — github.com/lucide-icons/lucide | sistema SVG custom `src/components/Icon.tsx` |
+| Iconografía | **lucide-react-native** `1.24.0` ✅ adoptada 2026-07-12 — github.com/lucide-icons/lucide | `src/components/Icon.tsx` es la fachada ÚNICA (registry lucide + custom: `scale`, `instagram` — lucide removió marcas). TabIcon delega en ella. Excepciones fuera: `BicepIcon` dos tonos, logos OAuth |
 | Charts de progreso | **react-native-gifted-charts** `1.4.77` ✅ adoptada 2026-07-12 — github.com/Abhinandan-Kushwaha/react-native-gifted-charts | `TimeSeriesChart.tsx` (LineChart + tooltip long-press) y barras de actividad de Progreso (BarChart). Sus peers de gradiente son opcionales → Expo Go OK. Divergencia aceptada: espacia por índice, no proporcional al timestamp |
 | Placeholders de imagen | **ThumbHash** — github.com/evanw/thumbhash (+ wrapper RN) | placeholder de `expo-image` + `recyclingKey` en FlashList |
 | Skeletons reales | Primitivo propio **`src/components/ui/Skeleton.tsx`** ✅ 2026-07-12 (Reanimated 4 + expo-linear-gradient) | los 3 tratamientos de loading; ver exclusión de `react-native-skeleton-placeholder` abajo |

@@ -382,6 +382,59 @@ export function computeRoutineScore(routine: Routine, profile: UserProfile): Rou
   };
 }
 
+// ---------------------------------------------------------------------------
+// Heatmap muscular semanal (C2-9)
+// ---------------------------------------------------------------------------
+
+/**
+ * Índice de semana con corte en LUNES desde la fecha LOCAL. Réplica de la
+ * convención de `src/lib/achievements.ts` (`weekIndex`) para que "semana
+ * actual" signifique lo mismo en toda la app: `+3` alinea el corte al lunes
+ * (1970-01-01 fue jueves) y la fecha local respeta la zona horaria del usuario.
+ */
+function weekIndexOf(d: Date): number {
+  const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const day = Math.floor(localMidnight.getTime() / 86_400_000);
+  return Math.floor((day + 3) / 7);
+}
+
+/** Sets reales por músculo de la semana actual (lunes–domingo), conteo fraccional. */
+export function weeklySetsByMuscle(history: Workout[], now = Date.now()): Record<string, number> {
+  const currentWeek = weekIndexOf(new Date(now));
+  const sets: Record<string, number> = {};
+
+  for (const w of history) {
+    const t = new Date(w.startedAt).getTime();
+    if (!Number.isFinite(t) || weekIndexOf(new Date(t)) !== currentWeek) continue;
+    for (const ex of w.exercises) {
+      const exercise = exerciseById(ex.exerciseId);
+      if (!exercise) continue;
+      const workingSets = ex.sets.filter((s) => s.isCompleted && !s.isWarmup).length;
+      if (workingSets === 0) continue;
+      sets[exercise.muscle] = (sets[exercise.muscle] ?? 0) + workingSets;
+      if (exercise.secondary) {
+        for (const sm of exercise.secondary) {
+          sets[sm] = (sets[sm] ?? 0) + workingSets * SECONDARY_WEIGHT;
+        }
+      }
+    }
+  }
+
+  // Redondea a múltiplos de 0.5 (mismo patrón que analyzeRoutineMuscles).
+  for (const m of Object.keys(sets)) {
+    sets[m] = Math.round(sets[m] * 2) / 2;
+  }
+  return sets;
+}
+
+/** Estado semafórico para el heatmap semanal (mismos umbrales que la tabla de rutina). */
+export function muscleStatusFromWeeklySets(sets: number): MuscleStatus {
+  if (sets === 0) return 'untrained';
+  if (sets < MIN_WEEKLY_SETS) return 'low';
+  if (sets <= OPTIMAL_MAX_SETS) return 'optimal';
+  return 'high';
+}
+
 export function computeOptimizationScore(
   history: Workout[],
   profile: UserProfile,
