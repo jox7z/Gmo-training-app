@@ -9,7 +9,9 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PressableScale } from '@/components/ui/PressableScale';
-import { colors, spacing, radius } from '@/theme/tokens';
+import { Chip } from '@/components/ui/Chip';
+import { IconButton } from '@/components/ui/IconButton';
+import { colors, spacing } from '@/theme/tokens';
 import { useRoutinesStore, Routine, RoutineDay, RoutineDayExercise, nid } from '@/store/routines';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
 import { saveRoutine } from '@/lib/repos/routines';
@@ -150,45 +152,18 @@ export default function RoutineEditor() {
         {/* Tabs de días */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.xl }}>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            {routine.days.map((d, i) => {
-              const active = i === activeDayIdx;
-              return (
-                // Tab de día — escala suave; long-press para eliminar
-                <PressableScale
-                  key={d.id}
-                  onPress={() => setActiveDayIdx(i)}
-                  onLongPress={() => removeDay(i)}
-                  pressScale={0.95}
-                  style={{
-                    paddingVertical: 10,
-                    paddingHorizontal: 16,
-                    borderRadius: radius.full,
-                    backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                    borderWidth: 1,
-                    borderColor: active ? colors.primary.DEFAULT : colors.border,
-                  }}
-                >
-                  <Text weight="bold" tone={active ? 'primary' : 'secondary'}>
-                    {d.name}
-                  </Text>
-                </PressableScale>
-              );
-            })}
+            {/* Tab de día — long-press para eliminar */}
+            {routine.days.map((d, i) => (
+              <Chip
+                key={d.id}
+                label={d.name}
+                selected={i === activeDayIdx}
+                onPress={() => setActiveDayIdx(i)}
+                onLongPress={() => removeDay(i)}
+              />
+            ))}
             {/* Botón añadir día */}
-            <PressableScale
-              onPress={addDay}
-              pressScale={0.95}
-              style={{
-                paddingVertical: 10,
-                paddingHorizontal: 16,
-                borderRadius: radius.full,
-                borderWidth: 1,
-                borderStyle: 'dashed',
-                borderColor: colors.border,
-              }}
-            >
-              <Text tone="brand" weight="bold">+ Día</Text>
-            </PressableScale>
+            <Chip label="+ Día" variant="dashed" onPress={addDay} />
           </View>
         </ScrollView>
 
@@ -237,25 +212,16 @@ export default function RoutineEditor() {
                         />
                       </View>
                     </View>
-                    {/* Botón quitar — icono pequeño con escala 0.88 */}
-                    <PressableScale
+                    {/* Botón quitar — círculo danger */}
+                    <IconButton
+                      icon="close"
                       onPress={() => removeExercise(e.id)}
-                      hitSlop={12}
+                      size={40}
+                      iconSize={22}
+                      tone="danger"
                       pressScale={0.88}
-                      haptic={false}
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 20,
-                        alignItems: 'center' as const,
-                        justifyContent: 'center' as const,
-                        backgroundColor: 'rgba(239,68,68,0.12)',
-                        borderWidth: 1,
-                        borderColor: 'rgba(239,68,68,0.35)',
-                      }}
-                    >
-                      <Icon name="close" size={22} color={colors.danger} />
-                    </PressableScale>
+                      hitSlop={12}
+                    />
                   </View>
                 </Card>
               </Animated.View>

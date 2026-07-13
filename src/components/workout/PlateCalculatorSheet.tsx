@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
-import { PressableScale } from '@/components/ui/PressableScale';
+import { Chip } from '@/components/ui/Chip';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { calcPlates, BARS_KG, BARS_LB, PLATES_KG, PLATES_LB } from '@/lib/plates';
 
@@ -103,32 +103,15 @@ export function PlateCalculatorSheet({ visible, onClose, targetDisplay, unit, on
             gap: spacing.sm,
           }}
         >
-          {bars.map((b) => {
-            const activeBar = b === bar;
-            return (
-              <PressableScale
-                key={b}
-                onPress={() => setBar(b)}
-                style={{
-                  paddingHorizontal: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderRadius: radius.full,
-                  borderWidth: 1,
-                  backgroundColor: activeBar ? colors.primary.DEFAULT : colors.bg.elevated,
-                  borderColor: activeBar ? colors.primary.DEFAULT : colors.border,
-                }}
-              >
-                <Text
-                  variant="caption"
-                  weight="semibold"
-                  style={{ color: activeBar ? colors.text.primary : colors.text.secondary }}
-                  numeric
-                >
-                  Barra {b} {unit}
-                </Text>
-              </PressableScale>
-            );
-          })}
+          {bars.map((b) => (
+            <Chip
+              key={b}
+              label={`Barra ${b} ${unit}`}
+              selected={b === bar}
+              onPress={() => setBar(b)}
+              size="sm"
+            />
+          ))}
         </View>
 
         {/* Discos por lado */}

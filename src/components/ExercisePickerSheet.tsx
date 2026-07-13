@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Icon } from '@/components/Icon';
 import { colors, spacing, radius, fontSize } from '@/theme/tokens';
@@ -247,28 +248,15 @@ export function ExercisePickerSheet({
           style={{ marginTop: spacing.md, flexGrow: 0 }}
           contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
         >
-          {MUSCLE_FILTER_GROUPS.map((g) => {
-            const active = g.id === group;
-            return (
-              <PressableScale
-                key={g.id}
-                onPress={() => setGroup(g.id)}
-                pressScale={0.95}
-                style={{
-                  paddingVertical: 8,
-                  paddingHorizontal: 14,
-                  borderRadius: radius.full,
-                  backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                  borderWidth: 1,
-                  borderColor: active ? colors.primary.DEFAULT : colors.border,
-                }}
-              >
-                <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
-                  {g.label}
-                </Text>
-              </PressableScale>
-            );
-          })}
+          {MUSCLE_FILTER_GROUPS.map((g) => (
+            <Chip
+              key={g.id}
+              label={g.label}
+              selected={g.id === group}
+              onPress={() => setGroup(g.id)}
+              size="sm"
+            />
+          ))}
         </ScrollView>
 
         {/* Lista virtualizada */}
