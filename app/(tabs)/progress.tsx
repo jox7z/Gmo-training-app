@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { WeightChart } from '@/components/WeightChart';
 import { WeightDetailModal } from '@/components/WeightDetailModal';
 import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/TimeSeriesChart';
@@ -49,6 +50,11 @@ const PERIODS: { value: ProgressPeriod; label: string }[] = [
   { value: '30d', label: '30d' },
   { value: '90d', label: '90d' },
   { value: 'all', label: 'Todo' },
+];
+
+const EXERCISE_METRIC_OPTIONS: { value: 'weight' | 'reps'; label: string }[] = [
+  { value: 'weight', label: 'Peso' },
+  { value: 'reps', label: 'Reps' },
 ];
 
 export default function ProgressScreen() {
@@ -126,40 +132,12 @@ export default function ProgressScreen() {
         }}
       >
         <Text variant="title">Progreso</Text>
-        <View
-          style={{
-            flexDirection: 'row',
-            marginTop: spacing.md,
-            backgroundColor: colors.bg.elevated,
-            borderRadius: radius.lg,
-            padding: 4,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          {PERIODS.map((p) => {
-            const active = period === p.value;
-            return (
-              <PressableScale
-                key={p.value}
-                onPress={() => setPeriod(p.value)}
-                pressScale={0.95}
-                haptic={false}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                  borderRadius: radius.md,
-                  backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-                }}
-              >
-                <Text weight="bold" tone={active ? 'primary' : 'secondary'} style={{ fontSize: 13 }}>
-                  {p.label}
-                </Text>
-              </PressableScale>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          options={PERIODS}
+          value={period}
+          onChange={setPeriod}
+          style={{ marginTop: spacing.md }}
+        />
       </View>
 
       <ScrollView
@@ -508,43 +486,7 @@ function BodySection({
       </View>
 
       {/* Filtro de período para el chart de peso */}
-      <View
-        style={{
-          flexDirection: 'row',
-          backgroundColor: colors.bg.elevated,
-          borderRadius: radius.lg,
-          padding: 4,
-          borderWidth: 1,
-          borderColor: colors.border,
-        }}
-      >
-        {BODY_PERIODS.map((p) => {
-          const active = bodyPeriod === p.value;
-          return (
-            <PressableScale
-              key={p.value}
-              onPress={() => onBodyPeriodChange(p.value)}
-              pressScale={0.95}
-              haptic={false}
-              style={{
-                flex: 1,
-                paddingVertical: 6,
-                alignItems: 'center',
-                borderRadius: radius.md,
-                backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-              }}
-            >
-              <Text
-                weight="bold"
-                tone={active ? 'primary' : 'secondary'}
-                style={{ fontSize: 12 }}
-              >
-                {p.label}
-              </Text>
-            </PressableScale>
-          );
-        })}
-      </View>
+      <SegmentedControl options={BODY_PERIODS} value={bodyPeriod} onChange={onBodyPeriodChange} />
 
       <Button
         title="Registrar peso de hoy"
@@ -812,41 +754,12 @@ function ExerciseProgressCard({
             <Text weight="bold" style={{ flex: 1 }} numberOfLines={1}>
               {name}
             </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                backgroundColor: colors.bg.elevated,
-                borderRadius: radius.lg,
-                padding: 3,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              {(['weight', 'reps'] as ('weight' | 'reps')[]).map((m) => {
-                const active = metric === m;
-                return (
-                  <PressableScale
-                    key={m}
-                    onPress={() => onMetricChange(m)}
-                    pressScale={0.94}
-                    haptic={false}
-                    style={{
-                      paddingHorizontal: spacing.sm,
-                      paddingVertical: 4,
-                      borderRadius: radius.md,
-                      backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-                    }}
-                  >
-                    <Text
-                      weight="bold"
-                      style={{ fontSize: 11, color: active ? colors.text.primary : colors.text.secondary }}
-                    >
-                      {m === 'weight' ? 'Peso' : 'Reps'}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
-            </View>
+            <SegmentedControl
+              options={EXERCISE_METRIC_OPTIONS}
+              value={metric}
+              onChange={onMetricChange}
+              fill={false}
+            />
           </View>
 
           <TimeSeriesChart

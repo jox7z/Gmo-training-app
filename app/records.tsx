@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useWorkoutsStore } from '@/store/workouts';
@@ -25,6 +26,11 @@ import {
   type OneRMFormula,
   type ExerciseRecord,
 } from '@/lib/oneRepMax';
+
+const FORMULA_OPTIONS: { value: OneRMFormula; label: string }[] = ONE_RM_FORMULAS.map((f) => ({
+  value: f.id,
+  label: f.label,
+}));
 
 function formatShortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -92,30 +98,7 @@ export default function RecordsScreen() {
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing['4xl'] }}>
         {/* Toggle de fórmula 1RM */}
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {ONE_RM_FORMULAS.map((f) => {
-            const active = f.id === formula;
-            return (
-              <Pressable
-                key={f.id}
-                onPress={() => setFormula(f.id)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: radius.full,
-                  alignItems: 'center',
-                  backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                  borderWidth: 1,
-                  borderColor: active ? colors.primary.DEFAULT : colors.border,
-                }}
-              >
-                <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl options={FORMULA_OPTIONS} value={formula} onChange={setFormula} variant="pill" />
         <Text variant="caption" tone="muted">
           1RM estimado según fórmula — no es un valor medido
         </Text>

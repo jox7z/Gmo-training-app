@@ -8,8 +8,8 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
-import { PressableScale } from '@/components/ui/PressableScale';
-import { colors, spacing, radius } from '@/theme/tokens';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { spacing } from '@/theme/tokens';
 import { MuscleMap, type MuscleKey } from '@/components/MuscleMap';
 import { STATUS_COLOR } from '@/components/MuscleOptimizationTable';
 import { weeklySetsByMuscle, muscleStatusFromWeeklySets } from '@/lib/optimizationScore';
@@ -45,6 +45,11 @@ const LEGEND = [
   { status: 'high', label: 'Alto' },
 ] as const;
 
+const VIEW_OPTIONS: { value: 'front' | 'back'; label: string }[] = [
+  { value: 'front', label: 'Frente' },
+  { value: 'back', label: 'Espalda' },
+];
+
 export function WeeklyMuscleHeatmapCard({ history, sex = 'male' }: Props) {
   const [view, setView] = useState<'front' | 'back'>('front');
 
@@ -68,31 +73,13 @@ export function WeeklyMuscleHeatmapCard({ history, sex = 'male' }: Props) {
       </Text>
 
       {/* Toggle frente / espalda */}
-      <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, marginBottom: spacing.lg }}>
-        {(['front', 'back'] as const).map((v) => {
-          const active = view === v;
-          return (
-            <PressableScale
-              key={v}
-              onPress={() => setView(v)}
-              pressScale={0.96}
-              style={{
-                flex: 1,
-                paddingVertical: 8,
-                borderRadius: radius.full,
-                alignItems: 'center',
-                backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: active ? colors.primary.DEFAULT : colors.border,
-              }}
-            >
-              <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
-                {v === 'front' ? 'Frente' : 'Espalda'}
-              </Text>
-            </PressableScale>
-          );
-        })}
-      </View>
+      <SegmentedControl
+        options={VIEW_OPTIONS}
+        value={view}
+        onChange={setView}
+        variant="pill"
+        style={{ marginTop: spacing.md, marginBottom: spacing.lg }}
+      />
 
       {/* Silueta */}
       <View style={{ alignItems: 'center' }}>
