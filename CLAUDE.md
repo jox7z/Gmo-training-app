@@ -184,6 +184,24 @@ the only place that decides where the user goes. Key invariants there:
   with long-press tooltip via `pointerConfig`; Progress activity bars = BarChart).
   Don't hand-roll new SVG charts. Known accepted divergence: gifted spaces points
   by index, not proportionally to timestamps.
+- **Icons:** ALL icons go through the `src/components/Icon.tsx` facade (`<Icon name=...>`),
+  which maps `IconName` to `lucide-react-native` via an internal registry (per-icon
+  strokeWidth; `filled` → lucide `fill`). Never import lucide outside the facade and
+  never hand-roll new SVG icons. Custom SVGs kept inside the facade: `scale` (no lucide
+  equivalent) and `instagram` (lucide removed brand icons). Deliberate exceptions
+  outside: `BicepIcon` (two-tone feed reaction), OAuth logos in `auth/OAuthButtons.tsx`,
+  and progress rings (`StreakRing`/`RestRing`/`PasswordChecklist` — not icons).
+  `TabIcon` is a thin wrapper over the facade. `barbell` stays in the union — used
+  by name in `achievements.ts` strength tracks.
+- **Plate calculator** (`src/lib/plates.ts` + `workout/PlateCalculatorSheet.tsx`): shown
+  in LogPhase only for `equipment === 'barbell' | 'smith'`; math runs in display units
+  (greedy per-side). `PLATE_COLORS` (real IWF plate colors) is a documented domain
+  exception to the tokens-only rule — don't "fix" it.
+- **Weekly muscle heatmap** (`WeeklyMuscleHeatmapCard` in Progress): real trained sets
+  via `weeklySetsByMuscle` in `optimizationScore.ts` (current week, Monday cutoff — same
+  convention as `achievements.ts`; completed non-warmup sets, primary 1 / secondary 0.5).
+  Fixed weekly period — deliberately NOT wired to the 7d/30d/90d selector. Renders through
+  the existing `MuscleMap` wrapper (`full_body` has no body-highlighter slug and is omitted).
 - **Press feedback:** use `src/components/ui/PressableScale.tsx` (Reanimated spring
   scale + optional haptic) instead of bare `Pressable` for tappable cards/icons.
   `Button` has its own built-in effect — don't wrap it. List items in the training

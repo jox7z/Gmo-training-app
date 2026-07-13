@@ -189,13 +189,13 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 |---|---|---|---|---|---|
 | 1 | ~~`react-native-skeleton-placeholder`~~ → primitivo propio `src/components/ui/Skeleton.tsx` — unificar los 3 tratamientos de loading | P1 | S | — | D7 · ✅ 2026-07-12 (la librería exige el peer nativo `react-native-linear-gradient`, que NO está en Expo Go → shimmer propio con Reanimated 4 + expo-linear-gradient; aplicado en feed, progreso, discover, comunidades, notificaciones y perfiles) |
 | 2 | `@gorhom/bottom-sheet` v5 — consolidar los 11 modales improvisados (mayor impacto UX) | P0 | M–L | — | D1/D4/D8 · ✅ 2026-07-12 (wrapper `AppBottomSheet` + migrados: action sheet de FeedItem, ExercisePickerSheet ×3 pantallas, CommentSheet unificado posts/eventos, WeightDetail, ExerciseProgress con picker apilado. Exclusiones deliberadas como `Modal`: AchievementUnlockModal, WorkoutResultsModal, confirm-delete de FeedItem, ReactionPicker popover. Rutas modales nativas montan `BottomSheetModalProvider` local) |
-| 3 | `lucide-react-native` — migración incremental vía fachada `Icon.tsx` (~48 iconos, 3 sistemas → 1) | P1 | M | — | D8 |
+| 3 | `lucide-react-native` — migración incremental vía fachada `Icon.tsx` (~48 iconos, 3 sistemas → 1) | P1 | M | — | D8 · ✅ 2026-07-12 (`lucide-react-native@1.24.0`; `Icon.tsx` = registry lucide con strokeWidth por icono y `filled`→fill; TabIcon y el EyeIcon de PasswordInput delegan en la fachada. Custom conservados: `scale` sin equivalente, `instagram` porque lucide removió marcas, `BicepIcon` dos tonos, logos OAuth) |
 | 4 | `react-native-gifted-charts` — ejes, tooltips y selector de rango en TimeSeriesChart/WeightChart/barras de progreso | P0 | M | — | D3 · ✅ 2026-07-12 (TimeSeriesChart sobre `LineChart` con tooltip por long-press; barras de actividad de Progreso sobre `BarChart` con labels de día. Divergencia aceptada: gifted espacia por índice, no proporcional al timestamp) |
 | 5 | `lottie-react-native` + ilustraciones en empty states y onboarding | P1 | S–M | C1 ilustraciones | D7/D6 |
 | 6 | `react-native-reanimated-carousel` — onboarding visual | P2 | S–M | — | D6 |
 | 7 | ThumbHash en `expo-image` + `recyclingKey` en FlashList (feed) | P2 | S | — | D7 |
-| 8 | Plate calculator embebido en el input de peso (patrón Hevy; usa `@gorhom/bottom-sheet`) | P1 | M | C2-2 | D1 |
-| 9 | Heatmap muscular semanal con `react-native-body-highlighter` (ya instalada) en Progreso | P1 | M | — | D3 |
+| 8 | Plate calculator embebido en el input de peso (patrón Hevy; usa `@gorhom/bottom-sheet`) | P1 | M | C2-2 | D1 · ✅ 2026-07-12 (`src/lib/plates.ts` + `PlateCalculatorSheet` sobre AppBottomSheet; botón "Discos" en LogPhase solo para equipment barbell/smith; barra elegible 20/15/10 kg — 45/35/25 lb, sin persistir) |
+| 9 | Heatmap muscular semanal con `react-native-body-highlighter` (ya instalada) en Progreso | P1 | M | — | D3 · ✅ 2026-07-12 (`WeeklyMuscleHeatmapCard` sobre el wrapper `MuscleMap`; datos reales vía `weeklySetsByMuscle` — semana actual corte lunes, fraccional 0.5; colores `STATUS_COLOR`, semanal fijo independiente del selector de período) |
 | 10 | Shareables autogenerados (imagen de PR/racha/mes para IG Stories; ViewShot + plantillas) | P1 | M | C1 emblemas | D5 |
 | 11 | Detalle de ejercicio como hub (tabs About/Historial/Records, accesible en pleno workout) | P1 | M | — | D4 |
 
