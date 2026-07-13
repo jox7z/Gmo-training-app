@@ -30,6 +30,8 @@ import { SetProgressPills } from '@/components/workout/SetProgressPills';
 import { ExerciseHero } from '@/components/workout/ExerciseHero';
 import { RestRing } from '@/components/workout/RestRing';
 import { BigStepperInput } from '@/components/workout/BigStepperInput';
+import { PlateCalculatorSheet } from '@/components/workout/PlateCalculatorSheet';
+import { PressableScale } from '@/components/ui/PressableScale';
 
 const REST_PHRASES = [
   '¡Una más!',
@@ -1130,6 +1132,9 @@ function LogPhase({
   onSave: () => void;
 }) {
   const displayWeight = toDisplay(set.weightKg, unit);
+  const equipment = exerciseById(exerciseId)?.equipment;
+  const showPlates = equipment === 'barbell' || equipment === 'smith';
+  const [platesOpen, setPlatesOpen] = useState(false);
 
   return (
     <KeyboardAvoidingView
@@ -1212,6 +1217,28 @@ function LogPhase({
           onChange={onWeightChange}
           accessoryId={LOG_ACCESSORY_ID}
         />
+        {showPlates && (
+          <PressableScale
+            onPress={() => setPlatesOpen(true)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              alignSelf: 'center',
+              gap: 6,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              borderRadius: radius.full,
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.bg.elevated,
+            }}
+          >
+            <Icon name="dumbbell" size={14} color={colors.text.secondary} />
+            <Text variant="caption" weight="semibold" tone="secondary">
+              Discos
+            </Text>
+          </PressableScale>
+        )}
         <BigStepperInput
           label="REPS"
           value={set.reps}
@@ -1223,6 +1250,14 @@ function LogPhase({
       </ScrollView>
 
       <Button title="Guardar serie" variant="primary" size="lg" fullWidth onPress={onSave} />
+
+      <PlateCalculatorSheet
+        visible={platesOpen}
+        onClose={() => setPlatesOpen(false)}
+        targetDisplay={displayWeight}
+        unit={unit}
+        onApply={(v) => onWeightChange(v)}
+      />
     </KeyboardAvoidingView>
   );
 }
