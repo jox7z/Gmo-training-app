@@ -14,6 +14,7 @@ import { WeightChart } from '@/components/WeightChart';
 import { WeightDetailModal } from '@/components/WeightDetailModal';
 import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/TimeSeriesChart';
 import { ExerciseProgressModal } from '@/components/ExerciseProgressModal';
+import { WeeklyMuscleHeatmapCard } from '@/components/WeeklyMuscleHeatmapCard';
 import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, podiumColor, type RankId } from '@/theme/tokens';
 import { RANK_IMAGES } from '@/theme/rankImages';
 import { useAppStore, type Unit } from '@/store/app';
@@ -189,6 +190,7 @@ export default function ProgressScreen() {
               data={timelineQuery.data ?? []}
               loading={timelineQuery.isLoading && !timelineQuery.data}
             />
+            <WeeklyMuscleHeatmapCard history={history} sex={profile?.sex} />
           </>
         )}
 
