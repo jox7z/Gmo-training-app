@@ -14,7 +14,7 @@ import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { WeightChart } from '@/components/WeightChart';
 import { WeightDetailModal } from '@/components/WeightDetailModal';
 import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/TimeSeriesChart';
-import { ExerciseProgressModal } from '@/components/ExerciseProgressModal';
+import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { WeeklyMuscleHeatmapCard } from '@/components/WeeklyMuscleHeatmapCard';
 import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, podiumColor, type RankId } from '@/theme/tokens';
 import { RANK_IMAGES } from '@/theme/rankImages';
@@ -202,11 +202,13 @@ export default function ProgressScreen() {
           initialPeriod={bodyPeriod}
         />
 
-        <ExerciseProgressModal
+        <ExerciseDetailSheet
           visible={showExerciseModal}
           onClose={() => setShowExerciseModal(false)}
           unit={profile?.unit ?? 'kg'}
           initialExerciseId={effectivePinnedId}
+          initialTab="history"
+          showSelector
         />
 
         <RanksSection currentPoints={profile?.rankPoints ?? 0} />
