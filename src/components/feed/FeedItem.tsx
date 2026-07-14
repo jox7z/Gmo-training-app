@@ -142,7 +142,7 @@ function PrChips({ prs }: { prs: Array<{ exercise_name: string; weight_kg: numbe
             borderRadius: radius.full,
             backgroundColor: colors.medal.goldSoft,
             borderWidth: 1,
-            borderColor: 'rgba(255,215,0,0.4)',
+            borderColor: colors.medal.goldBorder,
           }}
         >
           <Text variant="caption" style={{ color: colors.medal.gold }} weight="semibold">
@@ -220,7 +220,7 @@ function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: nu
               borderRadius: radius.lg,
               backgroundColor: colors.medal.goldSoft,
               borderWidth: 1,
-              borderColor: 'rgba(255,215,0,0.4)',
+              borderColor: colors.medal.goldBorder,
               overflow: 'hidden',
             }}
           >
@@ -387,7 +387,7 @@ function PrBody({ post }: { post: Post }) {
             justifyContent: 'center',
             backgroundColor: colors.medal.goldSoft,
             borderWidth: 1,
-            borderColor: 'rgba(255,215,0,0.5)',
+            borderColor: colors.medal.goldBorder,
           }}
         >
           <Icon name="trophy" size={18} color={GOLD} />

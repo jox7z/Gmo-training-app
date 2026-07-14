@@ -177,7 +177,7 @@ export default function Profile() {
               end={{ x: 1, y: 0 }}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
-            <Text weight="black" style={{ color: colors.bg.base, letterSpacing: 1 }}>{rank.label.toUpperCase()}</Text>
+            <Text weight="black" tracking="wide" style={{ color: colors.bg.base }}>{rank.label.toUpperCase()}</Text>
           </View>
           {streakWeeks > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>

@@ -79,6 +79,8 @@ export function Text({ variant = 'body', tone = 'primary', weight, numeric, trac
     textTransform: v.uppercase ? 'uppercase' : 'none',
     fontVariant: numeric || v.tabular ? ['tabular-nums'] : undefined,
   };
-  if (v.lineHeight != null) base.lineHeight = v.lineHeight;
+  // Un lineHeight fijo + autosize corta glifos cuando la fuente se encoge
+  // (el line-box no acompaña): con adjustsFontSizeToFit se omite el del variant.
+  if (v.lineHeight != null && !rest.adjustsFontSizeToFit) base.lineHeight = v.lineHeight;
   return <RNText {...rest} style={[base, style]} />;
 }
