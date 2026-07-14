@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { colors, fontSize, radius, spacing } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { exerciseImage } from '@/data/exerciseImages';
 
 interface Props {
@@ -12,31 +13,35 @@ interface Props {
   subtitle?: string;
   /** El alto lo controla el padre (flex / maxHeight). */
   style?: StyleProp<ViewStyle>;
+  /** Si se pasa, la tarjeta se vuelve pulsable y muestra el affordance "Ficha". */
+  onPress?: () => void;
 }
 
 /**
  * Tarjeta hero del ejercicio: imagen a sangre con gradiente inferior para
  * legibilidad y el nombre grande encima. Fallback a icono si no hay imagen.
+ * Con `onPress`, la tarjeta abre la ficha del ejercicio (hub de detalle) y
+ * muestra una píldora "Ficha" en la esquina superior derecha.
  */
-export function ExerciseHero({ exerciseId, name, subtitle, style }: Props) {
+export function ExerciseHero({ exerciseId, name, subtitle, style, onPress }: Props) {
   const img = exerciseImage(exerciseId);
 
-  return (
-    <View
-      style={[
-        {
-          borderRadius: radius['3xl'],
-          overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: colors.border,
-          borderBottomWidth: 3,
-          borderBottomColor: colors.bg.cardEdge,
-          backgroundColor: colors.bg.elevated,
-          minHeight: 160,
-        },
-        style,
-      ]}
-    >
+  const cardStyle: StyleProp<ViewStyle> = [
+    {
+      borderRadius: radius['3xl'],
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderBottomWidth: 3,
+      borderBottomColor: colors.bg.cardEdge,
+      backgroundColor: colors.bg.elevated,
+      minHeight: 160,
+    },
+    style,
+  ];
+
+  const inner = (
+    <>
       {img !== undefined ? (
         <Image
           source={img}
@@ -59,13 +64,37 @@ export function ExerciseHero({ exerciseId, name, subtitle, style }: Props) {
         style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '55%' }}
       />
 
+      {/* Affordance "Ficha": solo cuando la tarjeta es pulsable */}
+      {onPress ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: spacing.sm,
+            right: spacing.sm,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 3,
+            paddingLeft: spacing.md,
+            paddingRight: spacing.sm,
+            paddingVertical: 5,
+            borderRadius: radius.full,
+            backgroundColor: colors.bg.overlay,
+          }}
+        >
+          <Text variant="caption" weight="semibold">
+            Ficha
+          </Text>
+          <Icon name="chevron-right" size={13} color={colors.text.primary} />
+        </View>
+      ) : null}
+
       <View style={{ flex: 1, justifyContent: 'flex-end', padding: spacing.lg }}>
         <Text
+          tracking="tight"
           style={{
             fontSize: fontSize['2xl'],
             fontWeight: '900',
             color: colors.text.primary,
-            letterSpacing: -0.5,
           }}
           numberOfLines={2}
         >
@@ -77,6 +106,16 @@ export function ExerciseHero({ exerciseId, name, subtitle, style }: Props) {
           </Text>
         ) : null}
       </View>
-    </View>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <PressableScale onPress={onPress} pressScale={0.98} style={cardStyle}>
+        {inner}
+      </PressableScale>
+    );
+  }
+
+  return <View style={cardStyle}>{inner}</View>;
 }
