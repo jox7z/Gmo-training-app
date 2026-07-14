@@ -40,7 +40,11 @@ export const colors = {
   dangerDark: '#B91C1C',
   warning: '#F59E0B',
   // Marca de Instagram — usada en tarjetas/enlaces de perfil.
-  social: { instagram: '#E1306C' },
+  social: {
+    instagram: '#E1306C',
+    instagramSoft: 'rgba(225,48,108,0.12)',
+    instagramBorder: 'rgba(225,48,108,0.4)',
+  },
   // Paleta decorativa (confetti de celebración, avatares generados).
   decorative: { violet: '#8B5CF6', pink: '#EC4899' },
   // Colores de medalla (podios, PRs, rangos metálicos). Centralizados para no

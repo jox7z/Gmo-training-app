@@ -13,9 +13,9 @@ const toneMap: Record<Tone, { bg: string; fg: string }> = {
   brand: { bg: colors.primary.muted, fg: colors.primary.DEFAULT },
   accent: { bg: colors.accent.soft, fg: colors.accent.DEFAULT },
   info: { bg: colors.info.soft, fg: colors.info.DEFAULT },
-  success: { bg: 'rgba(34,197,94,0.15)', fg: colors.success },
+  success: { bg: colors.successSoft, fg: colors.success },
   muted: { bg: colors.bg.elevated, fg: colors.text.secondary },
-  danger: { bg: 'rgba(239,68,68,0.15)', fg: colors.danger },
+  danger: { bg: colors.dangerSoft, fg: colors.danger },
 };
 
 export function Badge({ label, tone = 'muted' }: Props) {

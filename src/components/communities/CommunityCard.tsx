@@ -95,7 +95,7 @@ export function CommunityCard({ community, onPress }: Props) {
                   backgroundColor: accentColor + 'CC',
                 }}
               >
-                <Text variant="label" style={{ fontSize: 11, color: '#fff' }}>
+                <Text variant="label" style={{ fontSize: 11, color: colors.text.primary }}>
                   {ROLE_LABEL[community.myRole]}
                 </Text>
               </View>

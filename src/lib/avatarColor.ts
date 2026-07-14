@@ -1,6 +1,10 @@
 /**
  * Colores y función para generar color de avatar/comunidad a partir del nombre.
  * Compartido entre CommunityCard y CommunityDetailScreen.
+ *
+ * Paleta fija de avatares — excepción a tokens: es una paleta de dominio
+ * autocontenida (hash → índice estable), no colores de tema. Debe mantenerse
+ * íntegra para que el color derivado de un nombre no cambie.
  */
 export const GRADIENT_COLORS = [
   '#FF3B3B', '#FF7A00', '#FFD700', '#22C55E',
