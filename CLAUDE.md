@@ -157,7 +157,29 @@ the only place that decides where the user goes. Key invariants there:
 ## Conventions
 
 - All UI colors/spacing/radii/ranks come from `src/theme/tokens.ts`; reusable UI
-  primitives are in `src/components/ui/`. The app is dark-mode only.
+  primitives are in `src/components/ui/`. The app is dark-mode only. `app/` has ZERO
+  hardcoded hex; in `src/` the only documented exceptions are OAuth brand logos,
+  `PLATE_COLORS` (IWF), BicepIcon's inner SVG, `avatarColor.ts`'s fixed palette,
+  `shadowColor '#000'`, and Icon.tsx custom SVGs — don't add new ones.
+- **Typography:** `letterSpacing` is a token scale (tightest −2 … widest 4) — never
+  write `letterSpacing:` inline; use `Text`'s `tracking` prop or the token. Variants
+  `overline` (section labels) and `timer` (64px workout clock) exist for the workout
+  screens. lineHeight lives ONLY in display-class variants (display/metric/metricLg/
+  timer) and is auto-omitted when `adjustsFontSizeToFit` is set (fixed line-box +
+  autosize clips glyphs).
+- **Segmented toggles / icon buttons / chips:** use the shared primitives
+  `SegmentedControl` (variant `inset`|`pill`, `fill`), `IconButton` (tones
+  elevated/primary/danger/ghost, `badgeCount`, haptic off by default) and `Chip`
+  (solid/outline/dashed, `leftIcon`, `onLongPress`) from `src/components/ui/` — never
+  re-implement these inline. Deliberate exceptions: `DayChip` in workout (custom
+  spring pop), `StepperButton` in BigStepperInput (chunky 3D), bare icons without a
+  circle (WorkoutHeader close, profile gear, records back).
+- **Exercise detail hub:** `src/components/ExerciseDetailSheet.tsx` (tabs
+  Ficha/Historial/Récords) is THE exercise detail surface — a sheet, not a route (no
+  nav-gate changes). Opened from the workout hero (`SetPhase onOpenDetail`,
+  `showSelector={false}`), Records cards, and Progress. It absorbed
+  `ExerciseProgressModal` — don't recreate per-screen exercise detail modals. The
+  `key={exerciseId}` on its mount is what resets internal state per exercise.
 - **Loading skeletons:** use the shared `src/components/ui/Skeleton.tsx` primitive
   (`Skeleton`, `SkeletonCircle`, `SkeletonRow`) for every load placeholder — never a
   bare `ActivityIndicator`/`Loader` on initial content load. It's a single Reanimated 4
