@@ -278,7 +278,7 @@ export default function EditProfile() {
 
           {/* Identidad */}
           <Animated.View entering={FadeInDown.delay(50).springify().damping(18)}>
-            <Text variant="label" tone="muted" style={{ marginBottom: spacing.sm, letterSpacing: 1 }}>
+            <Text variant="label" tone="muted" style={{ marginBottom: spacing.sm }}>
               PERFIL
             </Text>
             <Card variant="raised" padding="lg" style={{ gap: spacing.lg }}>
@@ -342,7 +342,7 @@ export default function EditProfile() {
 
           {/* Redes y datos */}
           <Animated.View entering={FadeInDown.delay(100).springify().damping(18)}>
-            <Text variant="label" tone="muted" style={{ marginBottom: spacing.sm, letterSpacing: 1 }}>
+            <Text variant="label" tone="muted" style={{ marginBottom: spacing.sm }}>
               REDES Y DATOS
             </Text>
             <Card variant="raised" padding="lg" style={{ gap: spacing.lg }}>

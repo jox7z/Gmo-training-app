@@ -275,7 +275,8 @@ function StepperField({
       <Text
         variant="caption"
         tone="muted"
-        style={{ marginBottom: 6, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}
+        tracking="snug"
+        style={{ marginBottom: 6, fontSize: 12, textTransform: 'uppercase' }}
       >
         {label}
       </Text>

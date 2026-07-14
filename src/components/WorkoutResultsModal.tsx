@@ -146,12 +146,12 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
 
             <View style={{ alignItems: 'center' }}>
               <Text
+                tracking="tight"
                 style={{
                   fontSize: fontSize['2xl'],
                   fontWeight: '800',
                   color: colors.text.primary,
                   textAlign: 'center',
-                  letterSpacing: -0.5,
                 }}
                 numberOfLines={2}
               >

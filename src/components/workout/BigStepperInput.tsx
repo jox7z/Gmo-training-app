@@ -79,11 +79,11 @@ export function BigStepperInput({ label, value, step, decimals, onChange, access
   return (
     <Card variant="raised" padding="xl">
       <Text
+        tracking="widest"
         style={{
           fontSize: fontSize.sm,
           fontWeight: '700',
           color: colors.text.muted,
-          letterSpacing: 3,
           textAlign: 'center',
           marginBottom: spacing.md,
         }}

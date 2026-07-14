@@ -83,11 +83,11 @@ export function RestRing({ elapsed, target = 180, size = 260 }: Props) {
 
       <View style={{ alignItems: 'center' }}>
         <Text
+          tracking="tightest"
           style={{
             fontSize: 58,
             fontWeight: '900',
             color: clockGreen ? colors.success : colors.text.primary,
-            letterSpacing: -2,
             fontVariant: ['tabular-nums'],
             lineHeight: 62,
           }}

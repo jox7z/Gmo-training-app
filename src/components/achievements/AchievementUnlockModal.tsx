@@ -243,17 +243,17 @@ export function AchievementUnlockModal({ queue, visible, onClose }: Props) {
             marginTop: spacing.xl,
           }}
         >
-          <Text variant="label" style={{ color, letterSpacing: 3 }}>
+          <Text variant="label" tracking="widest" style={{ color }}>
             LOGRO DESBLOQUEADO
           </Text>
           <Text
+            tracking="tight"
             style={{
               fontSize: fontSize['2xl'],
               fontWeight: '900',
               color: colors.text.primary,
               textAlign: 'center',
               marginTop: spacing.sm,
-              letterSpacing: -0.5,
             }}
           >
             {current.def.title}
