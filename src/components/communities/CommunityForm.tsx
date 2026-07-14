@@ -146,7 +146,7 @@ export function CommunityForm({ initialValues, onSubmit, submitLabel }: Props) {
                     padding: 6,
                   }}
                 >
-                  <Icon name="edit" size={14} color="#fff" />
+                  <Icon name="edit" size={14} color={colors.text.primary} />
                 </View>
               )}
             </Card>
@@ -212,7 +212,7 @@ export function CommunityForm({ initialValues, onSubmit, submitLabel }: Props) {
               value={isPrivate}
               onValueChange={setIsPrivate}
               trackColor={{ false: colors.border, true: colors.primary.DEFAULT }}
-              thumbColor="#fff"
+              thumbColor={colors.text.primary}
             />
           </View>
         </Card>

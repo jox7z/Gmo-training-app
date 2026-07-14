@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { Input } from '@/components/ui/Input';
 import { Stat } from '@/components/ui/Stat';
 import { Avatar } from '@/components/Avatar';
@@ -146,22 +147,7 @@ function Header({ title, onClose }: { title: string; onClose: () => void }) {
         borderBottomColor: colors.border,
       }}
     >
-      <Pressable onPress={onClose} hitSlop={8}>
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            backgroundColor: colors.bg.elevated,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Icon name="close" size={16} color={colors.text.primary} />
-        </View>
-      </Pressable>
+      <IconButton icon="close" onPress={onClose} />
       <Text variant="heading" style={{ flex: 1 }}>{title}</Text>
     </View>
   );
@@ -299,8 +285,8 @@ function ManualComposer({
               gap: 4,
             }}
           >
-            <Icon name="close" size={14} color="#fff" />
-            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+            <Icon name="close" size={14} color={colors.text.primary} />
+            <Text variant="caption" weight="bold" style={{ color: colors.text.primary }}>Quitar</Text>
           </Pressable>
         </View>
       ) : (
@@ -633,8 +619,8 @@ function WorkoutComposer({
             onPress={() => setPhotoUri(null)}
             style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
-            <Icon name="close" size={14} color="#fff" />
-            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+            <Icon name="close" size={14} color={colors.text.primary} />
+            <Text variant="caption" weight="bold" style={{ color: colors.text.primary }}>Quitar</Text>
           </Pressable>
         </View>
       ) : (
@@ -840,8 +826,8 @@ function PrComposer({
             onPress={() => setPhotoUri(null)}
             style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
-            <Icon name="close" size={14} color="#fff" />
-            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+            <Icon name="close" size={14} color={colors.text.primary} />
+            <Text variant="caption" weight="bold" style={{ color: colors.text.primary }}>Quitar</Text>
           </Pressable>
         </View>
       ) : (

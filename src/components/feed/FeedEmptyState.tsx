@@ -52,7 +52,7 @@ export function FeedErrorState({ message, onRetry }: { message?: string; onRetry
           borderRadius: 32,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: 'rgba(239,68,68,0.15)',
+          backgroundColor: colors.dangerSoft,
           borderWidth: 1,
           borderColor: colors.danger,
           marginBottom: spacing.md,

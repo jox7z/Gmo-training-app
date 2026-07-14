@@ -177,7 +177,7 @@ export default function Profile() {
               end={{ x: 1, y: 0 }}
               style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
             />
-            <Text weight="black" style={{ color: colors.bg.base, letterSpacing: 1 }}>{rank.label.toUpperCase()}</Text>
+            <Text weight="black" tracking="wide" style={{ color: colors.bg.base }}>{rank.label.toUpperCase()}</Text>
           </View>
           {streakWeeks > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
@@ -220,13 +220,13 @@ export default function Profile() {
                 paddingHorizontal: spacing.md,
                 paddingVertical: 5,
                 borderRadius: radius.full,
-                backgroundColor: 'rgba(225,48,108,0.12)',
+                backgroundColor: colors.social.instagramSoft,
                 borderWidth: 1,
-                borderColor: 'rgba(225,48,108,0.4)',
+                borderColor: colors.social.instagramBorder,
               }}
             >
-              <Icon name="instagram" size={14} color="#E1306C" />
-              <Text variant="caption" weight="semibold" style={{ color: '#E1306C' }}>
+              <Icon name="instagram" size={14} color={colors.social.instagram} />
+              <Text variant="caption" weight="semibold" style={{ color: colors.social.instagram }}>
                 @{profile.instagramUsername}
               </Text>
             </PressableScale>

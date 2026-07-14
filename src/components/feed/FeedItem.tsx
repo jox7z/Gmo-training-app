@@ -140,12 +140,12 @@ function PrChips({ prs }: { prs: Array<{ exercise_name: string; weight_kg: numbe
             paddingHorizontal: spacing.sm,
             paddingVertical: 4,
             borderRadius: radius.full,
-            backgroundColor: 'rgba(255,215,0,0.1)',
+            backgroundColor: colors.medal.goldSoft,
             borderWidth: 1,
-            borderColor: 'rgba(255,215,0,0.4)',
+            borderColor: colors.medal.goldBorder,
           }}
         >
-          <Text variant="caption" style={{ color: '#FFD700' }} weight="semibold">
+          <Text variant="caption" style={{ color: colors.medal.gold }} weight="semibold">
             {pr.exercise_name} · {pr.weight_kg > 0 ? `${pr.weight_kg}kg × ${pr.reps} reps` : `Peso corporal · ${pr.reps} reps`}
           </Text>
         </View>
@@ -218,16 +218,16 @@ function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: nu
               paddingHorizontal: spacing.sm,
               paddingVertical: spacing.md,
               borderRadius: radius.lg,
-              backgroundColor: 'rgba(255,215,0,0.1)',
+              backgroundColor: colors.medal.goldSoft,
               borderWidth: 1,
-              borderColor: 'rgba(255,215,0,0.4)',
+              borderColor: colors.medal.goldBorder,
               overflow: 'hidden',
             }}
           >
-            <Text variant="caption" style={{ color: '#FFD700' }} weight="bold" numberOfLines={1}>
+            <Text variant="caption" style={{ color: colors.medal.gold }} weight="bold" numberOfLines={1}>
               {pr.exercise_name}
             </Text>
-            <Text variant="caption" style={{ color: '#FFD700', marginTop: 2 }} weight="semibold">
+            <Text variant="caption" style={{ color: colors.medal.gold, marginTop: 2 }} weight="semibold">
               {pr.weight_kg > 0 ? `${pr.weight_kg}kg × ${pr.reps} reps` : `Peso corporal · ${pr.reps} reps`}
             </Text>
           </View>
@@ -311,8 +311,8 @@ function WorkoutBody({ post }: { post: Post }) {
       {prs.length > 0 && (
         <View style={{ marginTop: spacing.sm, gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Icon name="trophy" size={12} color="#FFD700" />
-            <Text variant="caption" style={{ color: '#FFD700' }} weight="bold">
+            <Icon name="trophy" size={12} color={colors.medal.gold} />
+            <Text variant="caption" style={{ color: colors.medal.gold }} weight="bold">
               {prs.length === 1 ? 'Nuevo PR' : `${prs.length} nuevos PRs`}
             </Text>
           </View>
@@ -385,9 +385,9 @@ function PrBody({ post }: { post: Post }) {
             borderRadius: 18,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: 'rgba(255,215,0,0.15)',
+            backgroundColor: colors.medal.goldSoft,
             borderWidth: 1,
-            borderColor: 'rgba(255,215,0,0.5)',
+            borderColor: colors.medal.goldBorder,
           }}
         >
           <Icon name="trophy" size={18} color={GOLD} />

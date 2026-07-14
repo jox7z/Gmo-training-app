@@ -125,7 +125,7 @@ export function CommunitiesExplorer() {
           {/* Botón crear */}
           <Button
             title="Crear comunidad"
-            leftIcon={<Icon name="plus" size={18} color="#fff" />}
+            leftIcon={<Icon name="plus" size={18} color={colors.text.primary} />}
             onPress={() => router.push('/communities/new')}
             fullWidth
           />

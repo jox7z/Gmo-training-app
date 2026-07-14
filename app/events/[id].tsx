@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
@@ -119,22 +120,7 @@ export default function EventDetailScreen() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="chevron-left" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
+        <IconButton icon="chevron-left" onPress={() => router.back()} iconSize={18} />
         <Text variant="heading" style={{ flex: 1 }} numberOfLines={1}>
           {event?.kind === 'meetup' ? 'Quedada' : event?.kind === 'challenge' ? 'Reto' : 'Evento'}
         </Text>
@@ -261,7 +247,7 @@ export default function EventDetailScreen() {
               fullWidth
               leftIcon={
                 !event.isJoined ? (
-                  <Icon name={isChallenge ? 'trophy' : 'check'} size={18} color="#fff" />
+                  <Icon name={isChallenge ? 'trophy' : 'check'} size={18} color={colors.text.primary} />
                 ) : undefined
               }
             />

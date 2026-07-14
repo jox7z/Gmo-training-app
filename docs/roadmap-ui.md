@@ -167,9 +167,9 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 | Item | Prioridad | Esfuerzo | Depende de | Dimensión |
 |---|---|---|---|---|
 | Tokenizar gold/plata/bronce + gradientes reutilizables en `src/theme/tokens.ts` | P0 | S | — | D8 · ✅ 2026-07-11 (`colors.medal` + `podiumColor()`; los gradientes metálicos siguen en `RANKS[].gradient`) |
-| Añadir lineHeight/letterSpacing a tokens y a `Text.tsx`; migrar tipografía inline de `active.tsx` | P1 | M | — | D8 |
-| Matar los 89 hex hardcodeados (32 en `src/`, 57 en `app/`) → tokens | P1 | M | tokens de gradiente | D8 |
-| Extraer `SegmentedControl`, `IconButton`, `Chip` a `src/components/ui/` (hoy reimplementados ≥4 veces) | P1 | M | — | D8 |
+| Añadir lineHeight/letterSpacing a tokens y a `Text.tsx`; migrar tipografía inline de `active.tsx` | P1 | M | — | D8 · ✅ 2026-07-13 (escala `letterSpacing` de 8 pasos + `fontSize.timer` 64; Text gana variants `overline`/`timer`, prop `tracking` y lineHeight SOLO en display-class; active.tsx y workout limpios de letterSpacing/fontSize inline) |
+| Matar los 89 hex hardcodeados (32 en `src/`, 57 en `app/`) → tokens | P1 | M | tokens de gradiente | D8 · ✅ 2026-07-13 (quedaban 62; `app/` a CERO, `src/` solo excepciones documentadas: logos OAuth, PLATE_COLORS IWF, SVG de BicepIcon, paleta avatarColor, shadows. Tokens nuevos: `social.instagram(+Soft/Border)`, `decorative.violet/pink`, `successSoft`, `dangerSoft`) |
+| Extraer `SegmentedControl`, `IconButton`, `Chip` a `src/components/ui/` (hoy reimplementados ≥4 veces) | P1 | M | — | D8 · ✅ 2026-07-13 (censo real: 9 toggles, ~24 botones circulares, ~5 chips; los 3 primitivos creados sobre PressableScale y todos los duplicados migrados. Exclusiones deliberadas: DayChip con spring propio, StepperButton chunky, bare-icons sin círculo) |
 | Columna "anterior" + autofill por set en workout activo | P0 | M | — | D1 · ✅ 2026-07-11 (`previousExerciseSets` en `workoutCompare.ts`; autofill en warmup + línea "Anterior" en LogPhase) |
 | Banner de PR en vivo al completar set (la detección ya existe en `workoutCompare.ts`) | P1 | S | — | D5 · ✅ 2026-07-11 (`historicMaxWeight` + `playSplash`, 1 vez por ejercicio/sesión) |
 | CTA persistente "empezar entreno" (header del feed o botón flotante) | P0 | S–M | — | D2 · ✅ 2026-07-11 (FAB `StartWorkoutFab` en el feed: reanuda/empieza siguiente día/salta a Rutinas vía `tabsNav`) |
@@ -197,7 +197,7 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 | 8 | Plate calculator embebido en el input de peso (patrón Hevy; usa `@gorhom/bottom-sheet`) | P1 | M | C2-2 | D1 · ✅ 2026-07-12 (`src/lib/plates.ts` + `PlateCalculatorSheet` sobre AppBottomSheet; botón "Discos" en LogPhase solo para equipment barbell/smith; barra elegible 20/15/10 kg — 45/35/25 lb, sin persistir) |
 | 9 | Heatmap muscular semanal con `react-native-body-highlighter` (ya instalada) en Progreso | P1 | M | — | D3 · ✅ 2026-07-12 (`WeeklyMuscleHeatmapCard` sobre el wrapper `MuscleMap`; datos reales vía `weeklySetsByMuscle` — semana actual corte lunes, fraccional 0.5; colores `STATUS_COLOR`, semanal fijo independiente del selector de período) |
 | 10 | Shareables autogenerados (imagen de PR/racha/mes para IG Stories; ViewShot + plantillas) | P1 | M | C1 emblemas | D5 |
-| 11 | Detalle de ejercicio como hub (tabs About/Historial/Records, accesible en pleno workout) | P1 | M | — | D4 |
+| 11 | Detalle de ejercicio como hub (tabs About/Historial/Records, accesible en pleno workout) | P1 | M | — | D4 · ✅ 2026-07-13 (`ExerciseDetailSheet` sobre AppBottomSheet — sin ruta nueva, cero cambios en el gate de navegación. Tabs Ficha/Historial/Récords; absorbe `ExerciseProgressModal` (eliminado). Entradas: hero pulsable en pleno workout, RecordCards de Récords, y Progreso) |
 
 ### C3 — Tier 2 (GATE: el mismo salto a development build que push B1 — no antes)
 

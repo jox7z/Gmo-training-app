@@ -95,7 +95,7 @@ export default function AchievementsScreen() {
 
         {groups.map((group) => (
           <View key={group.category} style={{ gap: spacing.md }}>
-            <Text variant="label" tone="muted" style={{ letterSpacing: 2, marginTop: spacing.xs }}>
+            <Text variant="label" tone="muted" tracking="wider" style={{ marginTop: spacing.xs }}>
               {group.label.toUpperCase()}
             </Text>
             {group.items.map((item) => (

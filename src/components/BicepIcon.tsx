@@ -4,13 +4,16 @@
  */
 
 import Svg, { Path } from 'react-native-svg';
+import { colors } from '@/theme/tokens';
 
 interface Props {
   size?: number;
   color?: string;
 }
 
-export function BicepIcon({ size = 24, color = '#ff8000' }: Props) {
+// Los stroke="#000000" del contorno interno son parte del arte del SVG
+// (línea negra fija que define la silueta), no un color de tema — excepción a tokens.
+export function BicepIcon({ size = 24, color = colors.accent.DEFAULT }: Props) {
   return (
     <Svg
       viewBox="0 0 72 72"

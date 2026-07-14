@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
 import { useAppStore } from '@/store/app';
@@ -15,6 +16,11 @@ import { Icon } from '@/components/Icon';
 import { computeRoutineScore, MUSCLE_LABELS, analyzeRoutineMuscles } from '@/lib/optimizationScore';
 import { MuscleOptimizationTable, STATUS_COLOR } from '@/components/MuscleOptimizationTable';
 import { MuscleMap, type MuscleKey } from '@/components/MuscleMap';
+
+const MAP_VIEW_OPTIONS: { value: 'front' | 'back'; label: string }[] = [
+  { value: 'front', label: 'Frente' },
+  { value: 'back', label: 'Espalda' },
+];
 
 export default function Routines() {
   const router = useRouter();
@@ -151,7 +157,7 @@ export default function Routines() {
               <Button
                 title="Empezar"
                 size="lg"
-                leftIcon={<Icon name="dumbbell" size={18} color="#fff" />}
+                leftIcon={<Icon name="dumbbell" size={18} color={colors.text.primary} />}
                 onPress={() =>
                   router.push({
                     pathname: '/workout/active',
@@ -240,36 +246,13 @@ export default function Routines() {
               <Text variant="heading" style={{ marginBottom: spacing.md }}>Mapa muscular</Text>
               <Card variant="raised" padding="lg">
                 {/* Toggle frente / espalda */}
-                <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
-                  {(['front', 'back'] as const).map((v) => {
-                    const active = mapView === v;
-                    return (
-                      // Toggle frente/espalda — escala suave 0.96
-                      <PressableScale
-                        key={v}
-                        onPress={() => setMapView(v)}
-                        pressScale={0.96}
-                        style={{
-                          flex: 1,
-                          paddingVertical: 8,
-                          borderRadius: radius.full,
-                          alignItems: 'center',
-                          backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                          borderWidth: 1,
-                          borderColor: active ? colors.primary.DEFAULT : colors.border,
-                        }}
-                      >
-                        <Text
-                          variant="caption"
-                          weight="bold"
-                          tone={active ? 'primary' : 'secondary'}
-                        >
-                          {v === 'front' ? 'Frente' : 'Espalda'}
-                        </Text>
-                      </PressableScale>
-                    );
-                  })}
-                </View>
+                <SegmentedControl
+                  options={MAP_VIEW_OPTIONS}
+                  value={mapView}
+                  onChange={setMapView}
+                  variant="pill"
+                  style={{ marginBottom: spacing.lg }}
+                />
 
                 {/* Silueta */}
                 <View style={{ alignItems: 'center' }}>

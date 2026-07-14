@@ -219,7 +219,7 @@ export default function Onboarding() {
             </Text>
             <View style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
               <FeatureRow icon="fire" color={colors.accent.DEFAULT} title="Rachas que motivan" desc="Visualiza tu constancia semana a semana." />
-              <FeatureRow icon="trophy" color="#FFD700" title="Sistema Ranked" desc="Sube de rango por consistencia, no por ego." />
+              <FeatureRow icon="trophy" color={colors.medal.gold} title="Sistema Ranked" desc="Sube de rango por consistencia, no por ego." />
               <FeatureRow icon="medal" color={colors.info.DEFAULT} title="Logros desbloqueables" desc="Gana medallas por cada hito de tu entrenamiento." />
             </View>
           </View>
@@ -327,7 +327,7 @@ export default function Onboarding() {
         {step === 'goal' && (
           <Section title="¿Cuál es tu objetivo?" subtitle="Elige el principal — luego puedes cambiarlo">
             <ChoiceCard selected={goal === 'hypertrophy'} onPress={() => setGoal('hypertrophy')} icon="muscle" iconColor={colors.primary.DEFAULT} title="Hipertrofia" desc="Ganar masa muscular y tamaño." />
-            <ChoiceCard selected={goal === 'strength'} onPress={() => setGoal('strength')} icon="lightning" iconColor="#FFD700" title="Fuerza" desc="Levantar más peso, ser más fuerte." />
+            <ChoiceCard selected={goal === 'strength'} onPress={() => setGoal('strength')} icon="lightning" iconColor={colors.medal.gold} title="Fuerza" desc="Levantar más peso, ser más fuerte." />
             <ChoiceCard selected={goal === 'fat_loss'} onPress={() => setGoal('fat_loss')} icon="fire" iconColor={colors.accent.DEFAULT} title="Pérdida de grasa" desc="Definir y reducir % de grasa." />
             <ChoiceCard selected={goal === 'general'} onPress={() => setGoal('general')} icon="target" iconColor={colors.success} title="Salud general" desc="Mantenerme activo y en forma." />
           </Section>
@@ -369,7 +369,7 @@ export default function Onboarding() {
           <Section title="Elige tu rutina" subtitle="Puedes editarla después cuando quieras">
             {options.map((opt, i) => {
               const iconNames = ['trophy', 'dumbbell', 'lightning', 'fire'] as const;
-              const iconColors = [colors.primary.DEFAULT, colors.info.DEFAULT, colors.accent.DEFAULT, '#FFD700'];
+              const iconColors = [colors.primary.DEFAULT, colors.info.DEFAULT, colors.accent.DEFAULT, colors.medal.gold];
               return (
                 <ChoiceCard
                   key={opt.routine.id}

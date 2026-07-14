@@ -1,9 +1,9 @@
-import { View, Pressable, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Text } from '@/components/ui/Text';
-import { Icon } from '@/components/Icon';
+import { IconButton } from '@/components/ui/IconButton';
 import { CommunityForm } from '@/components/communities/CommunityForm';
 import { useCommunity, useUpdateCommunity } from '@/lib/queries/communities';
 import { useToast } from '@/components/ui/Toast';
@@ -45,22 +45,7 @@ export default function EditCommunityScreen() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="close" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
+        <IconButton icon="close" onPress={() => router.back()} iconSize={18} />
         <Text variant="heading" style={{ flex: 1 }}>Editar comunidad</Text>
       </View>
 

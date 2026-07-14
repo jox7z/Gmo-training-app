@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
@@ -111,22 +112,7 @@ export default function NewEventScreen() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="close" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
+        <IconButton icon="close" onPress={() => router.back()} iconSize={18} />
         <Text variant="heading" style={{ flex: 1 }}>Crear evento</Text>
         {communityId && communityQuery.data && (
           <View
@@ -200,7 +186,7 @@ export default function NewEventScreen() {
                       padding: 6,
                     }}
                   >
-                    <Icon name="edit" size={14} color="#fff" />
+                    <Icon name="edit" size={14} color={colors.text.primary} />
                   </View>
                 )}
               </Card>

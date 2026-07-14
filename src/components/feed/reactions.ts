@@ -19,7 +19,7 @@ export interface ReactionConfig {
  * en FeedItem, no con emoji.
  */
 export const REACTIONS: ReactionConfig[] = [
-  { key: 'muscle', emoji: '💪', icon: 'muscle', color: '#ff8000', label: 'Bíceps', shortLabel: 'Bíceps' },
+  { key: 'muscle', emoji: '💪', icon: 'muscle', color: colors.accent.DEFAULT, label: 'Bíceps', shortLabel: 'Bíceps' },
 ];
 
 export const REACTION_BY_KEY: Record<ReactionKind, ReactionConfig> = REACTIONS.reduce(

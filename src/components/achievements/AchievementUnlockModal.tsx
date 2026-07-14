@@ -17,7 +17,7 @@ import { colors, spacing, radius, fontSize } from '@/theme/tokens';
 import type { UnlockedAchievement } from '@/store/achievements';
 
 const { height: SCREEN_H } = Dimensions.get('window');
-const CONFETTI_COLORS = ['#FFD700', '#FF3B3B', '#FF7A00', '#1E90FF', '#22C55E', '#8B5CF6'];
+const CONFETTI_COLORS = [colors.medal.gold, colors.primary.DEFAULT, colors.accent.DEFAULT, colors.info.DEFAULT, colors.success, colors.decorative.violet];
 
 interface Particle {
   angle: number;
@@ -243,17 +243,17 @@ export function AchievementUnlockModal({ queue, visible, onClose }: Props) {
             marginTop: spacing.xl,
           }}
         >
-          <Text variant="label" style={{ color, letterSpacing: 3 }}>
+          <Text variant="label" tracking="widest" style={{ color }}>
             LOGRO DESBLOQUEADO
           </Text>
           <Text
+            tracking="tight"
             style={{
               fontSize: fontSize['2xl'],
               fontWeight: '900',
               color: colors.text.primary,
               textAlign: 'center',
               marginTop: spacing.sm,
-              letterSpacing: -0.5,
             }}
           >
             {current.def.title}

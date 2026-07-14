@@ -12,6 +12,7 @@ import { View, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
@@ -140,43 +141,12 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
       title="Evolución del peso"
     >
         {/* Filtro de período */}
-        <View
-          style={{
-            flexDirection: 'row',
-            marginHorizontal: spacing.lg,
-            marginTop: spacing.md,
-            backgroundColor: colors.bg.elevated,
-            borderRadius: radius.lg,
-            padding: 4,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          {PERIODS.map((p) => {
-            const active = period === p.value;
-            return (
-              <Pressable
-                key={p.value}
-                onPress={() => setPeriod(p.value)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                  borderRadius: radius.md,
-                  backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-                }}
-              >
-                <Text
-                  weight="bold"
-                  tone={active ? 'primary' : 'secondary'}
-                  style={{ fontSize: 13 }}
-                >
-                  {p.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl
+          options={PERIODS}
+          value={period}
+          onChange={setPeriod}
+          style={{ marginHorizontal: spacing.lg, marginTop: spacing.md }}
+        />
 
         {/* Selector de métrica — desplegable */}
         <View

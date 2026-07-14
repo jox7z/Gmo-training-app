@@ -13,6 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useWorkoutsStore } from '@/store/workouts';
@@ -25,6 +28,11 @@ import {
   type OneRMFormula,
   type ExerciseRecord,
 } from '@/lib/oneRepMax';
+
+const FORMULA_OPTIONS: { value: OneRMFormula; label: string }[] = ONE_RM_FORMULAS.map((f) => ({
+  value: f.id,
+  label: f.label,
+}));
 
 function formatShortDate(iso: string): string {
   return new Date(iso).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -60,6 +68,12 @@ export default function RecordsScreen() {
   const history = useWorkoutsStore((s) => s.history);
   const unit = useAppStore((s) => s.profile?.unit ?? 'kg');
   const [formula, setFormula] = useState<OneRMFormula>('epley');
+  // Ficha del ejercicio tocado. `detailId` se retiene durante el cierre (para
+  // que `key` no cambie y la hoja anime su salida); `detailOpen` controla la
+  // visibilidad. Al tocar otra tarjeta, `detailId` cambia → `key` remonta la
+  // hoja con el ejercicio correcto (selectedId = useState(initialExerciseId)).
+  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const records = useMemo(() => computeExerciseRecords(history, formula), [history, formula]);
 
@@ -92,30 +106,7 @@ export default function RecordsScreen() {
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing['4xl'] }}>
         {/* Toggle de fórmula 1RM */}
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          {ONE_RM_FORMULAS.map((f) => {
-            const active = f.id === formula;
-            return (
-              <Pressable
-                key={f.id}
-                onPress={() => setFormula(f.id)}
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: radius.full,
-                  alignItems: 'center',
-                  backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-                  borderWidth: 1,
-                  borderColor: active ? colors.primary.DEFAULT : colors.border,
-                }}
-              >
-                <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl options={FORMULA_OPTIONS} value={formula} onChange={setFormula} variant="pill" />
         <Text variant="caption" tone="muted">
           1RM estimado según fórmula — no es un valor medido
         </Text>
@@ -127,17 +118,48 @@ export default function RecordsScreen() {
             </Text>
           </Card>
         ) : (
-          records.map((r) => <RecordCard key={r.exerciseId} record={r} unit={unit} />)
+          records.map((r) => (
+            <RecordCard
+              key={r.exerciseId}
+              record={r}
+              unit={unit}
+              onPress={() => {
+                setDetailId(r.exerciseId);
+                setDetailOpen(true);
+              }}
+            />
+          ))
         )}
       </ScrollView>
+
+      {detailId && (
+        <ExerciseDetailSheet
+          key={detailId}
+          visible={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          unit={unit}
+          initialExerciseId={detailId}
+          initialTab="records"
+          showSelector
+        />
+      )}
     </SafeAreaView>
   );
 }
 
-function RecordCard({ record, unit }: { record: ExerciseRecord; unit: 'kg' | 'lb' }) {
+function RecordCard({
+  record,
+  unit,
+  onPress,
+}: {
+  record: ExerciseRecord;
+  unit: 'kg' | 'lb';
+  onPress: () => void;
+}) {
   return (
-    <Card variant="raised" padding="md">
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+    <PressableScale onPress={onPress}>
+      <Card variant="raised" padding="md">
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <ExerciseThumb exerciseId={record.exerciseId} size={48} />
         <View style={{ flex: 1 }}>
           <Text weight="bold" numberOfLines={1}>
@@ -156,6 +178,7 @@ function RecordCard({ record, unit }: { record: ExerciseRecord; unit: 'kg' | 'lb
           </Text>
         </View>
       </View>
-    </Card>
+      </Card>
+    </PressableScale>
   );
 }

@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { IconButton } from '@/components/ui/IconButton';
 import { FeedItem } from '@/components/feed/FeedItem';
 import { StartWorkoutFab } from '@/components/StartWorkoutFab';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
@@ -293,62 +294,9 @@ export default function FeedHome() {
           </Text>
         </View>
         {/* Bell icon with unread badge */}
-        <PressableScale onPress={goNotifications} hitSlop={8} pressScale={0.9} haptic={false}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: colors.bg.elevated,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="bell" size={18} color={colors.text.primary} />
-            {unreadCount > 0 && (
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 4,
-                  right: 4,
-                  minWidth: 16,
-                  height: 16,
-                  borderRadius: 8,
-                  backgroundColor: colors.danger,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingHorizontal: 3,
-                }}
-              >
-                <Text
-                  variant="label"
-                  style={{ color: '#fff', fontSize: 9, lineHeight: 12 }}
-                >
-                  {unreadCount > 99 ? '99+' : String(unreadCount)}
-                </Text>
-              </View>
-            )}
-          </View>
-        </PressableScale>
+        <IconButton icon="bell" onPress={goNotifications} size={40} badgeCount={unreadCount} />
 
-        <PressableScale onPress={goDiscover} hitSlop={8} pressScale={0.9} haptic={false}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 20,
-              backgroundColor: colors.bg.elevated,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="search" size={18} color={colors.text.primary} />
-          </View>
-        </PressableScale>
+        <IconButton icon="search" onPress={goDiscover} size={40} />
       </View>
 
       {isInitialLoading ? (

@@ -168,7 +168,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   // ── Fuerza: hitos de peso en los levantamientos grandes ──
   strengthTrack('bench-press', 'Press de banca', 'barbell', colors.primary.DEFAULT, [40, 60, 80, 100, 120, 140]),
   strengthTrack('squat', 'Sentadilla', 'barbell', colors.accent.DEFAULT, [60, 80, 100, 120, 160, 200]),
-  strengthTrack('deadlift', 'Peso muerto', 'barbell', '#FFD700', [60, 100, 140, 180, 220, 260]),
+  strengthTrack('deadlift', 'Peso muerto', 'barbell', colors.medal.gold, [60, 100, 140, 180, 220, 260]),
   strengthTrack('overhead-press', 'Press militar', 'barbell', colors.info.DEFAULT, [30, 40, 50, 60, 70, 80]),
 
   // ── Constancia semanal: rachas de seguir la rutina ──

@@ -31,7 +31,8 @@ import { ExerciseHero } from '@/components/workout/ExerciseHero';
 import { RestRing } from '@/components/workout/RestRing';
 import { BigStepperInput } from '@/components/workout/BigStepperInput';
 import { PlateCalculatorSheet } from '@/components/workout/PlateCalculatorSheet';
-import { PressableScale } from '@/components/ui/PressableScale';
+import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
+import { Chip } from '@/components/ui/Chip';
 
 const REST_PHRASES = [
   '¡Una más!',
@@ -140,6 +141,7 @@ export default function ActiveWorkout() {
 
   const [phase, setPhase] = useState<Phase>('warmup');
   const [swapOpen, setSwapOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [summaryWorkout, setSummaryWorkout] = useState<Workout | null>(null);
   const [unlockQueue, setUnlockQueue] = useState<UnlockedAchievement[]>([]);
   const [exIdx, setExIdx] = useState(0);
@@ -657,6 +659,7 @@ export default function ActiveWorkout() {
             elapsed={setTimerElapsed}
             onDone={handleSetDone}
             onSwap={() => setSwapOpen(true)}
+            onOpenDetail={() => setDetailOpen(true)}
           />
         )}
 
@@ -786,16 +789,7 @@ export default function ActiveWorkout() {
               paddingHorizontal: spacing.xl,
             }}
           >
-            <Text
-              style={{
-                fontSize: 38,
-                fontWeight: '900',
-                color: colors.text.primary,
-                letterSpacing: -0.5,
-                textAlign: 'center',
-                lineHeight: 44,
-              }}
-            >
+            <Text variant="metric" tracking="tight" style={{ textAlign: 'center' }}>
               {splashPhrase}
             </Text>
             {/* Red accent pill beneath the phrase */}
@@ -826,6 +820,20 @@ export default function ActiveWorkout() {
         subtitle="Solo para esta sesión — tu rutina queda igual."
         initialMuscle={swapInitialGroup}
         highlightMuscle={currentMuscle}
+      />
+
+      {/* Ficha del ejercicio en curso (hub de detalle) — accesible en pleno
+          workout. `key` en el ejercicio actual reinicia el estado interno del
+          sheet (selectedId = useState(initialExerciseId)) cada vez que cambia
+          el ejercicio, garantizando que se abre con el correcto. */}
+      <ExerciseDetailSheet
+        key={currentEx?.exerciseId}
+        visible={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        unit={profile.unit}
+        initialExerciseId={currentEx?.exerciseId}
+        showSelector={false}
+        initialTab="about"
       />
     </View>
     </BottomSheetModalProvider>
@@ -907,15 +915,7 @@ function WarmupPhase({
     <>
       {/* Selector de día — por si hoy toca improvisar */}
       <View>
-        <Text
-          style={{
-            fontSize: fontSize.sm,
-            fontWeight: '700',
-            color: colors.text.muted,
-            letterSpacing: 4,
-            marginBottom: spacing.md,
-          }}
-        >
+        <Text variant="overline" tone="muted" style={{ marginBottom: spacing.md }}>
           DÍA DE HOY
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -940,26 +940,16 @@ function WarmupPhase({
       {/* Tarjeta central: cronómetro de calentamiento + preview del día */}
       <View style={{ flex: 1, justifyContent: 'center', paddingVertical: spacing.lg }}>
         <Card variant="raised" padding="xl">
-          <Text
-            style={{
-              fontSize: fontSize.sm,
-              fontWeight: '700',
-              color: colors.text.muted,
-              letterSpacing: 4,
-              textAlign: 'center',
-              marginBottom: spacing.sm,
-            }}
-          >
+          <Text variant="overline" tone="muted" style={{ textAlign: 'center', marginBottom: spacing.sm }}>
             CALENTAMIENTO
           </Text>
           <Text
             variant="metricLg"
             numeric
+            tracking="tightest"
             style={{
               color: colors.text.secondary,
               textAlign: 'center',
-              letterSpacing: -2,
-              lineHeight: 78,
             }}
           >
             {formatClock(elapsed)}
@@ -1010,6 +1000,7 @@ function SetPhase({
   elapsed,
   onDone,
   onSwap,
+  onOpenDetail,
 }: {
   exerciseId: string;
   exerciseName: string;
@@ -1020,21 +1011,13 @@ function SetPhase({
   elapsed: number;
   onDone: () => void;
   onSwap: () => void;
+  onOpenDetail: () => void;
 }) {
   return (
     <>
       {/* Arriba: serie actual + pills de progreso */}
       <View>
-        <Text
-          style={{
-            fontSize: fontSize.sm,
-            fontWeight: '700',
-            color: colors.primary.DEFAULT,
-            letterSpacing: 4,
-            textAlign: 'center',
-            marginBottom: spacing.md,
-          }}
-        >
+        <Text variant="overline" tone="brand" style={{ textAlign: 'center', marginBottom: spacing.md }}>
           SERIE {setNumber}/{totalSets}
         </Text>
         <SetProgressPills total={totalSets} current={setNumber - 1} completedCount={completedCount} />
@@ -1046,6 +1029,7 @@ function SetPhase({
           exerciseId={exerciseId}
           name={exerciseName}
           subtitle={subtitle}
+          onPress={onOpenDetail}
           style={{ flex: 1, flexShrink: 1, maxHeight: SCREEN_HEIGHT * 0.42, minHeight: 160 }}
         />
 
@@ -1060,45 +1044,20 @@ function SetPhase({
             alignItems: 'center',
           }}
         >
-          <Text
-            style={{
-              fontSize: 64,
-              fontWeight: '900',
-              color: colors.text.primary,
-              letterSpacing: -2,
-              fontVariant: ['tabular-nums'],
-              lineHeight: 68,
-            }}
-          >
-            {formatClock(elapsed)}
-          </Text>
-          <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs, letterSpacing: 1 }}>
+          <Text variant="timer">{formatClock(elapsed)}</Text>
+          <Text variant="caption" tone="muted" tracking="wide" style={{ marginTop: spacing.xs }}>
             tiempo en la serie
           </Text>
         </View>
 
         {/* ¿Máquina ocupada? Cambia el ejercicio solo por hoy */}
-        <Pressable
+        <Chip
+          label="Cambiar ejercicio"
+          leftIcon="swap"
+          variant="outline"
           onPress={onSwap}
-          hitSlop={8}
-          style={({ pressed }) => ({
-            flexDirection: 'row',
-            alignItems: 'center',
-            alignSelf: 'center',
-            gap: 8,
-            paddingVertical: 9,
-            paddingHorizontal: 16,
-            borderRadius: radius.full,
-            borderWidth: 1,
-            borderColor: pressed ? colors.text.secondary : colors.border,
-            backgroundColor: pressed ? 'rgba(255,255,255,0.04)' : 'transparent',
-          })}
-        >
-          <Icon name="swap" size={14} color={colors.text.secondary} />
-          <Text variant="caption" weight="semibold" tone="secondary">
-            Cambiar ejercicio
-          </Text>
-        </Pressable>
+          style={{ alignSelf: 'center' }}
+        />
       </View>
 
       <Button title="Terminé la serie" variant="primary" size="lg" fullWidth onPress={onDone} />
@@ -1218,26 +1177,13 @@ function LogPhase({
           accessoryId={LOG_ACCESSORY_ID}
         />
         {showPlates && (
-          <PressableScale
+          <Chip
+            label="Discos"
+            leftIcon="dumbbell"
+            variant="solid"
             onPress={() => setPlatesOpen(true)}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              alignSelf: 'center',
-              gap: 6,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm,
-              borderRadius: radius.full,
-              borderWidth: 1,
-              borderColor: colors.border,
-              backgroundColor: colors.bg.elevated,
-            }}
-          >
-            <Icon name="dumbbell" size={14} color={colors.text.secondary} />
-            <Text variant="caption" weight="semibold" tone="secondary">
-              Discos
-            </Text>
-          </PressableScale>
+            style={{ alignSelf: 'center' }}
+          />
         )}
         <BigStepperInput
           label="REPS"
@@ -1313,11 +1259,11 @@ function RestPhrase() {
       }}
     >
       <Text
+        tracking="snug"
         style={{
           fontSize: fontSize.md,
           fontWeight: '600',
           color: colors.text.secondary,
-          letterSpacing: 0.3,
           textAlign: 'center',
         }}
       >
@@ -1353,16 +1299,7 @@ function RestPhase({
     <>
       {/* Arriba: label + pills de la serie que viene */}
       <View>
-        <Text
-          style={{
-            fontSize: fontSize.sm,
-            fontWeight: '700',
-            color: colors.text.muted,
-            letterSpacing: 4,
-            textAlign: 'center',
-            marginBottom: spacing.md,
-          }}
-        >
+        <Text variant="overline" tone="muted" style={{ textAlign: 'center', marginBottom: spacing.md }}>
           DESCANSO
         </Text>
         <SetProgressPills total={pillsTotal} current={pillsCurrent} completedCount={pillsCompleted} />
@@ -1504,12 +1441,12 @@ function Summary({
 
           <Animated.View style={{ opacity: textOpacity, alignItems: 'center' }}>
             <Text
+              tracking="tighter"
               style={{
                 fontSize: fontSize['3xl'],
                 fontWeight: '900',
                 color: colors.text.primary,
                 textAlign: 'center',
-                letterSpacing: -1,
               }}
             >
               ¡Bien hecho!
@@ -1575,12 +1512,12 @@ function Summary({
             <Card variant="raised" padding="lg">
               <View style={{ alignItems: 'center', gap: spacing.sm }}>
                 <Text
+                  tracking="tight"
                   style={{
                     fontSize: fontSize.xl,
                     fontWeight: '800',
                     color: progress.prCount > 0 ? colors.medal.gold : colors.success,
                     textAlign: 'center',
-                    letterSpacing: -0.3,
                   }}
                 >
                   {progress.prCount > 0
