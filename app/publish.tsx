@@ -285,8 +285,8 @@ function ManualComposer({
               gap: 4,
             }}
           >
-            <Icon name="close" size={14} color="#fff" />
-            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+            <Icon name="close" size={14} color={colors.text.primary} />
+            <Text variant="caption" weight="bold" style={{ color: colors.text.primary }}>Quitar</Text>
           </Pressable>
         </View>
       ) : (
@@ -619,8 +619,8 @@ function WorkoutComposer({
             onPress={() => setPhotoUri(null)}
             style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
-            <Icon name="close" size={14} color="#fff" />
-            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+            <Icon name="close" size={14} color={colors.text.primary} />
+            <Text variant="caption" weight="bold" style={{ color: colors.text.primary }}>Quitar</Text>
           </Pressable>
         </View>
       ) : (
@@ -826,8 +826,8 @@ function PrComposer({
             onPress={() => setPhotoUri(null)}
             style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
-            <Icon name="close" size={14} color="#fff" />
-            <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
+            <Icon name="close" size={14} color={colors.text.primary} />
+            <Text variant="caption" weight="bold" style={{ color: colors.text.primary }}>Quitar</Text>
           </Pressable>
         </View>
       ) : (

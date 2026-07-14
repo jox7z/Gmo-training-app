@@ -186,7 +186,7 @@ export default function NewEventScreen() {
                       padding: 6,
                     }}
                   >
-                    <Icon name="edit" size={14} color="#fff" />
+                    <Icon name="edit" size={14} color={colors.text.primary} />
                   </View>
                 )}
               </Card>

@@ -265,7 +265,7 @@ export default function EditProfile() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Icon name="camera" size={16} color="#FFFFFF" />
+                  <Icon name="camera" size={16} color={colors.text.primary} />
                 </View>
               </View>
             </PressableScale>
@@ -349,7 +349,7 @@ export default function EditProfile() {
               {/* Instagram manual (no verificado) */}
               <View style={{ gap: spacing.sm }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                  <Icon name="instagram" size={15} color="#E1306C" />
+                  <Icon name="instagram" size={15} color={colors.social.instagram} />
                   <Text variant="label" tone="secondary">Instagram</Text>
                 </View>
                 <Input

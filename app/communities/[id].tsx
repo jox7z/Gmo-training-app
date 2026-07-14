@@ -353,7 +353,7 @@ export default function CommunityDetailScreen() {
                 >
                   <Text
                     weight="bold"
-                    style={{ fontSize: 13, color: active ? '#fff' : colors.text.secondary }}
+                    style={{ fontSize: 13, color: active ? colors.text.primary : colors.text.secondary }}
                   >
                     {t.label}
                   </Text>
@@ -612,7 +612,7 @@ function EventosTab({
       {isMember && (
         <Button
           title="Crear evento"
-          leftIcon={<Icon name="plus" size={16} color="#fff" />}
+          leftIcon={<Icon name="plus" size={16} color={colors.text.primary} />}
           onPress={() =>
             router.push({
               pathname: '/events/new',
@@ -790,7 +790,7 @@ function MembersTab({
                     backgroundColor: colors.success,
                   }}
                 >
-                  <Text weight="bold" style={{ color: '#fff', fontSize: 13 }}>Aprobar</Text>
+                  <Text weight="bold" style={{ color: colors.text.primary, fontSize: 13 }}>Aprobar</Text>
                 </Pressable>
                 <Pressable
                   onPress={() =>

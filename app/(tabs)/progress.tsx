@@ -492,7 +492,7 @@ function BodySection({
 
       <Button
         title="Registrar peso de hoy"
-        leftIcon={<Icon name="scale" size={18} color="#fff" />}
+        leftIcon={<Icon name="scale" size={18} color={colors.text.primary} />}
         onPress={onAdd}
         fullWidth
       />

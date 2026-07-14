@@ -85,8 +85,8 @@ export default function DiscoverScreen() {
                   backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
                 }}
               >
-                <Icon name={t.icon} size={15} color={active ? '#fff' : colors.text.muted} />
-                <Text weight="bold" style={{ fontSize: 13, color: active ? '#fff' : colors.text.secondary }}>
+                <Icon name={t.icon} size={15} color={active ? colors.text.primary : colors.text.muted} />
+                <Text weight="bold" style={{ fontSize: 13, color: active ? colors.text.primary : colors.text.secondary }}>
                   {t.label}
                 </Text>
               </Pressable>

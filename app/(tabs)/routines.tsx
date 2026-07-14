@@ -157,7 +157,7 @@ export default function Routines() {
               <Button
                 title="Empezar"
                 size="lg"
-                leftIcon={<Icon name="dumbbell" size={18} color="#fff" />}
+                leftIcon={<Icon name="dumbbell" size={18} color={colors.text.primary} />}
                 onPress={() =>
                   router.push({
                     pathname: '/workout/active',

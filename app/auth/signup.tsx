@@ -222,7 +222,7 @@ function TermsCheckbox({ checked, onToggle }: { checked: boolean; onToggle: () =
         }}
       >
         {checked && (
-          <Text style={{ color: '#fff', fontSize: 14, fontWeight: '900' }}>✓</Text>
+          <Text style={{ color: colors.text.primary, fontSize: 14, fontWeight: '900' }}>✓</Text>
         )}
       </View>
       <Text variant="caption" tone="secondary" style={{ flex: 1, lineHeight: 18 }}>

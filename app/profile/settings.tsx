@@ -116,7 +116,7 @@ export default function SettingsScreen() {
                   justifyContent: 'center',
                 }}
               >
-                <Icon name="camera" size={12} color="#FFFFFF" />
+                <Icon name="camera" size={12} color={colors.text.primary} />
               </View>
             </View>
             <View style={{ flex: 1 }}>
@@ -392,7 +392,7 @@ function ToggleRow({
         value={value}
         onValueChange={onChange}
         trackColor={{ false: colors.border, true: colors.primary.DEFAULT }}
-        thumbColor="#FFFFFF"
+        thumbColor={colors.text.primary}
         ios_backgroundColor={colors.border}
       />
     </View>

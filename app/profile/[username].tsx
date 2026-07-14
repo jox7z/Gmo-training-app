@@ -191,13 +191,13 @@ export default function PublicProfile() {
                         paddingHorizontal: spacing.sm,
                         paddingVertical: spacing.xs,
                         borderRadius: radius.full,
-                        backgroundColor: 'rgba(225,48,108,0.12)',
+                        backgroundColor: colors.social.instagramSoft,
                         borderWidth: 1,
-                        borderColor: 'rgba(225,48,108,0.4)',
+                        borderColor: colors.social.instagramBorder,
                       }}
                     >
-                      <Icon name="instagram" size={12} color="#E1306C" />
-                      <Text variant="caption" weight="semibold" style={{ color: '#E1306C', fontSize: 11 }}>
+                      <Icon name="instagram" size={12} color={colors.social.instagram} />
+                      <Text variant="caption" weight="semibold" style={{ color: colors.social.instagram, fontSize: 11 }}>
                         @{displayProfile.instagramUsername}
                       </Text>
                     </PressableScale>

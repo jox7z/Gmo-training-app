@@ -202,7 +202,7 @@ export default function NewBodyMeasurement() {
                 justifyContent: 'center',
               }}
             >
-              {advanced && <Icon name="check" size={14} color="#fff" />}
+              {advanced && <Icon name="check" size={14} color={colors.text.primary} />}
             </View>
             <Text weight="semibold" style={{ flex: 1 }}>Mostrar avanzado</Text>
             <Text variant="caption" tone="muted">% grasa, músculo, agua</Text>

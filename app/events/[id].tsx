@@ -247,7 +247,7 @@ export default function EventDetailScreen() {
               fullWidth
               leftIcon={
                 !event.isJoined ? (
-                  <Icon name={isChallenge ? 'trophy' : 'check'} size={18} color="#fff" />
+                  <Icon name={isChallenge ? 'trophy' : 'check'} size={18} color={colors.text.primary} />
                 ) : undefined
               }
             />
