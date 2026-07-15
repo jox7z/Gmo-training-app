@@ -11,6 +11,7 @@ import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { IconButton } from '@/components/ui/IconButton';
 import { Loader } from '@/components/ui/Loader';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { colors, spacing, RANKS, RankId } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
 import {
@@ -151,21 +152,16 @@ export default function Connections() {
             gap: spacing.sm,
           }}
           ListEmptyComponent={
-            <Card padding="xl" style={{ alignItems: 'center' }}>
-              <Icon name="users" size={32} color={colors.text.muted} />
-              <Text variant="heading" style={{ marginTop: spacing.md }}>
-                {type === 'followers' ? 'Aún no tienes seguidores' : 'Aún no sigues a nadie'}
-              </Text>
-              <Text
-                variant="caption"
-                tone="secondary"
-                style={{ marginTop: spacing.xs, textAlign: 'center' }}
-              >
-                {type === 'followers'
+            <EmptyState
+              icon="users"
+              title={type === 'followers' ? 'Aún no tienes seguidores' : 'Aún no sigues a nadie'}
+              subtitle={
+                type === 'followers'
                   ? 'Comparte tu perfil para empezar a ganar seguidores.'
-                  : 'Descubre atletas para llenar tu feed.'}
-              </Text>
-            </Card>
+                  : 'Descubre atletas para llenar tu feed.'
+              }
+              action={{ label: 'Descubrir atletas', onPress: () => router.push('/discover') }}
+            />
           }
           refreshControl={
             <RefreshControl
