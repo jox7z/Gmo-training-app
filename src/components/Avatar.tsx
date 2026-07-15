@@ -1,4 +1,5 @@
-import { View, Image, ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
+import { Image } from 'expo-image';
 import { colors, radius } from '@/theme/tokens';
 import { Text } from './ui/Text';
 
@@ -35,7 +36,13 @@ export function Avatar({ uri, name, size = 44, bordered = true, borderColor, sty
       ]}
     >
       {uri ? (
-        <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        <Image
+          source={{ uri }}
+          style={{ width: '100%', height: '100%' }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={100}
+        />
       ) : (
         <Text style={{ fontSize, color: colors.text.primary }} weight="black">
           {initial}

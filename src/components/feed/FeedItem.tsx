@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, View, Pressable, Image, Modal, ScrollView } from 'react-native';
+import { Animated, View, Pressable, Modal, ScrollView } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomSheetView } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
@@ -120,8 +121,11 @@ function ManualBody({ post }: { post: Post }) {
     >
       <Image
         source={{ uri: post.photoUrl }}
-        style={{ width: '100%', aspectRatio: 4 / 5 }}
-        resizeMode="cover"
+        style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+        transition={150}
+        recyclingKey={post.id}
       />
     </View>
   );
@@ -325,7 +329,14 @@ function WorkoutBody({ post }: { post: Post }) {
       )}
       {post.photoUrl ? (
         <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
-          <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
+          <Image
+            source={{ uri: post.photoUrl }}
+            style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+            recyclingKey={post.id}
+          />
         </View>
       ) : null}
     </View>
@@ -409,7 +420,14 @@ function PrBody({ post }: { post: Post }) {
       ) : null}
       {post.photoUrl ? (
         <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
-          <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
+          <Image
+            source={{ uri: post.photoUrl }}
+            style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+            recyclingKey={post.id}
+          />
         </View>
       ) : null}
     </View>
