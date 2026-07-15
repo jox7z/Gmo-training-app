@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Pressable, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -7,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
@@ -159,6 +161,13 @@ export default function EventDetailScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.primary.DEFAULT} />
         </View>
+      ) : eventQuery.isError && !event ? (
+        <View style={{ flex: 1, justifyContent: 'center', padding: spacing.lg }}>
+          <ErrorState
+            title="No se pudo cargar el evento"
+            onRetry={() => eventQuery.refetch()}
+          />
+        </View>
       ) : !event ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <Icon name="calendar" size={32} color={colors.text.muted} />
@@ -178,7 +187,9 @@ export default function EventDetailScreen() {
             <Image
               source={{ uri: event.coverUrl }}
               style={{ width: '100%', aspectRatio: 16 / 9 }}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
+              transition={150}
             />
           ) : null}
 

@@ -15,9 +15,11 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { goToTab, TAB_INDEX } from '@/lib/tabsNav';
 import { useWorkoutsStore } from '@/store/workouts';
 import { useAppStore } from '@/store/app';
 import { formatWeight } from '@/lib/units';
@@ -112,11 +114,20 @@ export default function RecordsScreen() {
         </Text>
 
         {records.length === 0 ? (
-          <Card variant="raised" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
-            <Text tone="muted" style={{ textAlign: 'center' }}>
-              Completa tu primer entreno para ver tus récords
-            </Text>
-          </Card>
+          <EmptyState
+            icon="trophy"
+            tone="primary"
+            title="Aún no tienes récords"
+            subtitle="Completa tu primer entreno para ver tus récords aquí."
+            action={{
+              label: 'Empezar entreno',
+              onPress: () => {
+                router.back();
+                goToTab(TAB_INDEX.routines);
+              },
+            }}
+            style={{ marginTop: spacing.lg }}
+          />
         ) : (
           records.map((r) => (
             <RecordCard

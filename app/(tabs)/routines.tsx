@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
 import { useAppStore } from '@/store/app';
@@ -125,26 +126,18 @@ export default function Routines() {
       </View>
 
       {!activeRoutine ? (
-        <View style={{ alignItems: 'center', marginTop: spacing['2xl'], gap: spacing.lg }}>
-          <Text variant="heading" tone="muted" style={{ textAlign: 'center' }}>
-            Aún no tienes una rutina
-          </Text>
-          <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-            Crea tu rutina de entrenamiento
-          </Text>
-          <Button
-            title="Elegir plantilla"
-            size="lg"
-            onPress={() => router.push('/routine/templates')}
-            fullWidth
-          />
-          <Button
-            title="Crear rutina manual"
-            variant="ghost"
-            onPress={() => router.push({ pathname: '/routine/[id]', params: { id: 'new' } })}
-            fullWidth
-          />
-        </View>
+        <EmptyState
+          icon="dumbbell"
+          tone="primary"
+          title="Aún no tienes una rutina"
+          subtitle="Crea tu rutina de entrenamiento"
+          action={{ label: 'Elegir plantilla', onPress: () => router.push('/routine/templates') }}
+          secondaryAction={{
+            label: 'Crear rutina manual',
+            onPress: () => router.push({ pathname: '/routine/[id]', params: { id: 'new' } }),
+          }}
+          style={{ marginTop: spacing['2xl'] }}
+        />
       ) : (
         <>
           <Card variant="raised" padding="xl" style={{ marginTop: spacing.lg }}>

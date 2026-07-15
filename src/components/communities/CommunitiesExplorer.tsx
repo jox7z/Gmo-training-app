@@ -8,9 +8,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { Icon } from '@/components/Icon';
 import { SkeletonRow } from '@/components/ui/Skeleton';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -144,42 +145,31 @@ export function CommunitiesExplorer() {
               <SkeletonRow key={i} />
             ))}
           </View>
+        ) : query.isError ? (
+          <ErrorState
+            title="No se pudieron cargar las comunidades"
+            onRetry={() => query.refetch()}
+            style={{ marginTop: spacing.xl }}
+          />
         ) : (
-          <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.xl }}>
-            <View
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-                marginBottom: spacing.md,
-              }}
-            >
-              <Icon name="users" size={28} color={colors.text.secondary} />
-            </View>
-            <Text variant="heading" style={{ textAlign: 'center' }}>
-              {filter === 'mine'
+          <EmptyState
+            icon="users"
+            title={
+              filter === 'mine'
                 ? 'Aún no creaste ninguna'
                 : filter === 'joined'
                 ? 'Todavía no te uniste a ninguna'
                 : search
                 ? `Sin resultados para "${search}"`
-                : 'No hay comunidades todavía'}
-            </Text>
-            <Text
-              variant="caption"
-              tone="secondary"
-              style={{ marginTop: spacing.xs, textAlign: 'center' }}
-            >
-              {filter === 'all' && !search
+                : 'No hay comunidades todavía'
+            }
+            subtitle={
+              filter === 'all' && !search
                 ? '¡Crea la primera y reúne a tu tribu fitness!'
-                : 'Prueba con otro filtro o busca algo distinto'}
-            </Text>
-          </Card>
+                : 'Prueba con otro filtro o busca algo distinto'
+            }
+            style={{ marginTop: spacing.xl }}
+          />
         )
       }
       showsVerticalScrollIndicator={false}

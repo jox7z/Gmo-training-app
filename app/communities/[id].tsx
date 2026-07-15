@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
@@ -164,6 +165,20 @@ export default function CommunityDetailScreen() {
         <StatusBar style="light" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.primary.DEFAULT} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (communityQuery.isError && !community) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
+        <StatusBar style="light" />
+        <View style={{ flex: 1, justifyContent: 'center', padding: spacing.lg }}>
+          <ErrorState
+            title="No se pudo cargar la comunidad"
+            onRetry={() => communityQuery.refetch()}
+          />
         </View>
       </SafeAreaView>
     );

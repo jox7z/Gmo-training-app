@@ -44,6 +44,9 @@ import {
   type BodyPeriod,
 } from '@/lib/queries/body';
 import { useToast } from '@/components/ui/Toast';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { goToTab, TAB_INDEX } from '@/lib/tabsNav';
 
 const PERIODS: { value: ProgressPeriod; label: string }[] = [
   { value: '7d', label: '7d' },
@@ -150,10 +153,21 @@ export default function ProgressScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary.DEFAULT} />
         }
       >
-        {!summary ? (
+        {summaryQuery.isLoading ? (
           <ProgressSkeleton />
-        ) : summary.totalWorkouts === 0 ? (
-          <EmptyState />
+        ) : summaryQuery.isError && !summary ? (
+          <ErrorState
+            title="No se pudo cargar tu progreso"
+            onRetry={() => summaryQuery.refetch()}
+          />
+        ) : !summary || summary.totalWorkouts === 0 ? (
+          <EmptyState
+            icon="dumbbell"
+            tone="primary"
+            title="Aún no tienes entrenamientos"
+            subtitle="Empieza tu primer workout para ver tu progreso aquí."
+            action={{ label: 'Empezar entreno', onPress: () => goToTab(TAB_INDEX.routines) }}
+          />
         ) : (
           <>
             <AveragesCard summary={summary} />
@@ -218,6 +232,7 @@ export default function ProgressScreen() {
           entries={leaderboardQuery.data ?? []}
           loading={leaderboardQuery.isLoading}
           isError={leaderboardQuery.isError}
+          onRetry={() => leaderboardQuery.refetch()}
           currentUserId={profile?.id}
         />
       </ScrollView>
@@ -365,38 +380,6 @@ function TimelineCard({
           {data[0]?.day} → {data[data.length - 1]?.day}
         </Text>
       )}
-    </Card>
-  );
-}
-
-function EmptyState() {
-  return (
-    <Card variant="raised" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
-      <View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.primary.muted,
-          borderWidth: 1,
-          borderColor: colors.primary.DEFAULT,
-          marginBottom: spacing.md,
-        }}
-      >
-        <Icon name="chart" size={28} color={colors.primary.DEFAULT} />
-      </View>
-      <Text variant="heading" style={{ textAlign: 'center' }}>
-        Aún no tienes entrenamientos
-      </Text>
-      <Text
-        variant="caption"
-        tone="secondary"
-        style={{ textAlign: 'center', marginTop: spacing.xs }}
-      >
-        Empieza tu primer workout para ver tu progreso aquí.
-      </Text>
     </Card>
   );
 }
@@ -921,12 +904,14 @@ function LeaderboardSection({
   entries,
   loading,
   isError,
+  onRetry,
   currentUserId,
 }: {
   rankId: RankId;
   entries: LeaderboardEntry[];
   loading: boolean;
   isError: boolean;
+  onRetry: () => void;
   currentUserId?: string;
 }) {
   const rankInfo = RANKS.find((r) => r.id === rankId) ?? RANKS[0];
@@ -956,7 +941,20 @@ function LeaderboardSection({
           <View style={{ padding: spacing.xl, alignItems: 'center' }}>
             <Text variant="caption" tone="muted">Cargando leaderboard…</Text>
           </View>
-        ) : isError || entries.length === 0 ? (
+        ) : isError ? (
+          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
+            <Icon name="close" size={28} color={colors.danger} />
+            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
+              No se pudo cargar el leaderboard.
+            </Text>
+            <Button
+              title="Reintentar"
+              variant="secondary"
+              onPress={onRetry}
+              style={{ marginTop: spacing.md }}
+            />
+          </View>
+        ) : entries.length === 0 ? (
           <View style={{ padding: spacing.xl, alignItems: 'center' }}>
             <Icon name="trophy" size={28} color={colors.text.muted} />
             <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
