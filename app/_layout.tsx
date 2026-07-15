@@ -2,8 +2,9 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { AppState, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClient, QueryClientProvider, focusManager } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, focusManager, onlineManager } from '@tanstack/react-query';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
+import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -31,6 +32,11 @@ focusManager.setEventListener((handleFocus) => {
   });
   return () => sub.remove();
 });
+// React Query online tracking via NetInfo (patrón oficial RN): sin esto,
+// onlineManager asume siempre online y refetchOnReconnect nunca dispara.
+onlineManager.setEventListener((setOnline) =>
+  NetInfo.addEventListener((state) => setOnline(!!state.isConnected)),
+);
 // Set the native root window background so Android doesn't flash/show white
 // while React mounts or when a screen renders an empty state.
 SystemUI.setBackgroundColorAsync(colors.bg.base).catch(() => {});
@@ -65,6 +71,17 @@ const queryClient = new QueryClient({
       retry: 1,
       refetchOnReconnect: true,
       refetchOnWindowFocus: true,
+      // Con onlineManager cableado a NetInfo, el default 'online' dejaría las
+      // queries sin caché en 'paused' cuando no hay red (spinner infinito, la
+      // rama isError nunca corre). 'offlineFirst' deja correr el primer intento:
+      // sin red falla rápido → las ramas isError/ErrorState funcionan, y al
+      // reconectar refetchOnReconnect sí dispara (onlineManager ya emite).
+      networkMode: 'offlineFirst',
+    },
+    mutations: {
+      // Mismo motivo: sin red la mutación corre y falla rápido en vez de quedar
+      // en pausa; el error llega a onError/rollback óptimista.
+      networkMode: 'offlineFirst',
     },
   },
 });
