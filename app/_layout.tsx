@@ -68,7 +68,12 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 60_000,
-      retry: 1,
+      // retry 0: bajo 'offlineFirst' el PRIMER intento siempre corre, pero un
+      // REINTENTO exige onlineManager.isOnline() — sin red el retry queda en
+      // 'paused' (ni loading ni error) y la pantalla cae en un falso vacío.
+      // Con retry 0 el fallo llega directo a isError; la recuperación la cubren
+      // refetchOnReconnect + refetchOnWindowFocus.
+      retry: 0,
       refetchOnReconnect: true,
       refetchOnWindowFocus: true,
       // Con onlineManager cableado a NetInfo, el default 'online' dejaría las

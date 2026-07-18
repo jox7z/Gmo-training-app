@@ -97,7 +97,9 @@ export default function PublicProfile() {
 
   // Error de red al resolver el perfil por búsqueda: no degradar a un falso
   // "perfil no encontrado" (patrón C0 P2 — mensaje claro + Reintentar).
-  if (!isSelf && searchQuery.isError) {
+  // Con data cacheada que ya resolvió el perfil, el error de refetch no debe
+  // tapar el contenido válido.
+  if (!isSelf && searchQuery.isError && !matched) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
         <StatusBar style="light" />
