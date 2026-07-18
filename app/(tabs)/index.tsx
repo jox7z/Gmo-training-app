@@ -14,7 +14,8 @@ import { IconButton } from '@/components/ui/IconButton';
 import { FeedItem } from '@/components/feed/FeedItem';
 import { StartWorkoutFab } from '@/components/StartWorkoutFab';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
-import { FeedEmptyState, FeedErrorState } from '@/components/feed/FeedEmptyState';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { CommentSheet } from '@/components/feed/CommentSheet';
 import { useToast } from '@/components/ui/Toast';
 import { useAppStore } from '@/store/app';
@@ -320,7 +321,8 @@ export default function FeedHome() {
         </View>
       ) : hasError ? (
         <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
-          <FeedErrorState
+          <ErrorState
+            title="No se pudo cargar el feed"
             message={feedQuery.error?.message}
             onRetry={onRefresh}
           />
@@ -355,7 +357,18 @@ export default function FeedHome() {
               onSharePR={goSharePR}
             />
           }
-          ListEmptyComponent={isEmpty ? <FeedEmptyState onDiscover={goDiscover} /> : null}
+          ListEmptyComponent={
+            isEmpty ? (
+              <EmptyState
+                icon="users"
+                tone="info"
+                title="Tu feed está vacío"
+                subtitle="Sigue a otros atletas y verás sus entrenos, PRs y rachas aquí."
+                action={{ label: 'Descubrir atletas →', onPress: goDiscover }}
+                style={{ marginTop: spacing.lg }}
+              />
+            ) : null
+          }
           ListFooterComponent={
             isFetchingNextPage ? (
               <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>

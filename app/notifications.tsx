@@ -9,9 +9,11 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { FlashList } from '@shopify/flash-list';
-import { colors, spacing, radius } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
 import { SkeletonRow } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { useNotifications, useMarkRead, type Notification } from '@/lib/queries/notifications';
@@ -138,33 +140,6 @@ function Separator() {
 }
 
 // =====================================================
-// Empty state
-// =====================================================
-
-function EmptyState() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: spacing.xl,
-        paddingTop: spacing['4xl'],
-        gap: spacing.md,
-      }}
-    >
-      <Icon name="bell" size={48} color={colors.text.muted} />
-      <Text variant="heading" tone="muted" style={{ textAlign: 'center' }}>
-        Sin notificaciones
-      </Text>
-      <Text variant="body" tone="muted" style={{ textAlign: 'center' }}>
-        Cuando alguien reaccione, comente o te siga, aparecerá aquí.
-      </Text>
-    </View>
-  );
-}
-
-// =====================================================
 // Screen
 // =====================================================
 
@@ -181,6 +156,7 @@ export default function NotificationsScreen() {
   );
 
   const isInitialLoading = notificationsQuery.isLoading && notifications.length === 0;
+  const hasError = !isInitialLoading && !!notificationsQuery.error && notifications.length === 0;
   const isEmpty = !isInitialLoading && !notificationsQuery.error && notifications.length === 0;
 
   // Al abrir la pantalla, marcar todas como leídas
@@ -282,7 +258,21 @@ export default function NotificationsScreen() {
           contentContainerStyle={{
             paddingBottom: insets.bottom + spacing.xl,
           }}
-          ListEmptyComponent={isEmpty ? <EmptyState /> : null}
+          ListEmptyComponent={
+            hasError ? (
+              <View style={{ padding: spacing.lg, paddingTop: spacing['4xl'] }}>
+                <ErrorState onRetry={onRefresh} />
+              </View>
+            ) : isEmpty ? (
+              <View style={{ padding: spacing.lg, paddingTop: spacing['4xl'] }}>
+                <EmptyState
+                  icon="bell"
+                  title="Sin notificaciones"
+                  subtitle="Cuando alguien reaccione, comente o te siga, aparecerá aquí."
+                />
+              </View>
+            ) : null
+          }
           ListFooterComponent={
             notificationsQuery.isFetchingNextPage ? (
               <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>

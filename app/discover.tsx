@@ -19,6 +19,8 @@ import { type CommunityEvent } from '@/lib/repos/events';
 import { EventCard } from '@/components/EventCard';
 import { CommunitiesExplorer } from '@/components/communities/CommunitiesExplorer';
 import { SkeletonRow } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 
 type HubTab = 'search' | 'events' | 'ranking' | 'communities';
 
@@ -216,6 +218,8 @@ function SearchTab() {
               title="Encuentra atletas"
               subtitle="Escribe al menos 2 caracteres para buscar por nombre o username."
             />
+          ) : searchQuery.isError ? (
+            <ErrorState onRetry={() => searchQuery.refetch()} />
           ) : showNoResults ? (
             <EmptyState
               icon="users"
@@ -349,11 +353,14 @@ function EventsTab() {
               <SkeletonRow key={i} />
             ))}
           </View>
+        ) : eventsQuery.isError ? (
+          <ErrorState onRetry={() => eventsQuery.refetch()} />
         ) : (
           <EmptyState
             icon="calendar"
             title="Sin eventos por aquí"
             subtitle="Aún no hay eventos en esta categoría. ¡Crea el primero y reúne a la comunidad!"
+            action={{ label: 'Crear evento', onPress: () => router.push('/events/new') }}
           />
         )
       }
@@ -405,6 +412,8 @@ function RankingTab() {
               <SkeletonRow key={i} />
             ))}
           </View>
+        ) : leaderboardQuery.isError ? (
+          <ErrorState onRetry={() => leaderboardQuery.refetch()} />
         ) : (
           <EmptyState
             icon="trophy"
@@ -462,40 +471,3 @@ function RankingRow({
   );
 }
 
-// =====================================================
-// SHARED
-// =====================================================
-
-function EmptyState({
-  icon,
-  title,
-  subtitle,
-}: {
-  icon: IconName;
-  title: string;
-  subtitle: string;
-}) {
-  return (
-    <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.xl }}>
-      <View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.bg.elevated,
-          borderWidth: 1,
-          borderColor: colors.border,
-          marginBottom: spacing.md,
-        }}
-      >
-        <Icon name={icon} size={28} color={colors.text.secondary} />
-      </View>
-      <Text variant="heading" style={{ textAlign: 'center' }}>{title}</Text>
-      <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
-        {subtitle}
-      </Text>
-    </Card>
-  );
-}

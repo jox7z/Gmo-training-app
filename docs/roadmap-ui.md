@@ -173,7 +173,7 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 | Columna "anterior" + autofill por set en workout activo | P0 | M | — | D1 · ✅ 2026-07-11 (`previousExerciseSets` en `workoutCompare.ts`; autofill en warmup + línea "Anterior" en LogPhase) |
 | Banner de PR en vivo al completar set (la detección ya existe en `workoutCompare.ts`) | P1 | S | — | D5 · ✅ 2026-07-11 (`historicMaxWeight` + `playSplash`, 1 vez por ejercicio/sesión) |
 | CTA persistente "empezar entreno" (header del feed o botón flotante) | P0 | S–M | — | D2 · ✅ 2026-07-11 (FAB `StartWorkoutFab` en el feed: reanuda/empieza siguiente día/salta a Rutinas vía `tabsNav`) |
-| Degradación offline explícita en features sociales (mensaje, no spinner) | P2 | S | — | D7 |
+| Degradación offline explícita en features sociales (mensaje, no spinner) | P2 | S | — | D7 · ✅ 2026-07-17 (onlineManager cableado a NetInfo + `networkMode 'offlineFirst'` con `retry 0`; primitivos `EmptyState`/`ErrorState` en ui/ y auditoría completa: feed, discover ×4 tabs, notificaciones —antes pantalla en blanco—, progreso —antes skeleton infinito—, perfil/evento/comunidad separan error de "no existe", records, rutinas, connections; CTAs añadidos: Empezar entreno, Descubrir atletas, Publicar, Crear evento) |
 
 ### C1 — Assets críticos (P0 — bloqueado por ARTE, no por código)
 
@@ -193,7 +193,7 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 | 4 | `react-native-gifted-charts` — ejes, tooltips y selector de rango en TimeSeriesChart/WeightChart/barras de progreso | P0 | M | — | D3 · ✅ 2026-07-12 (TimeSeriesChart sobre `LineChart` con tooltip por long-press; barras de actividad de Progreso sobre `BarChart` con labels de día. Divergencia aceptada: gifted espacia por índice, no proporcional al timestamp) |
 | 5 | `lottie-react-native` + ilustraciones en empty states y onboarding | P1 | S–M | C1 ilustraciones | D7/D6 |
 | 6 | `react-native-reanimated-carousel` — onboarding visual | P2 | S–M | — | D6 |
-| 7 | ThumbHash en `expo-image` + `recyclingKey` en FlashList (feed) | P2 | S | — | D7 |
+| 7 | ThumbHash en `expo-image` + `recyclingKey` en FlashList (feed) | P2 | S | — | D7 · ✅ PARCIAL 2026-07-17 (`expo-image` en FeedItem ×3 fotos + Avatar con `cachePolicy memory-disk`/`transition`/placeholder `bg.elevated` y `recyclingKey` por post. PENDIENTE: thumbhash real — requiere columna en DB + hash al subir la imagen) |
 | 8 | Plate calculator embebido en el input de peso (patrón Hevy; usa `@gorhom/bottom-sheet`) | P1 | M | C2-2 | D1 · ✅ 2026-07-12 (`src/lib/plates.ts` + `PlateCalculatorSheet` sobre AppBottomSheet; botón "Discos" en LogPhase solo para equipment barbell/smith; barra elegible 20/15/10 kg — 45/35/25 lb, sin persistir) |
 | 9 | Heatmap muscular semanal con `react-native-body-highlighter` (ya instalada) en Progreso | P1 | M | — | D3 · ✅ 2026-07-12 (`WeeklyMuscleHeatmapCard` sobre el wrapper `MuscleMap`; datos reales vía `weeklySetsByMuscle` — semana actual corte lunes, fraccional 0.5; colores `STATUS_COLOR`, semanal fijo independiente del selector de período) |
 | 10 | Shareables autogenerados (imagen de PR/racha/mes para IG Stories; ViewShot + plantillas) | P1 | M | C1 emblemas | D5 |

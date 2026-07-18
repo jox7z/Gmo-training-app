@@ -20,10 +20,18 @@ npm run android      # / npm run ios / npm run web
 npm run tunnel       # expo start --tunnel (device on a different network)
 npm run lint         # expo lint (eslint-config-expo, flat config)
 npm run typecheck    # tsc --noEmit  — run this after changes; strict mode is on
+npm test             # jest (preset jest-expo) — pure-lib suites in src/lib/__tests__/
 ```
 
-There is **no test runner configured** — no `test` script and no test files. "Verifying"
-a change means `npm run typecheck` + `npm run lint`, and exercising it in Expo Go.
+"Verifying" a change means `npm run typecheck` + `npm run lint` + `npm test`, and
+exercising it in Expo Go. Jest config lives in the `"jest"` block of `package.json`
+(NOT a jest.config.js — a root .js file would hit eslint-config-expo's `no-undef`):
+preset `jest-expo`, `moduleNameMapper` for the `@/*` alias, `testMatch` restricted to
+`**/__tests__/**/*.test.ts?(x)` so shared fixtures (`src/lib/__tests__/fixtures.ts`)
+don't run as suites. Tests cover **pure lib only** (units, oneRepMax, plates,
+workoutCompare, optimizationScore, achievements, exerciseProgress) — no RN Testing
+Library yet; components/stores/repos are untested by design for now. In fixtures use
+`import type` for store types so suites don't drag AsyncStorage into the runtime.
 
 Supabase (backend is already deployed to a real project; `.env` holds live keys):
 
@@ -64,7 +72,14 @@ the only place that decides where the user goes. Key invariants there:
   `profileComplete` is session-only state and is deliberately **not** persisted.
 - **Server state — React Query** (`@tanstack/react-query`). Provider + a global
   `QueryClient` are in `app/_layout.tsx`; window-focus refetch is wired to React
-  Native `AppState` via `focusManager`.
+  Native `AppState` via `focusManager`, and **online state to NetInfo via
+  `onlineManager`** (without it RN assumes always-online and `refetchOnReconnect`
+  never fires). Network policy (deliberate, don't "fix" piecemeal): `networkMode:
+  'offlineFirst'` on queries AND mutations, with `retry: 0` on queries — under
+  offlineFirst the FIRST attempt always runs (fails fast offline → `isError`
+  renders `ErrorState`), but a RETRY requires `onlineManager.isOnline()` and would
+  leave the query `paused` (neither loading nor error → false empty screen).
+  Recovery comes from `refetchOnReconnect` + `refetchOnWindowFocus`.
 
 ### Data access: repos vs queries
 - `src/lib/repos/*` — plain async functions that talk to Supabase (the only place
@@ -188,6 +203,20 @@ the only place that decides where the user goes. Key invariants there:
   for skeletons (`FeedSkeleton` is built on this primitive; `react-native-skeleton-placeholder`
   was rejected — its `react-native-linear-gradient` peer isn't in Expo Go). List skeletons
   only replace the *initial* empty/loading state, not pagination footers or inline search spinners.
+- **Empty & error states:** every empty list/collection renders the shared
+  `src/components/ui/EmptyState.tsx` (icon/title/subtitle, `action` +
+  `secondaryAction`, tones, future `illustration` slot) and every query error
+  renders `ErrorState` (thin wrapper, danger tone, "Reintentar" + `onRetry`) —
+  never hand-roll per-screen empties or leave a screen blank/spinning on error.
+  Empty states should carry a CTA where a next step exists (patrón Strong):
+  e.g. "Empezar entreno" via `goToTab`, "Descubrir atletas", "Publicar".
+  Distinguish `isError` (→ ErrorState with retry) from a genuine "not found" /
+  empty result — an error must never degrade into a false "no existe" (see
+  `app/profile/[username].tsx`, `app/events/[id].tsx`, `app/communities/[id].tsx`).
+- **Remote images:** use `expo-image` (not RN `Image`) for network photos —
+  `cachePolicy="memory-disk"`, `transition`, `backgroundColor: colors.bg.elevated`
+  placeholder, and `recyclingKey` on FlashList items (see `FeedItem`, `Avatar`).
+  Avatar keeps its initial-letter fallback only for falsy uri — no onError handling.
 - **Bottom sheets:** every sheet that slides up from the bottom goes through
   `src/components/ui/AppBottomSheet.tsx` (declarative `visible`/`onClose` wrapper over
   `@gorhom/bottom-sheet` v5 `BottomSheetModal` — baked-in backdrop, handle, `bg.card`
@@ -239,3 +268,8 @@ the only place that decides where the user goes. Key invariants there:
 
 ## End
 - Update the claude.md and skills each time after completing every request to not loose the context
+- **Always update the roadmaps to track progress**: after completing any roadmap item
+  (or partially completing one), mark it in `docs/roadmap.md` / `docs/roadmap-ui.md`
+  with ✅ + date + a one-line note of what shipped (and what remains if partial), in
+  the same style as the existing entries. A sprint is not done until the roadmap
+  reflects it.

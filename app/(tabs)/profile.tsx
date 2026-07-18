@@ -18,10 +18,12 @@ import { colors, radius, spacing, rankFromPoints } from '@/theme/tokens';
 import { RANK_IMAGES } from '@/theme/rankImages';
 import { Loader } from '@/components/ui/Loader';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { useAppStore } from '@/store/app';
 import { AchievementMedal } from '@/components/achievements/AchievementMedal';
 import { evaluateAchievements } from '@/lib/achievements';
 import { useProfileCounters } from '@/lib/queries/profile';
+import { goToTab, TAB_INDEX } from '@/lib/tabsNav';
 import { useUserPosts } from '@/lib/queries/social';
 import { useWorkoutsStore, type Workout } from '@/store/workouts';
 import { useToast } from '@/components/ui/Toast';
@@ -279,7 +281,13 @@ export default function Profile() {
               ))}
             </View>
           ) : userPosts.length === 0 ? (
-            <TabEmpty icon="image" message="Aún no hay publicaciones." />
+            <EmptyState
+              icon="image"
+              title="Aún no hay publicaciones"
+              subtitle="Comparte tu primer entreno, PR o foto con la comunidad."
+              action={{ label: 'Publicar', onPress: () => router.push('/publish') }}
+              style={{ marginTop: spacing.md }}
+            />
           ) : (
             <View style={{ gap: spacing.md }}>
               {userPosts.map((post, i) => (
@@ -294,7 +302,13 @@ export default function Profile() {
         {/* ── TAB: ACTIVIDAD (workout history) ── */}
         {activeTab === 'activity' && (
           workoutHistory.length === 0 ? (
-            <TabEmpty icon="dumbbell" message="Aún no has registrado ningún entrenamiento." />
+            <EmptyState
+              icon="dumbbell"
+              title="Aún no has registrado ningún entrenamiento"
+              subtitle="Empieza a entrenar para ver aquí tu actividad."
+              action={{ label: 'Empezar entreno', onPress: () => goToTab(TAB_INDEX.routines) }}
+              style={{ marginTop: spacing.md }}
+            />
           ) : (
             <View style={{ gap: spacing.md }}>
               {workoutHistory.map((w) => (
@@ -538,17 +552,6 @@ function WorkoutStat({ label, value }: { label: string; value: string }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared helpers
 // ─────────────────────────────────────────────────────────────────────────────
-
-function TabEmpty({ icon, message, loading }: { icon: IconName; message: string; loading?: boolean }) {
-  return (
-    <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
-      <Icon name={icon} size={28} color={colors.text.muted} />
-      <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-        {message}
-      </Text>
-    </Card>
-  );
-}
 
 function relativeTime(iso: string): string {
   const sec = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));

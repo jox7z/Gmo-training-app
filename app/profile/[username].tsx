@@ -15,6 +15,8 @@ import { Icon } from '@/components/Icon';
 import { IconButton } from '@/components/ui/IconButton';
 import { Loader } from '@/components/ui/Loader';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import {
   useIsFollowing,
@@ -89,6 +91,22 @@ export default function PublicProfile() {
         <StatusBar style="light" />
         <Header onBack={() => router.back()} title={`@${username}`} />
         <Loader />
+      </SafeAreaView>
+    );
+  }
+
+  // Error de red al resolver el perfil por búsqueda: no degradar a un falso
+  // "perfil no encontrado" (patrón C0 P2 — mensaje claro + Reintentar).
+  // Con data cacheada que ya resolvió el perfil, el error de refetch no debe
+  // tapar el contenido válido.
+  if (!isSelf && searchQuery.isError && !matched) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
+        <StatusBar style="light" />
+        <Header onBack={() => router.back()} title={`@${username}`} />
+        <View style={{ flex: 1, padding: spacing.lg, justifyContent: 'center' }}>
+          <ErrorState onRetry={() => searchQuery.refetch()} />
+        </View>
       </SafeAreaView>
     );
   }
@@ -279,12 +297,11 @@ export default function PublicProfile() {
               ))}
             </View>
           ) : (
-            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
-              <Icon name="image" size={32} color={colors.text.muted} />
-              <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-                Aún no hay publicaciones.
-              </Text>
-            </Card>
+            <EmptyState
+              icon="image"
+              title="Aún no hay publicaciones"
+              style={{ marginTop: spacing.md }}
+            />
           )
         }
         refreshControl={
