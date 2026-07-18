@@ -27,7 +27,7 @@
 
 ### Limitaciones transversales
 
-- **Cero tests** — sin test runner ni cobertura alguna
+- ~~**Cero tests** — sin test runner ni cobertura alguna~~ → ✅ 2026-07-17: runner jest-expo + 7 suites de lib pura (54 tests); componentes/stores/repos siguen sin cubrir
 - **Español hardcodeado** — sin i18n
 - **Corre en Expo Go** — limita push notifications y módulos nativos
 
@@ -40,7 +40,7 @@
 | A1 — Higiene de nombres | P0 | S | ✅ Aplicada 2026-07-07 |
 | A2 — Permisos y tools | P0 | S | ✅ Aplicada 2026-07-07 |
 | A3 — Consolidación | P1 | M | Pendiente |
-| A4 — Skills y agentes nuevos | P1–P2 | M | Pendiente (testing bloqueada por B3) |
+| A4 — Skills y agentes nuevos | P1–P2 | M | Pendiente (la skill de testing quedó DESBLOQUEADA por el runner de B3, 2026-07-17) |
 
 ### Fase A1 — Higiene de nombres (P0, S) — ✅ APLICADA 2026-07-07
 
@@ -65,7 +65,7 @@
 
 - Crear `.claude/launch.json` + skill de preview/verificación visual de Expo
 - Skill de migraciones Supabase orquestada (`apply_migration` → `get_advisors` → `generate_typescript_types` vía MCP)
-- Skill de testing — **BLOQUEADA por B3**: primero debe existir test runner
+- Skill de testing — ~~BLOQUEADA por B3~~ **DESBLOQUEADA 2026-07-17**: ya existe runner (jest-expo, `npm test`, convención `src/lib/__tests__/` + `fixtures.ts`)
 - Agentes sonnet backend/frontend para paralelizar features (ya especificados en `docs/skills/agents/`)
 - Retirar o adaptar `.claude/skills/frontend-design.md` (está escrita para web HTML/CSS, no aplica a RN)
 
@@ -99,7 +99,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | Item | Prioridad | Esfuerzo | Notas y dependencias |
 |---|---|---|---|
 | Analytics de producto (PostHog) | P1 | M | Necesario antes de decidir paywall. |
-| Tests (Jest + RN Testing Library) | P1 | M inicial, continuo | Empezar por lib pura: `src/lib/workoutCompare.ts`, `src/lib/units.ts`. Desbloquea la skill de testing (A4). |
+| Tests (Jest + RN Testing Library) | P1 | M inicial, continuo | ✅ PARCIAL 2026-07-17 — runner jest-expo (config en bloque `"jest"` de package.json, alias `@/*`, `testMatch` solo `__tests__/*.test.ts`) + 7 suites de lib pura (units, oneRepMax, plates, workoutCompare, optimizationScore, achievements, exerciseProgress — 54 tests) con `fixtures.ts` compartido. Desbloquea la skill de testing (A4). PENDIENTE: RN Testing Library para componentes; stores/repos/routineGenerator. |
 | Monetización (RevenueCat/IAP) | P1–P2 | L | Tras analytics; Strong/Hevy/Fitbod monetizan con Pro. |
 | i18n (extraer strings) | P2 | M–L | Hacerlo antes de que crezca la superficie abarata el costo. |
 | Wearables / HealthKit / Google Fit | P2 | L | Requiere dev build; diferenciador de Strava. |
