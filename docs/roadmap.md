@@ -39,7 +39,7 @@
 |---|---|---|---|
 | A1 — Higiene de nombres | P0 | S | ✅ Aplicada 2026-07-07 |
 | A2 — Permisos y tools | P0 | S | ✅ Aplicada 2026-07-07 |
-| A3 — Consolidación | P1 | M | Pendiente |
+| A3 — Consolidación | P1 | M | ✅ Aplicada 2026-07-24 |
 | A4 — Skills y agentes nuevos | P1–P2 | M | Pendiente (la skill de testing quedó DESBLOQUEADA por el runner de B3, 2026-07-17) |
 
 ### Fase A1 — Higiene de nombres (P0, S) — ✅ APLICADA 2026-07-07
@@ -54,12 +54,12 @@
 - `build-verify` con PowerShell
 - `settings.local.json` sin permisos MCP Supabase stale
 
-### Fase A3 — Consolidación (P1, M)
+### Fase A3 — Consolidación (P1, M) — ✅ APLICADA 2026-07-24
 
-- Reescribir la metodología de `codebase-explorer` en términos de Glob/Grep (hoy cita `grep -rn`/`find` sin tener shell)
-- Extraer el bloque "Persistent Agent Memory" (~130 líneas duplicadas en 2 agentes) a doc única referenciada
-- Consolidar el estilo caveman (copiado en 4 agentes + skill + 4 docs de rol) en una sola fuente: `.claude/skills/caveman.md`
-- Reconciliar `docs/skills/agents/` (describe 4 roles Supabase/Backend/Frontend/Revisor) con los 4 agentes reales (`build-verify`, `codebase-explorer`, `code-quality-reviewer`, `supabase-fullstack-engineer`)
+- Metodología de `codebase-explorer` reescrita en términos de Glob/Grep reales (citaba `grep -rn`/`find` sin tener shell)
+- Bloque "Persistent Agent Memory" (137 líneas casi idénticas en `code-quality-reviewer` y `supabase-fullstack-engineer`) extraído a `.claude/agent-memory/PROTOCOL.md`, referenciado desde ambos
+- `.claude/skills/caveman.md` canonizado con el texto real de 6 líneas que ya usan los 4 agentes (antes tenía una versión genérica distinta, huérfana); cada agente sigue con el bloque inlineado (no todos tienen la tool `Skill`) más una nota de sincronización
+- `docs/skills/agents/{backend,frontend,reviewer,supabase}.md` + `docs/skills/workflow.md` marcados como legado (banner + cross-reference a los 4 agentes reales); `docs/README.md` actualizado para no seguir apuntando a la identidad vieja
 
 ### Fase A4 — Skills y agentes nuevos (P1–P2, M)
 
@@ -89,9 +89,9 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | Item | Prioridad | Esfuerzo | Notas y dependencias |
 |---|---|---|---|
 | GIFs/videos de ejercicios | P1 | M (UI) + L (contenido) | Columna `exercises.gif_url` ya en schema, vacía y sin UI; poblar 220 ejercicios es pipeline de contenido. |
-| Ejercicios personalizados | P1 | M | `exercises.is_custom`/`created_by` ya en schema, sin flujo de creación en UI. |
-| Plate calculator, supersets, warm-up sets automáticos | P1 | S/M cada uno | Detalles que Strong/Hevy tienen y fidelizan. |
-| Rutinas públicas / compartibles | P1 | M–L | `routines.is_public` existe sin UI; marketplace de rutinas después (P2). |
+| Ejercicios personalizados | P1 | M | ✅ Aplicada 2026-07-24 — migración con policies UPDATE/DELETE (INSERT/SELECT ya existían), `src/lib/repos/queries/exercises.ts`, `CreateExerciseSheet` wireado en el editor de rutina, `ExercisePickerSheet` mezcla catálogo estático + custom con badge "Tuyo". `updateCustomExercise`/`deleteCustomExercise` están en el repo pero sin UI de edición/borrado todavía — pendiente. |
+| Plate calculator, supersets, warm-up sets automáticos | P1 | S/M cada uno | Plate calculator ✅ 2026-07-12 (ver C2-8 de roadmap-ui.md); supersets y warm-up automáticos siguen pendientes. |
+| Rutinas públicas / compartibles | P1 | M–L | ✅ Aplicada 2026-07-24 — toggle Privada/Pública + explorador de solo lectura (`app/routine/explore.tsx`, `app/routine/public/[id].tsx`); RLS de lectura cruzada ya estaba completa en `0001_init.sql`, sin migración nueva. Deliberadamente sin "adoptar/guardar" una rutina ajena — el store local sigue asumiendo una sola rutina activa por usuario (`upsertRoutine` reemplaza el array si el id es nuevo); resolver eso queda como deuda para un sprint futuro antes de poder ofrecer un marketplace real. |
 | OAuth Apple/Google real | P1 | M | Hoy es placeholder "Próximamente". Nota App Store: si hay login con Google, Apple exige Sign in with Apple. |
 
 ### Fase B3 — Plataforma y escala (Sprint 6+)
@@ -110,10 +110,12 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 De `docs/memory/checklist.md`:
 
 - ~~Generador IA usa heurística local en vez de la edge function~~ → ✅ 2026-07-23: `src/lib/routineGenerator.ts` no tenía ningún call site en `app/` ni `src/` (ni tampoco la edge function `generate_routine` desde el cliente) — era código huérfano, no una feature wireada con una limitación conocida; se eliminó. Las plantillas de rutina (`app/routine/templates.tsx`, onboarding) usan `famousRoutineOptions()` de `src/data/routineTemplates.ts`, que no dependía del generador.
-- Racha no estricta 1x día
-- Sin validación de "workout válido" antes de guardar
-- Redondeo KG↔LB en workout activo
+- ~~Racha no estricta 1x día~~ → ✅ 2026-07-24: `streakWeeks`/`daysThisWeek` (contador congelado desde onboarding, nunca se recalculaba) eliminados de `src/store/app.ts`; la racha se deriva siempre desde el historial vía `weekStreakFromHistory`/`daysThisWeekFromHistory` en `src/lib/achievements.ts` — dedup automático por fecha calendario, sin contador redundante que desincronizar.
+- ~~Sin validación de "workout válido" antes de guardar~~ → ✅ 2026-07-24: `isValidWorkout` en `src/lib/workoutGuards.ts` (≥1 set completado no-warmup, sin reps≤0 ni peso negativo) bloquea el cierre del entreno en `app/workout/active.tsx` con un `Alert`; CHECK constraints espejo en DB (migración `0047_workout_sets_check_constraints.sql`, aplicada).
+- ~~Redondeo KG↔LB en workout activo~~ → ✅ 2026-07-24: `fromDisplay` en `src/lib/units.ts` redondea a 2 decimales (precisión `numeric(6,2)` de la DB), eliminando el ruido de float del round-trip kg↔lb.
 - ~~El generador reemplaza la rutina activa sin confirmar~~ → ✅ 2026-07-23: moot, ver nota anterior (el generador nunca estuvo conectado a ninguna pantalla)
+
+**⚠️ Nota operativa 2026-07-24 — drift de migraciones:** al aplicar la migración de este sprint se encontró que el proyecto Supabase vivo (`fonaipdjgiahypcittxo`) ya tenía las migraciones `0041_sync_workout_snapshot` a `0046_fix_workout_pr_total_order` aplicadas, sin que sus archivos `.sql` estuvieran commiteados en ningún branch de este repo — viven sin commitear en el checkout raíz (`D:\Gmo\Gmo-training-app`, rama `feat/initial-app-foundation`, trabajo ajeno a este sprint). Las migraciones nuevas de este sprint se renumeraron a `0047`/`0048` para no colisionar. Pendiente: commitear esos 6 archivos `.sql` en algún branch antes de que alguien más pierda tiempo re-descubriendo el mismo drift.
 
 ### Cierre pendiente — Coach IA (P0, S) — ✅ CERRADO 2026-07-11
 
