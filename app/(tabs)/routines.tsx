@@ -121,8 +121,22 @@ export default function Routines() {
 
   return (
     <Screen>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.md,
+        }}
+      >
         <Text variant="title">Mi rutina</Text>
+        <Button
+          title="Explorar"
+          variant="ghost"
+          size="sm"
+          leftIcon={<Icon name="globe" size={16} color={colors.primary.DEFAULT} />}
+          onPress={() => router.push('/routine/explore')}
+        />
       </View>
 
       {!activeRoutine ? (

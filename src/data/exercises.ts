@@ -36,6 +36,12 @@ export interface Exercise {
   equipment: Equipment;
   isCompound: boolean;
   instructions: string;
+  /** true si es un ejercicio creado por el usuario (tabla exercises, is_custom). */
+  isCustom?: boolean;
+  /** uuid del autor cuando isCustom (columna created_by). */
+  createdBy?: string;
+  /** URL opcional de demostración (columna gif_url); hoy sin uso en la UI. */
+  gifUrl?: string;
 }
 
 export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
@@ -306,7 +312,27 @@ export const EXERCISES: Exercise[] = [
   { id: 'oblique-crunch', name: 'Crunch oblicuo', muscle: 'core', equipment: 'bodyweight', isCompound: false, instructions: 'Acostado de lado, eleva el torso contrayendo los oblicuos.' },
 ];
 
-export const exerciseById = (id: string) => EXERCISES.find((e) => e.id === id);
+// Cache de módulo de ejercicios custom del usuario. Vive fuera de React porque
+// exerciseById() lo llaman ~20 sitios NO-React (store/workouts, workoutCompare,
+// achievements, editor de rutina) que no pueden consumir hooks de React Query;
+// app/_layout lo mantiene sincronizado con la cache de useCustomExercises.
+let customExercises: Exercise[] = [];
+export function setCustomExerciseCache(list: Exercise[]): void {
+  customExercises = list;
+}
+
+/**
+ * Inserta un ejercicio recién creado en el cache sin esperar al próximo
+ * refetch de useCustomExercises — evita que el editor de rutina, que resuelve
+ * el nombre en el mismo commit que lo agrega, muestre el UUID crudo hasta que
+ * corra el efecto de sincronización de app/_layout.tsx.
+ */
+export function addCustomExerciseToCache(exercise: Exercise): void {
+  customExercises = [exercise, ...customExercises];
+}
+
+export const exerciseById = (id: string): Exercise | undefined =>
+  EXERCISES.find((e) => e.id === id) ?? customExercises.find((e) => e.id === id);
 export const exercisesByMuscle = (m: MuscleGroup) => EXERCISES.filter((e) => e.muscle === m);
 
 /** Grupos de filtrado para pickers de ejercicios (editor de rutina, cambio en sesión). */

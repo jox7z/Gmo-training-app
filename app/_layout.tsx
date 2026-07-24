@@ -19,6 +19,8 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getProfile } from '@/lib/repos/profile';
 import { getWorkouts } from '@/lib/repos/workouts';
 import { isProfileComplete } from '@/lib/auth';
+import { useCustomExercises } from '@/lib/queries/exercises';
+import { setCustomExerciseCache } from '@/data/exercises';
 import { ToastProvider } from '@/components/ui/Toast';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -89,6 +91,19 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+// Mantiene el cache de módulo de ejercicios custom (data/exercises) sincronizado
+// con React Query, para que exerciseById() los resuelva desde código no-React.
+// Debe vivir DENTRO del QueryClientProvider (usa useQuery), por eso es un hijo
+// del árbol de providers y no parte de RootLayout.
+function CustomExerciseCacheSync() {
+  const userId = useAppStore((s) => s.profile?.id);
+  const { data } = useCustomExercises(userId);
+  useEffect(() => {
+    setCustomExerciseCache(data ?? []);
+  }, [data]);
+  return null;
+}
 
 export default function RootLayout() {
   const hydrated = useAppStore((s) => s.hydrated);
@@ -388,6 +403,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg.base }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
+          <CustomExerciseCacheSync />
           <ToastProvider>
           {/* BottomSheetModalProvider va DENTRO de ToastProvider: este pinta su
               overlay después de children, así que los toasts quedan por encima

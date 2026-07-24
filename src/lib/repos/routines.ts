@@ -11,6 +11,7 @@ export async function saveRoutine(userId: string, r: Routine): Promise<void> {
       split_type: r.splitType,
       is_ai_generated: r.isAiGenerated ?? false,
       ai_reasoning: r.aiReasoning ?? null,
+      is_public: r.isPublic ?? false,
     },
     { onConflict: 'id' },
   );
@@ -50,22 +51,18 @@ export async function saveRoutine(userId: string, r: Routine): Promise<void> {
   }
 }
 
-export async function getRoutines(userId: string): Promise<Routine[]> {
-  const { data, error } = await supabase
-    .from('routines')
-    .select(`*, routine_days ( *, routine_day_exercises (*) )`)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false });
-
-  if (error) throw error;
-
-  return (data ?? []).map((row: any) => ({
+// Mapea una fila de `routines` (con embed routine_days → routine_day_exercises)
+// al shape de dominio `Routine`. Único punto de mapeo snake_case→camelCase para
+// que getRoutines y getPublicRoutineDetail no diverjan.
+function mapRoutineRow(row: any): Routine {
+  return {
     id: row.id,
     name: row.name,
     description: row.description ?? undefined,
     splitType: row.split_type,
     isAiGenerated: row.is_ai_generated,
     aiReasoning: row.ai_reasoning ?? undefined,
+    isPublic: row.is_public ?? undefined,
     createdAt: row.created_at,
     days: (row.routine_days as any[])
       .sort((a: any, b: any) => a.day_index - b.day_index)
@@ -85,10 +82,85 @@ export async function getRoutines(userId: string): Promise<Routine[]> {
             restSeconds: ex.rest_seconds,
           })),
       })),
-  }));
+  };
+}
+
+export async function getRoutines(userId: string): Promise<Routine[]> {
+  const { data, error } = await supabase
+    .from('routines')
+    .select(`*, routine_days ( *, routine_day_exercises (*) )`)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data ?? []).map(mapRoutineRow);
 }
 
 export async function deleteRoutineRemote(routineId: string): Promise<void> {
   const { error } = await supabase.from('routines').delete().eq('id', routineId);
   if (error) throw error;
+}
+
+// =====================================================
+// Rutinas públicas (solo lectura, RLS `routines read own or public`)
+// =====================================================
+
+export interface PublicRoutineSummary {
+  id: string;
+  name: string;
+  description?: string;
+  splitType: string;
+  dayCount: number;
+  ownerUsername: string;
+  ownerDisplayName: string;
+  ownerAvatarUrl?: string;
+  createdAt: string;
+}
+
+// Lista rutinas marcadas is_public=true con el dueño embebido vía el FK
+// routines.user_id -> profiles.id. `!inner` descarta rutinas huérfanas de perfil.
+export async function listPublicRoutines(limit = 30): Promise<PublicRoutineSummary[]> {
+  const { data, error } = await supabase
+    .from('routines')
+    .select(
+      `id, name, description, split_type, created_at,
+       routine_days ( id ),
+       profiles!inner ( username, display_name, avatar_url )`,
+    )
+    .eq('is_public', true)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data ?? []).map((row: any) => {
+    const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description ?? undefined,
+      splitType: row.split_type,
+      dayCount: Array.isArray(row.routine_days) ? row.routine_days.length : 0,
+      ownerUsername: owner?.username ?? '',
+      ownerDisplayName: owner?.display_name ?? '',
+      ownerAvatarUrl: owner?.avatar_url ?? undefined,
+      createdAt: row.created_at,
+    };
+  });
+}
+
+// Detalle de una rutina pública. Reusa la misma query que getRoutines pero por
+// id, y verifica is_public en el resultado: si no es pública o no existe,
+// devuelve null (un "no encontrado" legítimo, no un error).
+export async function getPublicRoutineDetail(routineId: string): Promise<Routine | null> {
+  const { data, error } = await supabase
+    .from('routines')
+    .select(`*, routine_days ( *, routine_day_exercises (*) )`)
+    .eq('id', routineId)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data || (data as any).is_public !== true) return null;
+  return mapRoutineRow(data);
 }

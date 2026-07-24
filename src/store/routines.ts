@@ -27,6 +27,7 @@ export interface Routine {
   days: RoutineDay[];
   isAiGenerated?: boolean;
   aiReasoning?: string;
+  isPublic?: boolean;
   createdAt: string;
 }
 

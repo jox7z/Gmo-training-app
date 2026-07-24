@@ -19,6 +19,7 @@ import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
+import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Icon } from '@/components/Icon';
 import { colors, spacing, radius, fontSize } from '@/theme/tokens';
@@ -31,6 +32,8 @@ import {
   type MuscleGroup,
 } from '@/data/exercises';
 import { exerciseImage } from '@/data/exerciseImages';
+import { useCustomExercises } from '@/lib/queries/exercises';
+import { useAppStore } from '@/store/app';
 
 interface Props {
   visible: boolean;
@@ -58,6 +61,12 @@ interface Props {
    * "Equivalente". Se usa al cambiar de ejercicio por otro del mismo músculo.
    */
   highlightMuscle?: MuscleGroup;
+  /**
+   * Si se pasa, muestra el CTA "Crear ejercicio" (footer + estado vacío). La
+   * VISIBILIDAD del sheet de creación la gestiona el padre (no anidamos sheets):
+   * este callback debe cerrar el picker y abrir CreateExerciseSheet.
+   */
+  onCreatePress?: () => void;
 }
 
 // Normaliza para buscar sin distinguir mayúsculas ni acentos.
@@ -78,8 +87,11 @@ export function ExercisePickerSheet({
   subtitle,
   initialMuscle = 'all',
   highlightMuscle,
+  onCreatePress,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const userId = useAppStore((s) => s.profile?.id);
+  const { data: customExercises } = useCustomExercises(userId);
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState(initialMuscle);
 
@@ -92,9 +104,15 @@ export function ExercisePickerSheet({
   const exclude = useMemo(() => new Set(excludeIds ?? []), [excludeIds]);
   const only = useMemo(() => (onlyIds ? new Set(onlyIds) : null), [onlyIds]);
 
+  // Catálogo estático + ejercicios custom del usuario, antes de cualquier filtro.
+  const catalog = useMemo(
+    () => [...EXERCISES, ...(customExercises ?? [])],
+    [customExercises],
+  );
+
   const filtered = useMemo(() => {
     const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
-    let list = EXERCISES.filter((e) => !exclude.has(e.id) && (only === null || only.has(e.id)));
+    let list = catalog.filter((e) => !exclude.has(e.id) && (only === null || only.has(e.id)));
     if (onlyIds) {
       // Respeta el orden del caller (p. ej. entrenados por recencia+frecuencia).
       const orderIdx = new Map(onlyIds.map((id, i) => [id, i]));
@@ -112,11 +130,13 @@ export function ExercisePickerSheet({
       );
     }
     return list;
-  }, [group, query, exclude, only, onlyIds, highlightMuscle]);
+  }, [catalog, group, query, exclude, only, onlyIds, highlightMuscle]);
 
   const renderItem = ({ item }: ListRenderItemInfo<Exercise>) => {
     const img = exerciseImage(item.id);
-    const equivalent = highlightMuscle !== undefined && item.muscle === highlightMuscle;
+    // "Tuyo" tiene prioridad sobre "Equivalente" para no amontonar dos badges.
+    const equivalent =
+      !item.isCustom && highlightMuscle !== undefined && item.muscle === highlightMuscle;
     const selected = selectedId === item.id;
     return (
       <PressableScale onPress={() => onSelect(item)} pressScale={0.97}>
@@ -163,7 +183,7 @@ export function ExercisePickerSheet({
               </Text>
             </View>
             {selected && <Icon name="check" size={16} color={colors.primary.DEFAULT} />}
-            {equivalent && (
+            {(equivalent || item.isCustom) && (
               <View
                 style={{
                   paddingHorizontal: spacing.sm,
@@ -175,7 +195,7 @@ export function ExercisePickerSheet({
                 }}
               >
                 <Text variant="caption" weight="bold" style={{ color: colors.primary.DEFAULT }}>
-                  Equivalente
+                  {item.isCustom ? 'Tuyo' : 'Equivalente'}
                 </Text>
               </View>
             )}
@@ -281,7 +301,29 @@ export function ExercisePickerSheet({
               >
                 No hay ejercicios que coincidan.
               </Text>
+              {onCreatePress ? (
+                <Button
+                  title="Crear ejercicio"
+                  variant="secondary"
+                  size="sm"
+                  onPress={onCreatePress}
+                  leftIcon={<Icon name="plus" size={16} color={colors.text.primary} />}
+                  style={{ marginTop: spacing.md }}
+                />
+              ) : null}
             </View>
+          }
+          ListFooterComponent={
+            onCreatePress && filtered.length > 0 ? (
+              <View style={{ alignItems: 'center', paddingTop: spacing.sm }}>
+                <Chip
+                  label="Crear ejercicio"
+                  leftIcon="plus"
+                  variant="dashed"
+                  onPress={onCreatePress}
+                />
+              </View>
+            ) : null
           }
         />
       </View>

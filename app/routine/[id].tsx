@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Chip } from '@/components/ui/Chip';
 import { IconButton } from '@/components/ui/IconButton';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { colors, spacing } from '@/theme/tokens';
 import { useRoutinesStore, Routine, RoutineDay, RoutineDayExercise, nid } from '@/store/routines';
 import { useAppStore, LOCAL_USER_ID } from '@/store/app';
@@ -18,6 +19,7 @@ import { saveRoutine } from '@/lib/repos/routines';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { exerciseById } from '@/data/exercises';
 import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
+import { CreateExerciseSheet } from '@/components/CreateExerciseSheet';
 import { Icon } from '@/components/Icon';
 
 const EMPTY_ROUTINE = (): Routine => ({
@@ -38,6 +40,7 @@ export default function RoutineEditor() {
   const [routine, setRoutine] = useState<Routine>(existing ?? EMPTY_ROUTINE());
   const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const day = routine.days[activeDayIdx];
 
@@ -140,6 +143,22 @@ export default function RoutineEditor() {
           value={routine.name}
           onChangeText={(name) => setRoutine({ ...routine, name })}
         />
+
+        {/* Visibilidad: pública comparte la rutina en el explorador (solo lectura) */}
+        <View style={{ marginTop: spacing.md }}>
+          <Text variant="label" tone="muted" style={{ marginBottom: spacing.xs }}>
+            Visibilidad
+          </Text>
+          <SegmentedControl
+            options={[
+              { value: 'private', label: 'Privada' },
+              { value: 'public', label: 'Pública' },
+            ]}
+            value={routine.isPublic ? 'public' : 'private'}
+            onChange={(v) => setRoutine({ ...routine, isPublic: v === 'public' })}
+          />
+        </View>
+
         {routine.aiReasoning && (
           <Card variant="outlined" padding="md" style={{ marginTop: spacing.md, borderColor: colors.info.DEFAULT }}>
             <Text variant="label" tone="info">¿Por qué esta rutina?</Text>
@@ -243,6 +262,18 @@ export default function RoutineEditor() {
         onClose={() => setPickerOpen(false)}
         onSelect={(ex) => addExercise(ex.id)}
         title="Ejercicios"
+        onCreatePress={() => {
+          // Cierra el picker antes de abrir el sheet de creación: nunca dos
+          // AppBottomSheet apilados a la vez.
+          setPickerOpen(false);
+          setCreateOpen(true);
+        }}
+      />
+
+      <CreateExerciseSheet
+        visible={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(ex) => addExercise(ex.id)}
       />
     </Screen>
     </BottomSheetModalProvider>
