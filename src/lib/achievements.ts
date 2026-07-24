@@ -51,7 +51,6 @@ export interface AchievementDef {
 
 export interface AchievementContext {
   history: Workout[];
-  streakWeeks: number;
 }
 
 export interface AchievementProgress {
@@ -97,7 +96,7 @@ function totalRepsLifted(history: Workout[]): number {
  *  Usa la fecha LOCAL para que el corte de semana respete la zona horaria del
  *  usuario (un entreno el lunes por la noche no debe contar como la semana
  *  siguiente por la deriva UTC). */
-function weekIndex(d: Date): number {
+export function weekIndex(d: Date): number {
   const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const day = Math.floor(localMidnight.getTime() / 86_400_000); // 1970-01-01 fue jueves
   return Math.floor((day + 3) / 7); // +3 alinea el corte de semana al lunes
@@ -123,6 +122,18 @@ export function weekStreakFromHistory(history: Workout[]): number {
     cursor--;
   }
   return streak;
+}
+
+/** Días distintos (fecha local) con >=1 entreno dentro de la semana en curso (corte lunes). */
+export function daysThisWeekFromHistory(history: Workout[], now = new Date()): number {
+  const current = weekIndex(now);
+  const days = new Set<string>();
+  for (const w of history) {
+    const d = new Date(w.startedAt);
+    if (!Number.isFinite(d.getTime()) || weekIndex(d) !== current) continue;
+    days.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+  }
+  return days.size;
 }
 
 /** Ejercicios distintos entrenados (con al menos una serie completada). */
@@ -188,10 +199,9 @@ export const ACHIEVEMENTS: AchievementDef[] = [
       { id: 'streak-26', threshold: 26, label: '6 meses' },
       { id: 'streak-52', threshold: 52, label: '1 año' },
     ],
-    // La racha se deriva del historial (el contador local `streakWeeks` hoy es
-    // estático: solo se fija a 1 en el onboarding). El Math.max lo deja a prueba
-    // de futuro por si algún día se sincroniza una racha mayor desde el servidor.
-    measure: (ctx) => Math.max(weekStreakFromHistory(ctx.history), ctx.streakWeeks),
+    // La racha se deriva íntegramente del historial local (corte lunes, con
+    // gracia para la semana en curso) — no hay contador persistido que mantener.
+    measure: (ctx) => weekStreakFromHistory(ctx.history),
   },
 
   // ── Volumen: constancia de entrenamientos y reps acumuladas ──

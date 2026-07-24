@@ -8,6 +8,7 @@ import {
   evaluateTrack,
   unlockedTierIds,
   weekStreakFromHistory,
+  daysThisWeekFromHistory,
 } from '@/lib/achievements';
 import { makeWorkout, makeExercise, makeSet } from './fixtures';
 
@@ -48,6 +49,29 @@ describe('weekStreakFromHistory', () => {
   });
 });
 
+describe('daysThisWeekFromHistory', () => {
+  // Semana en curso anclada al miércoles 2026-07-15 (lunes 2026-07-13 .. domingo 2026-07-19).
+  const now = new Date(2026, 6, 15, 12, 0);
+
+  it('dos entrenos el mismo día calendario cuentan como 1 día', () => {
+    const history = [
+      makeWorkout({ startedAt: new Date(2026, 6, 15, 9, 0).toISOString() }),
+      makeWorkout({ startedAt: new Date(2026, 6, 15, 18, 0).toISOString() }),
+    ];
+    expect(daysThisWeekFromHistory(history, now)).toBe(1);
+  });
+
+  it('entrenos en días distintos de la semana en curso cuentan cada uno', () => {
+    const history = [julyWorkout(13), julyWorkout(15), julyWorkout(19)];
+    expect(daysThisWeekFromHistory(history, now)).toBe(3);
+  });
+
+  it('entrenos de la semana pasada no cuentan', () => {
+    const history = [julyWorkout(8), julyWorkout(6)];
+    expect(daysThisWeekFromHistory(history, now)).toBe(0);
+  });
+});
+
 describe('evaluateTrack — fuerza (bench-press)', () => {
   const benchDef = ACHIEVEMENTS.find((d) => d.id === 'strength-bench-press')!;
 
@@ -59,7 +83,7 @@ describe('evaluateTrack — fuerza (bench-press)', () => {
         ],
       }),
     ];
-    const prog = evaluateTrack(benchDef, { history, streakWeeks: 0 });
+    const prog = evaluateTrack(benchDef, { history });
     expect(prog.value).toBe(105);
     // Tiers 40/60/80/100 <= 105; 120/140 aún no.
     expect(prog.unlockedTiers.map((t) => t.threshold)).toEqual([40, 60, 80, 100]);
@@ -74,7 +98,7 @@ describe('evaluateTrack — volumen (nº de entrenos)', () => {
 
   it('mide la longitud del historial y desbloquea 1 y 10', () => {
     const history = Array.from({ length: 12 }, () => makeWorkout());
-    const prog = evaluateTrack(workoutsDef, { history, streakWeeks: 0 });
+    const prog = evaluateTrack(workoutsDef, { history });
     expect(prog.value).toBe(12);
     expect(prog.level).toBe(2); // niveles 1 y 10
     expect(prog.currentTier!.id).toBe('workouts-10');
@@ -90,7 +114,7 @@ describe('unlockedTierIds', () => {
       }),
       ...Array.from({ length: 11 }, () => makeWorkout()),
     ];
-    const ids = unlockedTierIds({ history, streakWeeks: 0 });
+    const ids = unlockedTierIds({ history });
     expect(ids.has('bench-press-100')).toBe(true);
     expect(ids.has('bench-press-120')).toBe(false);
     expect(ids.has('workouts-10')).toBe(true); // 12 entrenos

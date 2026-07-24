@@ -37,3 +37,18 @@ export function canStartWorkout(history: Workout[]): GuardResult {
 
   return { allowed: true };
 }
+
+/**
+ * Valida que un workout se pueda dar por terminado: al menos una serie efectiva
+ * (completada, no calentamiento) y sin series inválidas. `weightKg === 0` se
+ * ACEPTA (peso corporal); solo se rechazan reps <= 0 o peso negativo.
+ */
+export function isValidWorkout(w: Pick<Workout, 'exercises'>): GuardResult {
+  const completed = w.exercises.flatMap((ex) => ex.sets.filter((s) => s.isCompleted && !s.isWarmup));
+  if (completed.length === 0) {
+    return { allowed: false, reason: 'Completa al menos una serie antes de terminar' };
+  }
+  const bad = completed.find((s) => s.reps <= 0 || s.weightKg < 0);
+  if (bad) return { allowed: false, reason: 'Revisa las reps o el peso: hay una serie inválida' };
+  return { allowed: true };
+}

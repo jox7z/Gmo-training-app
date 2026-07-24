@@ -120,7 +120,6 @@ export default function RootLayout() {
         if (!ach.seeded) {
           ach.sync({
             history: useWorkoutsStore.getState().history,
-            streakWeeks: useAppStore.getState().streakWeeks,
           });
         }
       })

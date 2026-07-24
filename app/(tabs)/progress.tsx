@@ -23,6 +23,7 @@ import { StreakRing } from '@/components/StreakRing';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useWorkoutsStore } from '@/store/workouts';
 import { listTrainedExercises, buildExerciseTimeline } from '@/lib/exerciseProgress';
+import { weekStreakFromHistory, daysThisWeekFromHistory } from '@/lib/achievements';
 import { exerciseImage } from '@/data/exerciseImages';
 import { Image } from 'expo-image';
 import { toDisplay } from '@/lib/units';
@@ -65,8 +66,6 @@ export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const profile = useAppStore((s) => s.profile);
-  const streakWeeks = useAppStore((s) => s.streakWeeks);
-  const daysThisWeek = useAppStore((s) => s.daysThisWeek);
 
   const [period, setPeriod] = useState<ProgressPeriod>('30d');
   const [bodyPeriod, setBodyPeriod] = useState<BodyPeriod>('90d');
@@ -75,6 +74,8 @@ export default function ProgressScreen() {
   const [exerciseMetric, setExerciseMetric] = useState<'weight' | 'reps'>('weight');
 
   const history = useWorkoutsStore((s) => s.history);
+  const streakWeeks = useMemo(() => weekStreakFromHistory(history), [history]);
+  const daysThisWeek = useMemo(() => daysThisWeekFromHistory(history), [history]);
   const pinnedExerciseId = useAppStore((s) => s.pinnedExerciseId);
   const trainedExercises = useMemo(() => listTrainedExercises(history), [history]);
   const effectivePinnedId = pinnedExerciseId ?? trainedExercises[0]?.exerciseId;

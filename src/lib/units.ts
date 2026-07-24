@@ -7,7 +7,8 @@ export function toDisplay(weightKg: number, unit: Unit): number {
 }
 
 export function fromDisplay(value: number, unit: Unit): number {
-  return unit === 'kg' ? value : value / KG_TO_LB;
+  const kg = unit === 'kg' ? value : value / KG_TO_LB;
+  return Math.round(kg * 100) / 100; // iguala la precisión numeric(6,2) que ya usa la DB
 }
 
 /**

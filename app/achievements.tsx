@@ -16,7 +16,6 @@ import { Icon } from '@/components/Icon';
 import { AchievementMedal } from '@/components/achievements/AchievementMedal';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useWorkoutsStore } from '@/store/workouts';
-import { useAppStore } from '@/store/app';
 import {
   evaluateAchievements,
   groupByCategory,
@@ -26,15 +25,14 @@ import {
 export default function AchievementsScreen() {
   const router = useRouter();
   const history = useWorkoutsStore((s) => s.history);
-  const streakWeeks = useAppStore((s) => s.streakWeeks);
 
   const { groups, totalLevels, unlockedLevels } = useMemo(() => {
-    const progress = evaluateAchievements({ history, streakWeeks });
+    const progress = evaluateAchievements({ history });
     const groups = groupByCategory(progress);
     const totalLevels = progress.reduce((a, p) => a + p.maxLevel, 0);
     const unlockedLevels = progress.reduce((a, p) => a + p.level, 0);
     return { groups, totalLevels, unlockedLevels };
-  }, [history, streakWeeks]);
+  }, [history]);
 
   const pct = totalLevels > 0 ? Math.round((unlockedLevels / totalLevels) * 100) : 0;
 

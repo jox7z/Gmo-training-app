@@ -55,15 +55,12 @@ interface AppState {
   // Estado de sesión: si el perfil remoto está completo. null = aún no consultado.
   // NO se persiste en AsyncStorage; solo es estado de sesión (se recalcula en cada login).
   profileComplete: boolean | null;
-  streakWeeks: number;
-  daysThisWeek: number;
   pinnedExerciseId?: string;
   hydrate: () => Promise<void>;
   setProfile: (p: UserProfile) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   markOnboarded: () => Promise<void>;
   setProfileComplete: (v: boolean | null) => void;
-  addWorkoutDay: () => void;
   addPoints: (n: number) => void;
   setPinnedExercise: (id: string) => void;
   signOut: () => Promise<void>;
@@ -113,8 +110,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   onboarded: false,
   profile: null,
   profileComplete: null,
-  streakWeeks: 0,
-  daysThisWeek: 0,
   pinnedExerciseId: undefined,
 
   hydrate: async () => {
@@ -126,8 +121,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({
           onboarded: data.onboarded ?? false,
           profile,
-          streakWeeks: data.streakWeeks ?? 0,
-          daysThisWeek: data.daysThisWeek ?? 0,
           pinnedExerciseId: data.pinnedExerciseId ?? undefined,
         });
       }
@@ -177,7 +170,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ profile: { ...existing, id: userId } });
     }
 
-    set({ onboarded: true, streakWeeks: 1, daysThisWeek: 0 });
+    set({ onboarded: true });
     await persist(get());
   },
 
@@ -185,12 +178,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().onboarded) return;
     set({ onboarded: true });
     await persist(get());
-  },
-
-  addWorkoutDay: () => {
-    const next = Math.min(7, get().daysThisWeek + 1);
-    set({ daysThisWeek: next });
-    persist(get());
   },
 
   addPoints: (n) => {
@@ -214,8 +201,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       profile: null,
       onboarded: false,
       profileComplete: null,
-      streakWeeks: 0,
-      daysThisWeek: 0,
       pinnedExerciseId: undefined,
       // keep hydrated=true; we don't want the splash loader to reappear
     });
@@ -246,8 +231,6 @@ async function persist(state: AppState) {
     JSON.stringify({
       onboarded: state.onboarded,
       profile: state.profile,
-      streakWeeks: state.streakWeeks,
-      daysThisWeek: state.daysThisWeek,
       pinnedExerciseId: state.pinnedExerciseId,
     }),
   );

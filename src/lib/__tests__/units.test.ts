@@ -16,8 +16,15 @@ describe('toDisplay / fromDisplay', () => {
   });
 
   it('ida y vuelta no acumula error perceptible', () => {
+    // Tolerancia a 2 decimales: fromDisplay redondea a la precisión numeric(6,2)
+    // de la DB, así que el round-trip puede diferir hasta 0.01 kg del original.
     const kg = 62.5;
-    expect(fromDisplay(toDisplay(kg, 'lb'), 'lb')).toBeCloseTo(kg, 10);
+    expect(fromDisplay(toDisplay(kg, 'lb'), 'lb')).toBeCloseTo(kg, 2);
+  });
+
+  it('redondea a 2 decimales (precisión numeric(6,2) de la DB)', () => {
+    // 135 lb / 2.20462 = 61.235094... → 61.24 tras redondear.
+    expect(fromDisplay(135, 'lb')).toBe(61.24);
   });
 });
 

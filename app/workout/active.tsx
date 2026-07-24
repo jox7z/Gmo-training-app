@@ -24,6 +24,7 @@ import { Icon } from '@/components/Icon';
 import { saveWorkout } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { findPreviousSession, comparePerExercise, detectPRs, summarizeProgress, previousExerciseSets, historicMaxWeight } from '@/lib/workoutCompare';
+import { isValidWorkout } from '@/lib/workoutGuards';
 import { WorkoutHeader } from '@/components/workout/WorkoutHeader';
 import { SetProgressPills } from '@/components/workout/SetProgressPills';
 import { ExerciseHero } from '@/components/workout/ExerciseHero';
@@ -120,7 +121,6 @@ export default function ActiveWorkout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const profile = useAppStore((s) => s.profile);
-  const addWorkoutDay = useAppStore((s) => s.addWorkoutDay);
   const addPoints = useAppStore((s) => s.addPoints);
 
   const routine = useRoutinesStore((s) => s.routines.find((r) => r.id === routineId));
@@ -508,7 +508,6 @@ export default function ActiveWorkout() {
     if (phase === 'rest') captureRest();
     const finished = finishWorkout({ feeling: 'good' });
     if (finished) {
-      addWorkoutDay();
       addPoints(10);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setSummaryWorkout(finished);
@@ -518,7 +517,6 @@ export default function ActiveWorkout() {
       // para celebrarlos sobre la pantalla de resumen.
       const newUnlocks = useAchievementsStore.getState().sync({
         history: useWorkoutsStore.getState().history,
-        streakWeeks: useAppStore.getState().streakWeeks,
       });
       if (newUnlocks.length) setUnlockQueue(newUnlocks);
       if (isSupabaseConfigured && profile.id !== LOCAL_USER_ID) {
@@ -532,6 +530,13 @@ export default function ActiveWorkout() {
 
   const handleRestConfirm = () => {
     if (isLastSet) {
+      if (active) {
+        const check = isValidWorkout(active);
+        if (!check.allowed) {
+          Alert.alert('No se puede terminar', check.reason);
+          return;
+        }
+      }
       Alert.alert('Terminar entrenamiento', '¿Confirmas que terminaste?', [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Sí, terminar', onPress: finalize },

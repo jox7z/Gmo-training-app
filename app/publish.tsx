@@ -24,6 +24,7 @@ import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
 import { useWorkoutsStore, Workout } from '@/store/workouts';
+import { weekStreakFromHistory } from '@/lib/achievements';
 import {
   usePublishManualPost,
   usePublishWorkout,
@@ -65,8 +66,8 @@ export default function PublishModal() {
     : 'manual';
 
   const profile = useAppStore((s) => s.profile);
-  const streakWeeks = useAppStore((s) => s.streakWeeks);
   const history = useWorkoutsStore((s) => s.history);
+  const streakWeeks = useMemo(() => weekStreakFromHistory(history), [history]);
 
   const recentWorkouts = useMemo(() => last30Days(history), [history]);
 

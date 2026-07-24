@@ -23,7 +23,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { useQueryState } from '@/lib/queryState';
 import { useAppStore } from '@/store/app';
 import { AchievementMedal } from '@/components/achievements/AchievementMedal';
-import { evaluateAchievements } from '@/lib/achievements';
+import { evaluateAchievements, weekStreakFromHistory } from '@/lib/achievements';
 import { useProfileCounters } from '@/lib/queries/profile';
 import { goToTab, TAB_INDEX } from '@/lib/tabsNav';
 import { useUserPosts } from '@/lib/queries/social';
@@ -46,9 +46,9 @@ export default function Profile() {
   const insets       = useSafeAreaInsets();
   const toast        = useToast();
   const profile      = useAppStore((s) => s.profile);
-  const streakWeeks  = useAppStore((s) => s.streakWeeks);
   const signOut      = useAppStore((s) => s.signOut);
   const workoutHistory = useWorkoutsStore((s) => s.history);
+  const streakWeeks  = useMemo(() => weekStreakFromHistory(workoutHistory), [workoutHistory]);
 
   const countersQuery  = useProfileCounters(profile?.id);
   const userPostsQuery = useUserPosts(profile?.id);
@@ -68,13 +68,13 @@ export default function Profile() {
   });
 
   const { achievements, earnedLevels, totalLevels } = useMemo(() => {
-    const achievements = evaluateAchievements({ history: workoutHistory, streakWeeks });
+    const achievements = evaluateAchievements({ history: workoutHistory });
     return {
       achievements,
       earnedLevels: achievements.reduce((a, p) => a + p.level, 0),
       totalLevels: achievements.reduce((a, p) => a + p.maxLevel, 0),
     };
-  }, [workoutHistory, streakWeeks]);
+  }, [workoutHistory]);
 
   if (!profile) return <Loader />;
 
