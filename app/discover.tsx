@@ -131,7 +131,7 @@ function SearchTab() {
   }, [input]);
 
   const searchQuery = useSearchUsers(query);
-  const results = searchQuery.data ?? [];
+  const results = useMemo(() => searchQuery.data ?? [], [searchQuery.data]);
   const showEmptyShortQuery = query.length < 2;
   const showNoResults = !showEmptyShortQuery && !searchQuery.isLoading && results.length === 0;
   const isSearching = !showEmptyShortQuery && (searchQuery.isLoading || searchQuery.isFetching);

@@ -22,7 +22,7 @@ import { useAppStore, type Unit } from '@/store/app';
 import { StreakRing } from '@/components/StreakRing';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useWorkoutsStore } from '@/store/workouts';
-import { listTrainedExercises, buildExerciseTimeline, type ExercisePeriod } from '@/lib/exerciseProgress';
+import { listTrainedExercises, buildExerciseTimeline } from '@/lib/exerciseProgress';
 import { exerciseImage } from '@/data/exerciseImages';
 import { Image } from 'expo-image';
 import { toDisplay } from '@/lib/units';
@@ -46,6 +46,7 @@ import {
 import { useToast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { useQueryState } from '@/lib/queryState';
 import { goToTab, TAB_INDEX } from '@/lib/tabsNav';
 
 const PERIODS: { value: ProgressPeriod; label: string }[] = [
@@ -181,6 +182,8 @@ export default function ProgressScreen() {
             <TimelineCard
               data={timelineQuery.data ?? []}
               loading={timelineQuery.isLoading && !timelineQuery.data}
+              isError={timelineQuery.isError}
+              onRetry={() => timelineQuery.refetch()}
             />
             <WeeklyMuscleHeatmapCard history={history} sex={profile?.sex} />
           </>
@@ -280,10 +283,15 @@ type TimelineBar = barDataItem & { dateLabel: string };
 function TimelineCard({
   data,
   loading,
+  isError,
+  onRetry,
 }: {
   data: { day: string; activeSeconds: number }[];
   loading: boolean;
+  isError: boolean;
+  onRetry: () => void;
 }) {
+  const state = useQueryState({ isLoading: loading, isError, isEmpty: data.length === 0 });
   const { width } = useWindowDimensions();
   // 2x spacing.lg de padding externo del scroll + 2x spacing.lg padding interno de la Card
   const chartWidth = width - spacing.lg * 4;
@@ -318,11 +326,13 @@ function TimelineCard({
     <Card variant="raised" padding="lg">
       <Text variant="label" tone="secondary">EVOLUCIÓN · TIEMPO ACTIVO POR DÍA (min)</Text>
       <View style={{ marginTop: spacing.md }}>
-        {loading && data.length === 0 ? (
+        {state === 'loading' ? (
           <View style={{ height: chartHeight, justifyContent: 'center', alignItems: 'center' }}>
             <Text variant="caption" tone="muted">Cargando timeline…</Text>
           </View>
-        ) : data.length === 0 ? (
+        ) : state === 'error' ? (
+          <ErrorState title="No se pudo cargar el timeline." onRetry={onRetry} />
+        ) : state === 'empty' ? (
           <View style={{ height: chartHeight, justifyContent: 'center', alignItems: 'center' }}>
             <Text variant="caption" tone="muted">Sin datos para este período</Text>
           </View>
@@ -915,6 +925,7 @@ function LeaderboardSection({
   currentUserId?: string;
 }) {
   const rankInfo = RANKS.find((r) => r.id === rankId) ?? RANKS[0];
+  const state = useQueryState({ isLoading: loading, isError, isEmpty: entries.length === 0 });
 
   return (
     <View style={{ marginTop: spacing.xl, gap: spacing.md, marginBottom: spacing.md }}>
@@ -937,30 +948,14 @@ function LeaderboardSection({
       </View>
 
       <Card variant="raised" padding="md">
-        {loading ? (
+        {state === 'loading' ? (
           <View style={{ padding: spacing.xl, alignItems: 'center' }}>
             <Text variant="caption" tone="muted">Cargando leaderboard…</Text>
           </View>
-        ) : isError ? (
-          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-            <Icon name="close" size={28} color={colors.danger} />
-            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-              No se pudo cargar el leaderboard.
-            </Text>
-            <Button
-              title="Reintentar"
-              variant="secondary"
-              onPress={onRetry}
-              style={{ marginTop: spacing.md }}
-            />
-          </View>
-        ) : entries.length === 0 ? (
-          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-            <Icon name="trophy" size={28} color={colors.text.muted} />
-            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-              Sin datos para este rango
-            </Text>
-          </View>
+        ) : state === 'error' ? (
+          <ErrorState title="No se pudo cargar el leaderboard." onRetry={onRetry} />
+        ) : state === 'empty' ? (
+          <EmptyState icon="trophy" title="Sin datos para este rango" />
         ) : (
           <View>
             {entries.map((entry, i) => (

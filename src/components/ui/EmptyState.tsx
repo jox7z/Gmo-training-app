@@ -9,12 +9,16 @@ type Tone = 'default' | 'info' | 'primary' | 'danger';
 
 /** Variantes de Button admitidas para las acciones del estado vacío. */
 type ActionVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent';
+/** Tamaños de Button admitidos (Button.tsx no exporta su tipo Size interno). */
+type ActionSize = 'sm' | 'md' | 'lg';
 
 interface Action {
   label: string;
   onPress: () => void;
   /** Variante del Button (por defecto `primary` en `action`). */
   variant?: ActionVariant;
+  /** Tamaño del Button (por defecto `md`). */
+  size?: ActionSize;
 }
 
 interface EmptyStateProps {
@@ -90,6 +94,7 @@ export function EmptyState({
         <Button
           title={action.label}
           variant={action.variant ?? 'primary'}
+          size={action.size ?? 'md'}
           onPress={action.onPress}
           fullWidth
           style={{ marginTop: spacing.lg }}
@@ -99,6 +104,7 @@ export function EmptyState({
         <Button
           title={secondaryAction.label}
           variant={secondaryAction.variant ?? 'ghost'}
+          size={secondaryAction.size ?? 'md'}
           onPress={secondaryAction.onPress}
           fullWidth
           style={{ marginTop: spacing.sm }}

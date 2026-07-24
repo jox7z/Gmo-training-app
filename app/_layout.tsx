@@ -21,7 +21,6 @@ import { getWorkouts } from '@/lib/repos/workouts';
 import { isProfileComplete } from '@/lib/auth';
 import { ToastProvider } from '@/components/ui/Toast';
 
-console.log('[RootLayout] module load. Supabase configured?', isSupabaseConfigured);
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 // React Query focus tracking via AppState: refetch stale queries when
@@ -142,7 +141,6 @@ export default function RootLayout() {
       .then(async ({ data: { session } }) => {
         if (cancelled) return;
         clearTimeout(timer);
-        console.log('[RootLayout] getSession OK, hasSession =', !!session);
         setHasSession(!!session);
         // Mark auth checked NOW so the 3-second guard doesn't need to cover
         // the isProfileComplete RPC — that call gets its own timeout below.
@@ -233,7 +231,6 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[RootLayout] auth event:', event, 'session?', !!session);
       setHasSession(!!session);
       setAuthChecked(true);
       if (event === 'SIGNED_OUT' || !session) {
@@ -326,16 +323,9 @@ export default function RootLayout() {
     // NOT auto-redirect them to /(tabs).
     const inPasswordRecovery = inAuthGroup && (second === 'reset-password' || second === 'check-email');
 
-    console.log('[RootLayout] redirect check:', {
-      hydrated, authChecked, hasSession, onboarded,
-      currentSegment: first ?? '(root)',
-      sub: second,
-    });
-
     // CASE 1: no session → push to login (unless already navigating auth flow)
     if (isSupabaseConfigured && !hasSession) {
       if (!inAuthGroup) {
-        console.log('[RootLayout] → /auth/login (no session)');
         router.replace('/auth/login');
       }
       return;
@@ -343,7 +333,6 @@ export default function RootLayout() {
 
     // CASE 2: session but in password recovery → respect it
     if (inPasswordRecovery) {
-      console.log('[RootLayout] in recovery flow, leaving user alone');
       return;
     }
 
@@ -355,12 +344,10 @@ export default function RootLayout() {
     // Sin Supabase (modo offline/dev), respeta el flag local.
     if (isSupabaseConfigured) {
       if (profileComplete === null) {
-        console.log('[RootLayout] waiting for is_profile_complete');
         return;
       }
       if (profileComplete === false) {
         if (!inOnboarding) {
-          console.log('[RootLayout] → /onboarding (profile incomplete)');
           router.replace('/onboarding');
         }
         return;
@@ -369,7 +356,6 @@ export default function RootLayout() {
     } else {
       if (!onboarded) {
         if (!inOnboarding) {
-          console.log('[RootLayout] → /onboarding (offline mode)');
           router.replace('/onboarding');
         }
         return;
@@ -379,7 +365,6 @@ export default function RootLayout() {
     // CASE 4: signed in + onboarded → must be in tabs or an allowed authed route.
     // Redirect from root "/" or any stray unknown route.
     if (!inTabs && !inAllowedAuthedRoute) {
-      console.log('[RootLayout] → /(tabs) (from', first ?? '(root)', ')');
       router.replace('/(tabs)');
     }
   }, [hydrated, authChecked, hasSession, onboarded, profileComplete, segments, router]);

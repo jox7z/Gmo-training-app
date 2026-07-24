@@ -323,7 +323,6 @@ export default function FeedHome() {
         <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
           <ErrorState
             title="No se pudo cargar el feed"
-            message={feedQuery.error?.message}
             onRetry={onRefresh}
           />
         </View>

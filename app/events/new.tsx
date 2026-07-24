@@ -17,7 +17,8 @@ import { useCommunity } from '@/lib/queries/communities';
 import { uploadCover } from '@/lib/storage/photos';
 import { useAppStore } from '@/store/app';
 import type { EventKind } from '@/lib/repos/events';
-import { DAY_OPTIONS, TIME_OPTIONS, buildDate, Chip } from '@/components/events/eventDateHelpers';
+import { DAY_OPTIONS, TIME_OPTIONS, buildDate } from '@/components/events/eventDateHelpers';
+import { Chip } from '@/components/ui/Chip';
 
 export default function NewEventScreen() {
   const router = useRouter();
@@ -256,7 +257,7 @@ export default function NewEventScreen() {
             <Text variant="label" tone="secondary">DÍA</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {DAY_OPTIONS.map((d) => (
-                <Chip key={d.offset} label={d.label} active={dayOffset === d.offset} onPress={() => setDayOffset(d.offset)} />
+                <Chip key={d.offset} label={d.label} variant="outline" selected={dayOffset === d.offset} onPress={() => setDayOffset(d.offset)} />
               ))}
             </View>
           </View>
@@ -266,7 +267,7 @@ export default function NewEventScreen() {
             <Text variant="label" tone="secondary">HORA</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {TIME_OPTIONS.map((t) => (
-                <Chip key={t} label={t} active={time === t} onPress={() => setTime(t)} />
+                <Chip key={t} label={t} variant="outline" selected={time === t} onPress={() => setTime(t)} />
               ))}
             </View>
           </View>

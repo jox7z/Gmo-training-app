@@ -5,7 +5,12 @@
  */
 import { nid } from '@/store/routines';
 import type { Routine, RoutineDay, RoutineDayExercise } from '@/store/routines';
-import type { RoutineOption } from '@/lib/routineGenerator';
+
+export interface RoutineOption {
+  routine: Routine;
+  label: string;
+  summary: string;
+}
 
 // Parámetros por defecto de hipertrofia
 const DEFAULT_SETS = 3;

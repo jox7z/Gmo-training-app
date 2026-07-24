@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, Pressable, ScrollView, Share, Alert, Image } from 'react-native';
+import { View, Pressable, ScrollView, Share, Alert } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { openInstagram } from '@/lib/linking';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -19,6 +19,8 @@ import { RANK_IMAGES } from '@/theme/rankImages';
 import { Loader } from '@/components/ui/Loader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { useQueryState } from '@/lib/queryState';
 import { useAppStore } from '@/store/app';
 import { AchievementMedal } from '@/components/achievements/AchievementMedal';
 import { evaluateAchievements } from '@/lib/achievements';
@@ -59,6 +61,11 @@ export default function Profile() {
     () => userPostsQuery.data?.pages.flatMap((p) => p.posts) ?? [],
     [userPostsQuery.data],
   );
+  const postsState = useQueryState({
+    isLoading: userPostsQuery.isLoading,
+    isError: userPostsQuery.isError,
+    isEmpty: userPosts.length === 0,
+  });
 
   const { achievements, earnedLevels, totalLevels } = useMemo(() => {
     const achievements = evaluateAchievements({ history: workoutHistory, streakWeeks });
@@ -274,13 +281,19 @@ export default function Profile() {
 
         {/* ── TAB: PUBLICACIONES ── */}
         {activeTab === 'posts' && (
-          userPostsQuery.isLoading && userPosts.length === 0 ? (
+          postsState === 'loading' ? (
             <View style={{ gap: spacing.md }}>
               {Array.from({ length: 3 }).map((_, i) => (
                 <Skeleton key={i} width="100%" height={180} radius={radius['2xl']} />
               ))}
             </View>
-          ) : userPosts.length === 0 ? (
+          ) : postsState === 'error' ? (
+            <ErrorState
+              title="No se pudieron cargar tus publicaciones"
+              onRetry={() => userPostsQuery.refetch()}
+              style={{ marginTop: spacing.md }}
+            />
+          ) : postsState === 'empty' ? (
             <EmptyState
               icon="image"
               title="Aún no hay publicaciones"
@@ -467,7 +480,14 @@ function PublicationCard({ post, onPress }: { post: Post; onPress: () => void })
 
       {post.photoUrl ? (
         <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
-          <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
+          <ExpoImage
+            source={{ uri: post.photoUrl }}
+            style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            transition={150}
+            recyclingKey={post.id}
+          />
         </View>
       ) : null}
 

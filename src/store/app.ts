@@ -131,10 +131,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           pinnedExerciseId: data.pinnedExerciseId ?? undefined,
         });
       }
-      console.log('[Store] hydrate: AsyncStorage read OK', {
-        onboarded: get().onboarded,
-        hasProfile: !!get().profile,
-      });
 
       // Sync real auth user ID if Supabase is configured.
       // Wrapped in a 2s timeout: on Android the Supabase auth call can hang
@@ -159,7 +155,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.warn('[Store] hydrate failed', e);
     } finally {
       set({ hydrated: true });
-      console.log('[Store] hydrate finished');
     }
   },
 
@@ -230,7 +225,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (isSupabaseConfigured) {
       try { await supabase.auth.signOut(); } catch (e) { console.warn('[Store] supabase signOut failed', e); }
     }
-    console.log('[Store] signOut complete');
   },
 }));
 

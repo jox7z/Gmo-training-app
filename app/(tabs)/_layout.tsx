@@ -26,7 +26,6 @@ const TABS: { key: TabName; label: string }[] = [
 ];
 
 export default function TabsLayout() {
-  console.log('[TabsLayout] render — usuario entró al grupo de tabs');
   const pagerRef = useRef<PagerView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const insets = useSafeAreaInsets();

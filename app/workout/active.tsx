@@ -21,9 +21,8 @@ import { exerciseImage } from '@/data/exerciseImages';
 import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
 import { formatDuration, toDisplay, fromDisplay, formatWeight } from '@/lib/units';
 import { Icon } from '@/components/Icon';
-import { saveWorkout, ensureWorkoutSynced } from '@/lib/repos/workouts';
+import { saveWorkout } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { useToast } from '@/components/ui/Toast';
 import { findPreviousSession, comparePerExercise, detectPRs, summarizeProgress, previousExerciseSets, historicMaxWeight } from '@/lib/workoutCompare';
 import { WorkoutHeader } from '@/components/workout/WorkoutHeader';
 import { SetProgressPills } from '@/components/workout/SetProgressPills';
@@ -1363,7 +1362,6 @@ function Summary({
   onPublishWithCaption: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const toast = useToast();
   const history = useWorkoutsStore((s) => s.history);
   const [publishing] = useState(false);
 

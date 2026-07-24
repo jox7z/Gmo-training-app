@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Pressable,
@@ -14,6 +14,7 @@ import { Text } from '@/components/ui/Text';
 import { SkeletonRow } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { useQueryState } from '@/lib/queryState';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { useNotifications, useMarkRead, type Notification } from '@/lib/queries/notifications';
@@ -155,9 +156,11 @@ export default function NotificationsScreen() {
     [notificationsQuery.data],
   );
 
-  const isInitialLoading = notificationsQuery.isLoading && notifications.length === 0;
-  const hasError = !isInitialLoading && !!notificationsQuery.error && notifications.length === 0;
-  const isEmpty = !isInitialLoading && !notificationsQuery.error && notifications.length === 0;
+  const notificationsState = useQueryState({
+    isLoading: notificationsQuery.isLoading,
+    isError: notificationsQuery.isError,
+    isEmpty: notifications.length === 0,
+  });
 
   // Al abrir la pantalla, marcar todas como leídas
   // Se ejecuta solo la primera vez que el query resuelve y hay no leídas
@@ -170,8 +173,8 @@ export default function NotificationsScreen() {
   }, [hasUnread, markRead]);
 
   // Marcar todo al montar cuando ya hay datos
-  useMemo(() => {
-    if (notifications.length > 0 && hasUnread) {
+  useEffect(() => {
+    if (notifications.length > 0 && hasUnread && !markRead.isPending) {
       markRead.mutate({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,7 +244,7 @@ export default function NotificationsScreen() {
       </View>
 
       {/* Content */}
-      {isInitialLoading ? (
+      {notificationsState === 'loading' ? (
         <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}>
           {Array.from({ length: 5 }).map((_, i) => (
             <SkeletonRow key={i} />
@@ -259,11 +262,11 @@ export default function NotificationsScreen() {
             paddingBottom: insets.bottom + spacing.xl,
           }}
           ListEmptyComponent={
-            hasError ? (
+            notificationsState === 'error' ? (
               <View style={{ padding: spacing.lg, paddingTop: spacing['4xl'] }}>
                 <ErrorState onRetry={onRefresh} />
               </View>
-            ) : isEmpty ? (
+            ) : notificationsState === 'empty' ? (
               <View style={{ padding: spacing.lg, paddingTop: spacing['4xl'] }}>
                 <EmptyState
                   icon="bell"

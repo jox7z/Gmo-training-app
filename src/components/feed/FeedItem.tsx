@@ -16,10 +16,7 @@ import { Icon, IconName } from '@/components/Icon';
 import { BicepIcon } from '@/components/BicepIcon';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import type { Post, ReactionKind } from '@/lib/repos/posts';
-import {
-  DEFAULT_REACTION,
-  totalReactions,
-} from './reactions';
+import { totalReactions } from './reactions';
 
 interface Props {
   post: Post;
@@ -108,6 +105,21 @@ function ActionButton({
   );
 }
 
+// Bloque de imagen de post compartido por ManualBody/WorkoutBody/PrBody —
+// evita que las 3 copias diverjan al tocar cachePolicy/transition/placeholder.
+function PostPhoto({ uri, postId }: { uri: string; postId: string }) {
+  return (
+    <Image
+      source={{ uri }}
+      style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
+      contentFit="cover"
+      cachePolicy="memory-disk"
+      transition={150}
+      recyclingKey={postId}
+    />
+  );
+}
+
 function ManualBody({ post }: { post: Post }) {
   if (!post.photoUrl) return null;
   return (
@@ -119,14 +131,7 @@ function ManualBody({ post }: { post: Post }) {
         backgroundColor: colors.bg.elevated,
       }}
     >
-      <Image
-        source={{ uri: post.photoUrl }}
-        style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
-        contentFit="cover"
-        cachePolicy="memory-disk"
-        transition={150}
-        recyclingKey={post.id}
-      />
+      <PostPhoto uri={post.photoUrl} postId={post.id} />
     </View>
   );
 }
@@ -329,14 +334,7 @@ function WorkoutBody({ post }: { post: Post }) {
       )}
       {post.photoUrl ? (
         <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
-          <Image
-            source={{ uri: post.photoUrl }}
-            style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={150}
-            recyclingKey={post.id}
-          />
+          <PostPhoto uri={post.photoUrl} postId={post.id} />
         </View>
       ) : null}
     </View>
@@ -420,14 +418,7 @@ function PrBody({ post }: { post: Post }) {
       ) : null}
       {post.photoUrl ? (
         <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
-          <Image
-            source={{ uri: post.photoUrl }}
-            style={{ width: '100%', aspectRatio: 4 / 5, backgroundColor: colors.bg.elevated }}
-            contentFit="cover"
-            cachePolicy="memory-disk"
-            transition={150}
-            recyclingKey={post.id}
-          />
+          <PostPhoto uri={post.photoUrl} postId={post.id} />
         </View>
       ) : null}
     </View>
@@ -610,6 +601,7 @@ export function FeedItem({
             name={post.user.displayName}
             size={44}
             borderColor={info.color}
+            recyclingKey={post.id}
           />
           <View style={{ marginLeft: spacing.md, flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>

@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { useQueryState } from '@/lib/queryState';
 import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
@@ -56,6 +57,11 @@ export default function EventDetailScreen() {
 
   const event = eventQuery.data;
   const participants = participantsQuery.data ?? [];
+  const participantsState = useQueryState({
+    isLoading: participantsQuery.isLoading,
+    isError: participantsQuery.isError,
+    isEmpty: participants.length === 0,
+  });
   const isChallenge = event?.kind === 'challenge';
   const commentCount = commentsQuery.data?.length ?? 0;
 
@@ -294,11 +300,16 @@ export default function EventDetailScreen() {
                 {isChallenge ? 'Clasificación' : 'Asistentes'}
               </Text>
               <Card padding="md">
-                {participantsQuery.isLoading ? (
+                {participantsState === 'loading' ? (
                   <View style={{ padding: spacing.lg, alignItems: 'center' }}>
                     <ActivityIndicator color={colors.primary.DEFAULT} />
                   </View>
-                ) : participants.length === 0 ? (
+                ) : participantsState === 'error' ? (
+                  <ErrorState
+                    title="No se pudieron cargar los participantes"
+                    onRetry={() => participantsQuery.refetch()}
+                  />
+                ) : participantsState === 'empty' ? (
                   <View style={{ padding: spacing.lg, alignItems: 'center' }}>
                     <Text variant="caption" tone="muted">Sé el primero en unirte.</Text>
                   </View>

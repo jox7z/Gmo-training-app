@@ -131,7 +131,7 @@ export default function Routines() {
           tone="primary"
           title="Aún no tienes una rutina"
           subtitle="Crea tu rutina de entrenamiento"
-          action={{ label: 'Elegir plantilla', onPress: () => router.push('/routine/templates') }}
+          action={{ label: 'Elegir plantilla', size: 'lg', onPress: () => router.push('/routine/templates') }}
           secondaryAction={{
             label: 'Crear rutina manual',
             onPress: () => router.push({ pathname: '/routine/[id]', params: { id: 'new' } }),

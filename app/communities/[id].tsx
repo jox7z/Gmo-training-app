@@ -18,6 +18,7 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { useQueryState } from '@/lib/queryState';
 import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
@@ -495,10 +496,24 @@ function MuroTab({
     [deletePost, toast],
   );
 
-  if (feedQuery.isLoading) {
+  const feedState = useQueryState({
+    isLoading: feedQuery.isLoading,
+    isError: feedQuery.isError,
+    isEmpty: posts.length === 0,
+  });
+
+  if (feedState === 'loading') {
     return (
       <View style={{ padding: spacing.lg }}>
         <FeedSkeleton count={2} />
+      </View>
+    );
+  }
+
+  if (feedState === 'error') {
+    return (
+      <View style={{ padding: spacing.lg }}>
+        <ErrorState title="No se pudo cargar el muro" onRetry={() => feedQuery.refetch()} />
       </View>
     );
   }
@@ -541,7 +556,7 @@ function MuroTab({
         )}
 
         {/* Feed */}
-        {posts.length === 0 && !feedQuery.isLoading ? (
+        {feedState === 'empty' ? (
           <View style={{ paddingTop: spacing.xl, alignItems: 'center', gap: spacing.md }}>
             <View
               style={{
@@ -613,11 +628,24 @@ function EventosTab({
 }) {
   const eventsQuery = useCommunityEvents(communityId);
   const events = eventsQuery.data ?? [];
+  const eventsState = useQueryState({
+    isLoading: eventsQuery.isLoading,
+    isError: eventsQuery.isError,
+    isEmpty: events.length === 0,
+  });
 
-  if (eventsQuery.isLoading) {
+  if (eventsState === 'loading') {
     return (
       <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
         <ActivityIndicator color={colors.primary.DEFAULT} />
+      </View>
+    );
+  }
+
+  if (eventsState === 'error') {
+    return (
+      <View style={{ padding: spacing.lg }}>
+        <ErrorState title="No se pudieron cargar los eventos" onRetry={() => eventsQuery.refetch()} />
       </View>
     );
   }
@@ -638,7 +666,7 @@ function EventosTab({
         />
       )}
 
-      {events.length === 0 ? (
+      {eventsState === 'empty' ? (
         <View style={{ paddingTop: spacing.xl, alignItems: 'center', gap: spacing.md }}>
           <View
             style={{
@@ -696,10 +724,24 @@ function MembersTab({
   const active  = members.filter((m) => m.status === 'active');
   const pending = members.filter((m) => m.status === 'pending');
 
-  if (membersQuery.isLoading) {
+  const membersState = useQueryState({
+    isLoading: membersQuery.isLoading,
+    isError: membersQuery.isError,
+    isEmpty: members.length === 0,
+  });
+
+  if (membersState === 'loading') {
     return (
       <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
         <ActivityIndicator color={colors.primary.DEFAULT} />
+      </View>
+    );
+  }
+
+  if (membersState === 'error') {
+    return (
+      <View style={{ padding: spacing.lg }}>
+        <ErrorState title="No se pudieron cargar los miembros" onRetry={() => membersQuery.refetch()} />
       </View>
     );
   }

@@ -1,10 +1,6 @@
 /**
  * Constantes y helpers compartidos entre new.tsx y edit/[id].tsx.
  */
-import { Pressable } from 'react-native';
-import { Text } from '@/components/ui/Text';
-import { colors, radius, spacing } from '@/theme/tokens';
-
 export const DAY_OPTIONS = [
   { label: 'Hoy',    offset: 0 },
   { label: 'Mañana', offset: 1 },
@@ -63,36 +59,4 @@ export function parseDateToChips(isoDate: string): { dayOffset: number; time: st
   });
 
   return { dayOffset: closestOffset, time: closestTime };
-}
-
-export function Chip({
-  label,
-  active,
-  onPress,
-}: {
-  label: string;
-  active: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{
-        paddingHorizontal: spacing.md,
-        paddingVertical: 8,
-        borderRadius: radius.full,
-        borderWidth: 1,
-        borderColor: active ? colors.primary.DEFAULT : colors.border,
-        backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
-      }}
-    >
-      <Text
-        variant="caption"
-        weight="bold"
-        style={{ color: active ? colors.primary.DEFAULT : colors.text.secondary }}
-      >
-        {label}
-      </Text>
-    </Pressable>
-  );
 }

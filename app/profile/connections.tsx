@@ -12,6 +12,8 @@ import { Icon } from '@/components/Icon';
 import { IconButton } from '@/components/ui/IconButton';
 import { Loader } from '@/components/ui/Loader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { useQueryState } from '@/lib/queryState';
 import { colors, spacing, RANKS, RankId } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
 import {
@@ -71,6 +73,11 @@ export default function Connections() {
   }, [frozen, query.isLoading, query.data]);
 
   const data = frozen ?? EMPTY_LIST;
+  const connectionsState = useQueryState({
+    isLoading: query.isLoading,
+    isError: query.isError,
+    isEmpty: data.length === 0,
+  });
 
   const handleFollowChange = useCallback((userId: string, next: boolean) => {
     setFrozen((prev) =>
@@ -114,6 +121,10 @@ export default function Connections() {
 
       {searchQuery.isLoading && !isSelf ? (
         <Loader />
+      ) : !isSelf && searchQuery.isError && !resolvedId ? (
+        <View style={{ flex: 1, padding: spacing.lg, justifyContent: 'center' }}>
+          <ErrorState onRetry={() => searchQuery.refetch()} />
+        </View>
       ) : !resolvedId ? (
         <View style={{ flex: 1, padding: spacing.lg, justifyContent: 'center' }}>
           <Card padding="xl" style={{ alignItems: 'center' }}>
@@ -126,11 +137,15 @@ export default function Connections() {
             </Text>
           </Card>
         </View>
-      ) : query.isLoading && data.length === 0 ? (
+      ) : connectionsState === 'loading' ? (
         <View style={{ flex: 1, padding: spacing.lg, gap: spacing.sm }}>
           {[0, 1, 2, 3].map((i) => (
             <Card key={i} padding="lg" style={{ height: 72 }} />
           ))}
+        </View>
+      ) : connectionsState === 'error' ? (
+        <View style={{ flex: 1, padding: spacing.lg, justifyContent: 'center' }}>
+          <ErrorState onRetry={handleRefresh} />
         </View>
       ) : (
         <FlatList<FollowProfile>

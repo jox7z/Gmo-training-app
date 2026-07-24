@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { View, FlatList, RefreshControl, Image } from 'react-native';
+import { View, FlatList, RefreshControl } from 'react-native';
+import { Image } from 'expo-image';
 import { openInstagram } from '@/lib/linking';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -17,6 +18,7 @@ import { Loader } from '@/components/ui/Loader';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { useQueryState } from '@/lib/queryState';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import {
   useIsFollowing,
@@ -67,6 +69,11 @@ export default function PublicProfile() {
     () => userPostsQuery.data?.pages.flatMap((p) => p.posts) ?? [],
     [userPostsQuery.data],
   );
+  const postsState = useQueryState({
+    isLoading: userPostsQuery.isLoading,
+    isError: userPostsQuery.isError,
+    isEmpty: userPosts.length === 0,
+  });
 
   const onRefresh = () => {
     if (!isSelf) searchQuery.refetch();
@@ -288,7 +295,7 @@ export default function PublicProfile() {
           <PostCell post={item} onPress={() => setCommentsPost(item)} />
         )}
         ListEmptyComponent={
-          userPostsQuery.isLoading ? (
+          postsState === 'loading' ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md }}>
               {Array.from({ length: 6 }).map((_, i) => (
                 <View key={i} style={{ width: '47%', aspectRatio: 1, flexGrow: 1 }}>
@@ -296,6 +303,12 @@ export default function PublicProfile() {
                 </View>
               ))}
             </View>
+          ) : postsState === 'error' ? (
+            <ErrorState
+              title="No se pudieron cargar las publicaciones"
+              onRetry={() => userPostsQuery.refetch()}
+              style={{ marginTop: spacing.md }}
+            />
           ) : (
             <EmptyState
               icon="image"
@@ -367,7 +380,13 @@ function PostCell({ post, onPress }: { post: Post; onPress: () => void }) {
       }}
     >
       {post.photoUrl ? (
-        <Image source={{ uri: post.photoUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        <Image
+          source={{ uri: post.photoUrl }}
+          style={{ width: '100%', height: '100%', backgroundColor: colors.bg.elevated }}
+          contentFit="cover"
+          cachePolicy="memory-disk"
+          transition={150}
+        />
       ) : (
         <View style={{ flex: 1, padding: spacing.md, justifyContent: 'space-between' }}>
           <Icon
