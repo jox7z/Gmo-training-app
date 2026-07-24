@@ -42,7 +42,8 @@
       "Bash(npx eslint *)",
       "PowerShell(git *)",
       "Bash(node *)",
-      "Bash(ls *)"
+      "Bash(ls *)",
+      "Bash(cd *)"
     ]
   }
 }

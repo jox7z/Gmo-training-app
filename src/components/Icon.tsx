@@ -45,6 +45,9 @@ import {
   Home,
   User,
   LayoutGrid,
+  Trash2,
+  Link2,
+  Unlink2,
   type LucideIcon,
 } from 'lucide-react-native';
 
@@ -91,7 +94,10 @@ export type IconName =
   | 'instagram'
   | 'home'
   | 'user'
-  | 'layout-grid';
+  | 'layout-grid'
+  | 'trash'
+  | 'link'
+  | 'unlink';
 
 interface Props {
   name: IconName;
@@ -156,6 +162,9 @@ const REGISTRY: Record<Exclude<IconName, 'scale' | 'instagram'>, RegistryEntry> 
   home: { Comp: Home },
   user: { Comp: User },
   'layout-grid': { Comp: LayoutGrid },
+  trash: { Comp: Trash2 },
+  link: { Comp: Link2 },
+  unlink: { Comp: Unlink2 },
 };
 
 export function Icon({ name, size = 24, color = '#FFFFFF', filled = false }: Props) {

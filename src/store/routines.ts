@@ -10,6 +10,12 @@ export interface RoutineDayExercise {
   targetRepsMax: number;
   targetRir?: number;
   restSeconds: number;
+  /**
+   * Miembros de un mismo superset comparten este id (uuid). Miembros del grupo
+   * quedan contiguos en `RoutineDay.exercises` (invariante mantenida por el editor).
+   * `undefined` = ejercicio suelto. MVP: grupos de exactamente 2.
+   */
+  supersetGroupId?: string;
 }
 
 export interface RoutineDay {

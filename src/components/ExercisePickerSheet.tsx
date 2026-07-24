@@ -11,8 +11,8 @@
  * BottomSheetModalProvider LOCAL, o en iOS la hoja se renderiza DETRÁS del modal.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, type ListRenderItemInfo } from 'react-native';
-import { BottomSheetFlatList, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { View, ScrollView, Modal, type ListRenderItemInfo } from 'react-native';
+import { BottomSheetFlatList, BottomSheetTextInput, BottomSheetView } from '@gorhom/bottom-sheet';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '@/components/ui/AppBottomSheet';
@@ -21,7 +21,9 @@ import { Card } from '@/components/ui/Card';
 import { Chip } from '@/components/ui/Chip';
 import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { useToast } from '@/components/ui/Toast';
 import { Icon } from '@/components/Icon';
+import { CreateExerciseSheet } from '@/components/CreateExerciseSheet';
 import { colors, spacing, radius, fontSize } from '@/theme/tokens';
 import {
   EXERCISES,
@@ -32,7 +34,7 @@ import {
   type MuscleGroup,
 } from '@/data/exercises';
 import { exerciseImage } from '@/data/exerciseImages';
-import { useCustomExercises } from '@/lib/queries/exercises';
+import { useCustomExercises, useDeleteCustomExercise } from '@/lib/queries/exercises';
 import { useAppStore } from '@/store/app';
 
 interface Props {
@@ -90,10 +92,36 @@ export function ExercisePickerSheet({
   onCreatePress,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   const userId = useAppStore((s) => s.profile?.id);
   const { data: customExercises } = useCustomExercises(userId);
+  const del = useDeleteCustomExercise(userId);
   const [query, setQuery] = useState('');
   const [group, setGroup] = useState(initialMuscle);
+
+  // Menú de acciones (editar/eliminar) para ejercicios propios: long-press en la
+  // fila abre `actionTarget`; desde ahí se deriva a edición o al confirm de borrado.
+  const [actionTarget, setActionTarget] = useState<Exercise | null>(null);
+  const [editTarget, setEditTarget] = useState<Exercise | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Exercise | null>(null);
+
+  const startEdit = () => {
+    setEditTarget(actionTarget);
+    setActionTarget(null);
+  };
+  const startDelete = () => {
+    setDeleteTarget(actionTarget);
+    setActionTarget(null);
+  };
+  const confirmDelete = () => {
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    if (!target) return;
+    del.mutate(target.id, {
+      onSuccess: () => toast.show({ message: 'Ejercicio eliminado', tone: 'success' }),
+      onError: (err) => toast.show({ message: err.message, tone: 'danger' }),
+    });
+  };
 
   // Al abrir arranca en el grupo pedido; al cerrar limpia la búsqueda.
   useEffect(() => {
@@ -138,8 +166,15 @@ export function ExercisePickerSheet({
     const equivalent =
       !item.isCustom && highlightMuscle !== undefined && item.muscle === highlightMuscle;
     const selected = selectedId === item.id;
+    // Solo el dueño puede editar/borrar (defensa en profundidad; la RLS ya lo cubre).
+    const owned = item.isCustom === true && item.createdBy === userId;
     return (
-      <PressableScale onPress={() => onSelect(item)} pressScale={0.97}>
+      <PressableScale
+        onPress={() => onSelect(item)}
+        onLongPress={owned ? () => setActionTarget(item) : undefined}
+        delayLongPress={350}
+        pressScale={0.97}
+      >
         <Card
           padding="md"
           style={[
@@ -206,6 +241,7 @@ export function ExercisePickerSheet({
   };
 
   return (
+    <>
     <AppBottomSheet
       visible={visible}
       onClose={onClose}
@@ -328,5 +364,89 @@ export function ExercisePickerSheet({
         />
       </View>
     </AppBottomSheet>
+
+    {/* Menú de acciones del ejercicio propio. Se monta solo al abrir: nunca dejar
+        una hoja permanente por fila reciclada de la lista. */}
+    {actionTarget && (
+      <AppBottomSheet visible onClose={() => setActionTarget(null)} enableDynamicSizing>
+        <BottomSheetView
+          style={{
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.sm,
+            paddingBottom: insets.bottom + spacing.lg,
+            gap: spacing.xs,
+          }}
+        >
+          <Text weight="bold" numberOfLines={1} style={{ marginBottom: spacing.xs }}>
+            {actionTarget.name}
+          </Text>
+          <PressableScale
+            onPress={startEdit}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md }}
+          >
+            <Icon name="edit" size={18} color={colors.text.primary} />
+            <Text weight="semibold">Editar</Text>
+          </PressableScale>
+          <PressableScale
+            onPress={startDelete}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md }}
+          >
+            <Icon name="trash" size={18} color={colors.danger} />
+            <Text weight="bold" tone="danger">Eliminar</Text>
+          </PressableScale>
+          <PressableScale onPress={() => setActionTarget(null)} style={{ paddingVertical: spacing.md }}>
+            <Text tone="secondary">Cancelar</Text>
+          </PressableScale>
+        </BottomSheetView>
+      </AppBottomSheet>
+    )}
+
+    {/* Editor apilado sobre el picker (dos AppBottomSheet a la vez, patrón admitido). */}
+    <CreateExerciseSheet
+      visible={!!editTarget}
+      exercise={editTarget ?? undefined}
+      onClose={() => setEditTarget(null)}
+      onCreated={() => setEditTarget(null)}
+    />
+
+    {/* Confirmación de borrado */}
+    <Modal
+      transparent
+      visible={!!deleteTarget}
+      animationType="fade"
+      onRequestClose={() => setDeleteTarget(null)}
+    >
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: 'rgba(0,0,0,0.6)',
+          justifyContent: 'center',
+          padding: spacing.xl,
+        }}
+      >
+        <Card padding="lg">
+          <Text variant="heading">¿Eliminar ejercicio?</Text>
+          <Text variant="caption" tone="secondary" style={{ marginTop: spacing.sm }}>
+            Esta acción no se puede deshacer.
+          </Text>
+          <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg }}>
+            <Button
+              title="Cancelar"
+              variant="ghost"
+              onPress={() => setDeleteTarget(null)}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title="Eliminar"
+              variant="danger"
+              flat
+              onPress={confirmDelete}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Card>
+      </View>
+    </Modal>
+    </>
   );
 }

@@ -31,8 +31,11 @@ import { ExerciseHero } from '@/components/workout/ExerciseHero';
 import { RestRing } from '@/components/workout/RestRing';
 import { BigStepperInput } from '@/components/workout/BigStepperInput';
 import { PlateCalculatorSheet } from '@/components/workout/PlateCalculatorSheet';
+import { WarmupSuggestionSheet } from '@/components/workout/WarmupSuggestionSheet';
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
+import { SupersetBadge } from '@/components/workout/SupersetBadge';
 import { Chip } from '@/components/ui/Chip';
+import { buildStepSequence, findStepIndex, type WorkoutStep } from '@/lib/supersets';
 
 const REST_PHRASES = [
   '¡Una más!',
@@ -72,23 +75,22 @@ function muscleLabel(muscleGroup: string): string | undefined {
   return (MUSCLE_GROUP_LABELS as Record<string, string>)[muscleGroup];
 }
 
-// Réplica pura de advancePosition (sin efectos): a dónde se mueve la sesión
-// después de la serie actual. null = era la última serie del workout.
+// A dónde se mueve la sesión después de la serie actual, derivado de la secuencia
+// de pasos precalculada (que intercala rondas de superset). null = era la última
+// serie del workout. Mantiene la forma de retorno { exercise, setNumber, totalSets }
+// que consume RestPhase.
 function getNextPosition(
-  active: Workout,
+  steps: WorkoutStep[],
+  exercises: WorkoutExercise[],
   exIdx: number,
   setIdx: number,
 ): { exercise: WorkoutExercise; setNumber: number; totalSets: number } | null {
-  const currentEx = active.exercises[exIdx];
-  if (!currentEx) return null;
-  if (setIdx + 1 < currentEx.sets.length) {
-    return { exercise: currentEx, setNumber: setIdx + 2, totalSets: currentEx.sets.length };
-  }
-  if (exIdx + 1 < active.exercises.length) {
-    const next = active.exercises[exIdx + 1];
-    return { exercise: next, setNumber: 1, totalSets: next.sets.length };
-  }
-  return null;
+  const cur = findStepIndex(steps, exIdx, setIdx);
+  if (cur < 0 || cur + 1 >= steps.length) return null;
+  const next = steps[cur + 1];
+  const exercise = exercises[next.exIdx];
+  if (!exercise) return null;
+  return { exercise, setNumber: next.setIdx + 1, totalSets: exercise.sets.length };
 }
 
 // Miniatura cuadrada del ejercicio con fallback a icono dumbbell.
@@ -133,6 +135,7 @@ export default function ActiveWorkout() {
   const history = useWorkoutsStore((s) => s.history);
   const startWorkout = useWorkoutsStore((s) => s.startWorkout);
   const updateSet = useWorkoutsStore((s) => s.updateSet);
+  const addWarmupSets = useWorkoutsStore((s) => s.addWarmupSets);
   const toggleSetComplete = useWorkoutsStore((s) => s.toggleSetComplete);
   const finishWorkout = useWorkoutsStore((s) => s.finishWorkout);
   const cancelWorkout = useWorkoutsStore((s) => s.cancelWorkout);
@@ -140,6 +143,7 @@ export default function ActiveWorkout() {
 
   const [phase, setPhase] = useState<Phase>('warmup');
   const [swapOpen, setSwapOpen] = useState(false);
+  const [warmupSheetOpen, setWarmupSheetOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [summaryWorkout, setSummaryWorkout] = useState<Workout | null>(null);
   const [unlockQueue, setUnlockQueue] = useState<UnlockedAchievement[]>([]);
@@ -349,6 +353,19 @@ export default function ActiveWorkout() {
     [active],
   );
 
+  // Secuencia de pasos del entreno (intercala rondas de superset A1→B1→A2→B2…).
+  // Dependencia por FORMA, no por contenido: solo cambia si cambian los grupos o
+  // el número de series de algún ejercicio (o el número de ejercicios), no en
+  // cada tecleo de peso/reps (que cambia la referencia de `active`).
+  const stepShapeKey = active
+    ? active.exercises.map((e) => `${e.supersetGroupId ?? ''}:${e.sets.length}`).join('|')
+    : '';
+  const steps = useMemo(
+    () => (active ? buildStepSequence(active.exercises) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stepShapeKey],
+  );
+
   // Series previas del ejercicio en curso (para mostrar "Anterior" en el log).
   // Excluye la sesión activa para no compararse consigo misma.
   // Dependencia en exerciseId (no en `active` completo): `active` cambia de
@@ -384,6 +401,14 @@ export default function ActiveWorkout() {
   const currentEx  = active?.exercises[exIdx];
   const currentSet = currentEx?.sets[setIdx];
 
+  // Compañero de superset del ejercicio en curso (si pertenece a un grupo). MVP:
+  // grupos de 2, así que hay como mucho un compañero.
+  const partnerEx = currentEx?.supersetGroupId
+    ? active?.exercises.find(
+        (e) => e.id !== currentEx.id && e.supersetGroupId === currentEx.supersetGroupId,
+      )
+    : undefined;
+
   // El selector de cambio arranca filtrado por el músculo del ejercicio actual
   // y destaca sus equivalentes (mismo músculo primero).
   const currentMuscle = currentEx ? exerciseById(currentEx.exerciseId)?.muscle : undefined;
@@ -391,12 +416,35 @@ export default function ActiveWorkout() {
     MUSCLE_FILTER_GROUPS.find((g) => currentMuscle && g.muscles.includes(currentMuscle))?.id ??
     'all';
   const totalEx    = active?.exercises.length ?? 0;
-  const isLastSet  =
-    !!active &&
-    exIdx === totalEx - 1 &&
-    setIdx === (currentEx?.sets.length ?? 1) - 1;
+  // Siguiente posición según la secuencia de pasos (superset-aware).
+  // null = no hay más series → era la última del workout.
+  const nextPos = active ? getNextPosition(steps, active.exercises, exIdx, setIdx) : null;
+  const isLastSet = !!active && nextPos === null;
   // Serie previa que corresponde a la serie actual (última previa si hoy hay más).
   const prevSetForCurrent = prevSets ? prevSets[Math.min(setIdx, prevSets.length - 1)] : null;
+
+  // ---- Calentamiento sugerido ----
+  // Equipo del ejercicio en curso; sin metadata de catálogo (ejercicio custom)
+  // cae a 'dumbbell' (paso 2.5, sin piso) como neutro razonable.
+  const currentEquipment = currentEx ? exerciseById(currentEx.exerciseId)?.equipment : undefined;
+  // Peso objetivo = máximo de las series previas (misma fuente que "Anterior").
+  // null → el sheet pedirá el peso con un stepper.
+  const warmupTarget =
+    prevSets && prevSets.length > 0 ? Math.max(...prevSets.map((s) => s.weightKg)) : null;
+  // El botón solo aplica a la PRIMERA serie de trabajo, antes de completar nada,
+  // sin warm-ups ya presentes y para equipo con carga (no peso corporal). Excluye
+  // miembros de un superset: buildStepSequence intercala por índice de set sin
+  // distinguir isWarmup, así que prependear calentamiento en un ejercicio agrupado
+  // desalinearía las rondas contra el compañero (sus warmups se emparejarían con
+  // las series reales del otro) — diferido junto con el resto de MVP de supersets.
+  const canAddWarmup =
+    !!currentEx &&
+    !currentEx.supersetGroupId &&
+    setIdx === 0 &&
+    !currentEx.sets.some((s) => s.isCompleted) &&
+    !currentEx.sets.some((s) => s.isWarmup) &&
+    currentEquipment !== undefined &&
+    currentEquipment !== 'bodyweight';
 
   // ---- handlers ----
 
@@ -416,6 +464,7 @@ export default function ActiveWorkout() {
           exerciseId: e.exerciseId,
           exerciseName: ex?.name ?? e.exerciseId,
           muscleGroup: ex?.muscle ?? 'core',
+          supersetGroupId: e.supersetGroupId,
           sets: Array.from({ length: e.targetSets }, (_, i) => {
             const src = prev ? prev[Math.min(i, prev.length - 1)] : null;
             return {
@@ -457,6 +506,16 @@ export default function ActiveWorkout() {
         playSplash(PROGRESS_PHRASES.pr);
       }
     }
+    // Superset: si la serie recién cerrada NO cierra la ronda (queda un compañero
+    // pendiente en esta ronda), salta directo a él SIN descanso. Ese SetEntry queda
+    // con restAfterSeconds: undefined, coherente con que los agregados de descanso
+    // filtran por `typeof restAfterSeconds === 'number'`.
+    const step = steps[findStepIndex(steps, exIdx, setIdx)];
+    if (step && !step.closesRound) {
+      advancePosition();
+      setPhase('set');
+      return;
+    }
     setRestStartedAt(Date.now());
     setRestElapsed(0);
     setPhase('rest');
@@ -475,18 +534,24 @@ export default function ActiveWorkout() {
   };
 
   const advancePosition = () => {
-    if (!currentEx) return;
-    if (setIdx + 1 < currentEx.sets.length) {
-      const justSet = currentEx.sets[setIdx];
-      const nextSet = currentEx.sets[setIdx + 1];
-      if (!nextSet.isCompleted) {
-        updateSet(exIdx, setIdx + 1, { reps: justSet.reps, weightKg: justSet.weightKg });
+    if (!active) return;
+    const cur = findStepIndex(steps, exIdx, setIdx);
+    if (cur < 0 || cur + 1 >= steps.length) return;
+    const next = steps[cur + 1];
+    // Autofill del peso/reps de la serie recién hecha a la siguiente, SOLO si el
+    // paso siguiente es el MISMO ejercicio: al saltar a un compañero de superset
+    // (next.exIdx !== exIdx) no debe contaminarse con el peso/reps del otro.
+    // Además, nunca desde/hacia una serie de calentamiento (rampa propia · Parte C):
+    // la primera serie de trabajo conserva su peso pre-cargado (de "Anterior").
+    if (next.exIdx === exIdx) {
+      const justSet = active.exercises[exIdx]?.sets[setIdx];
+      const nextSet = active.exercises[next.exIdx]?.sets[next.setIdx];
+      if (justSet && nextSet && !nextSet.isCompleted && !nextSet.isWarmup && !justSet.isWarmup) {
+        updateSet(next.exIdx, next.setIdx, { reps: justSet.reps, weightKg: justSet.weightKg });
       }
-      setSetIdx(setIdx + 1);
-    } else if (exIdx + 1 < totalEx) {
-      setExIdx(exIdx + 1);
-      setSetIdx(0);
     }
+    setExIdx(next.exIdx);
+    setSetIdx(next.setIdx);
   };
 
   const captureRest = () => {
@@ -564,10 +629,10 @@ export default function ActiveWorkout() {
     ]);
   };
 
-  // Next button label for rest screen
+  // Next button label for rest screen — derivado del mismo `nextPos` (steps).
   const nextLabel = isLastSet
     ? 'Ya descansé · Terminar workout'
-    : exIdx < totalEx - 1 && setIdx === (currentEx?.sets.length ?? 1) - 1
+    : nextPos && nextPos.exercise.id !== currentEx?.id
       ? 'Ya descansé · Siguiente ejercicio'
       : 'Ya descansé · Siguiente serie';
 
@@ -657,6 +722,7 @@ export default function ActiveWorkout() {
             exerciseId={currentEx.exerciseId}
             exerciseName={currentEx.exerciseName}
             subtitle={muscleLabel(currentEx.muscleGroup)}
+            partnerName={partnerEx?.exerciseName}
             setNumber={setIdx + 1}
             totalSets={currentEx.sets.length}
             completedCount={currentEx.sets.filter((s) => s.isCompleted).length}
@@ -664,6 +730,8 @@ export default function ActiveWorkout() {
             onDone={handleSetDone}
             onSwap={() => setSwapOpen(true)}
             onOpenDetail={() => setDetailOpen(true)}
+            showWarmup={canAddWarmup}
+            onAddWarmup={() => setWarmupSheetOpen(true)}
           />
         )}
 
@@ -673,6 +741,7 @@ export default function ActiveWorkout() {
             unit={profile.unit}
             exerciseId={currentEx.exerciseId}
             exerciseName={currentEx.exerciseName}
+            partnerName={partnerEx?.exerciseName}
             setNumber={setIdx + 1}
             totalSets={currentEx.sets.length}
             previous={prevSetForCurrent}
@@ -686,7 +755,7 @@ export default function ActiveWorkout() {
           <RestPhase
             elapsed={restElapsed}
             nextLabel={nextLabel}
-            next={getNextPosition(active, exIdx, setIdx)}
+            next={nextPos}
             currentExercise={currentEx}
             currentSetIdx={setIdx}
             onConfirm={handleRestConfirm}
@@ -813,6 +882,16 @@ export default function ActiveWorkout() {
           </Animated.View>
         </Pressable>
       )}
+
+      {/* Calentamiento sugerido — rampa antes de las series de trabajo.
+          Montado a nivel raíz (mismo patrón que PlateCalculatorSheet). */}
+      <WarmupSuggestionSheet
+        visible={warmupSheetOpen}
+        onClose={() => setWarmupSheetOpen(false)}
+        targetWeightKg={warmupTarget}
+        equipment={currentEquipment ?? 'dumbbell'}
+        onConfirm={(suggestions) => addWarmupSets(exIdx, suggestions)}
+      />
 
       {/* Cambio de ejercicio solo para esta sesión */}
       <ExercisePickerSheet
@@ -998,6 +1077,7 @@ function SetPhase({
   exerciseId,
   exerciseName,
   subtitle,
+  partnerName,
   setNumber,
   totalSets,
   completedCount,
@@ -1005,10 +1085,13 @@ function SetPhase({
   onDone,
   onSwap,
   onOpenDetail,
+  showWarmup,
+  onAddWarmup,
 }: {
   exerciseId: string;
   exerciseName: string;
   subtitle?: string;
+  partnerName?: string;
   setNumber: number;
   totalSets: number;
   completedCount: number;
@@ -1016,14 +1099,21 @@ function SetPhase({
   onDone: () => void;
   onSwap: () => void;
   onOpenDetail: () => void;
+  showWarmup: boolean;
+  onAddWarmup: () => void;
 }) {
   return (
     <>
-      {/* Arriba: serie actual + pills de progreso */}
+      {/* Arriba: serie actual + badge de superset + pills de progreso */}
       <View>
         <Text variant="overline" tone="brand" style={{ textAlign: 'center', marginBottom: spacing.md }}>
           SERIE {setNumber}/{totalSets}
         </Text>
+        {partnerName && (
+          <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+            <SupersetBadge partnerName={partnerName} />
+          </View>
+        )}
         <SetProgressPills total={totalSets} current={setNumber - 1} completedCount={completedCount} />
       </View>
 
@@ -1054,14 +1144,20 @@ function SetPhase({
           </Text>
         </View>
 
-        {/* ¿Máquina ocupada? Cambia el ejercicio solo por hoy */}
-        <Chip
-          label="Cambiar ejercicio"
-          leftIcon="swap"
-          variant="outline"
-          onPress={onSwap}
-          style={{ alignSelf: 'center' }}
-        />
+        {/* Acciones rápidas: calentamiento (solo 1ª serie) + cambio de ejercicio */}
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: spacing.sm,
+          }}
+        >
+          {showWarmup && (
+            <Chip label="Calentamiento" leftIcon="fire" variant="outline" onPress={onAddWarmup} />
+          )}
+          <Chip label="Cambiar ejercicio" leftIcon="swap" variant="outline" onPress={onSwap} />
+        </View>
       </View>
 
       <Button title="Terminé la serie" variant="primary" size="lg" fullWidth onPress={onDone} />
@@ -1076,6 +1172,7 @@ function LogPhase({
   unit,
   exerciseId,
   exerciseName,
+  partnerName,
   setNumber,
   totalSets,
   previous,
@@ -1087,6 +1184,7 @@ function LogPhase({
   unit: 'kg' | 'lb';
   exerciseId: string;
   exerciseName: string;
+  partnerName?: string;
   setNumber: number;
   totalSets: number;
   previous?: { weightKg: number; reps: number } | null;
@@ -1149,6 +1247,13 @@ function LogPhase({
           </Text>
         </View>
       </View>
+
+      {/* Badge de superset (si el ejercicio forma pareja) */}
+      {partnerName && (
+        <View style={{ alignItems: 'center', marginTop: spacing.md }}>
+          <SupersetBadge partnerName={partnerName} />
+        </View>
+      )}
 
       {/* Steppers gigantes de peso y reps */}
       <ScrollView

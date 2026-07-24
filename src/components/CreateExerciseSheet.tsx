@@ -1,10 +1,13 @@
 /**
- * CreateExerciseSheet — formulario corto para crear un ejercicio custom.
+ * CreateExerciseSheet — formulario corto para crear/editar un ejercicio custom.
  *
- * Vive sobre AppBottomSheet y lo controla el PADRE (routine/[id]): nunca se
- * anida dentro de ExercisePickerSheet. El picker solo dispara `onCreatePress`,
- * que cierra el picker y abre este sheet. Al crear con éxito llama `onCreated`
- * con el ejercicio recién creado (para añadirlo directo a la rutina).
+ * CREAR: lo controla el PADRE (routine/[id]); el picker solo dispara
+ * `onCreatePress`, que cierra el picker y abre este sheet. Al crear con éxito
+ * llama `onCreated` con el ejercicio recién creado (para añadirlo a la rutina).
+ *
+ * EDITAR: si se pasa la prop `exercise`, el sheet precarga el form y guarda con
+ * useUpdateCustomExercise. En este modo SÍ se monta apilado dentro de
+ * ExercisePickerSheet (dos AppBottomSheet a la vez, patrón admitido).
  */
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -24,12 +27,19 @@ import {
   type MuscleGroup,
   type Equipment,
 } from '@/data/exercises';
-import { useCreateCustomExercise } from '@/lib/queries/exercises';
+import { useCreateCustomExercise, useUpdateCustomExercise } from '@/lib/queries/exercises';
+import { useAppStore } from '@/store/app';
 
 interface Props {
   visible: boolean;
   onClose: () => void;
   onCreated?: (exercise: Exercise) => void;
+  /**
+   * Si se pasa, el sheet entra en modo EDICIÓN: precarga el form con estos
+   * datos y guarda con useUpdateCustomExercise en vez de crear. `onCreated` se
+   * dispara igual (al caller le basta con saber que terminó).
+   */
+  exercise?: Exercise;
 }
 
 const MUSCLES = Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[];
@@ -83,10 +93,13 @@ function LabeledField({
   );
 }
 
-export function CreateExerciseSheet({ visible, onClose, onCreated }: Props) {
+export function CreateExerciseSheet({ visible, onClose, onCreated, exercise }: Props) {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const userId = useAppStore((s) => s.profile?.id);
   const create = useCreateCustomExercise();
+  const update = useUpdateCustomExercise(userId);
+  const isEdit = exercise !== undefined;
 
   const [name, setName] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | undefined>();
@@ -94,7 +107,9 @@ export function CreateExerciseSheet({ visible, onClose, onCreated }: Props) {
   const [type, setType] = useState<'compound' | 'isolation'>('compound');
   const [instructions, setInstructions] = useState('');
 
-  // Al cerrar limpia el formulario (el sheet se reutiliza).
+  // Al abrir en modo edición precarga el form; al cerrar lo limpia (el sheet
+  // se reutiliza). En modo creación el open no toca el estado (queda limpio del
+  // cierre anterior), respetando el comportamiento previo.
   useEffect(() => {
     if (!visible) {
       setName('');
@@ -102,32 +117,58 @@ export function CreateExerciseSheet({ visible, onClose, onCreated }: Props) {
       setEquipment(undefined);
       setType('compound');
       setInstructions('');
+      return;
     }
-  }, [visible]);
+    if (exercise) {
+      setName(exercise.name);
+      setMuscle(exercise.muscle);
+      setEquipment(exercise.equipment);
+      setType(exercise.isCompound ? 'compound' : 'isolation');
+      setInstructions(exercise.instructions ?? '');
+    }
+  }, [visible, exercise]);
 
   const valid = name.trim().length > 0 && muscle !== undefined && equipment !== undefined;
+  const pending = create.isPending || update.isPending;
 
   const submit = () => {
-    if (!valid || create.isPending) return;
-    create.mutate(
-      {
-        name: name.trim(),
-        muscle: muscle!,
-        equipment: equipment!,
-        isCompound: type === 'compound',
-        instructions: instructions.trim(),
-      },
-      {
-        onSuccess: (ex) => {
-          toast.show({ message: 'Ejercicio creado', tone: 'success' });
-          onCreated?.(ex);
-          onClose();
+    if (!valid || pending) return;
+    const patch = {
+      name: name.trim(),
+      muscle: muscle!,
+      equipment: equipment!,
+      isCompound: type === 'compound',
+      instructions: instructions.trim(),
+    };
+    if (exercise) {
+      update.mutate(
+        { exercise, patch },
+        {
+          onSuccess: (ex) => {
+            toast.show({ message: 'Ejercicio actualizado', tone: 'success' });
+            onCreated?.(ex);
+            onClose();
+          },
+          onError: (err) => {
+            toast.show({
+              message: err.message || 'No se pudo actualizar el ejercicio',
+              tone: 'danger',
+            });
+          },
         },
-        onError: (err) => {
-          toast.show({ message: err.message || 'No se pudo crear el ejercicio', tone: 'danger' });
-        },
+      );
+      return;
+    }
+    create.mutate(patch, {
+      onSuccess: (ex) => {
+        toast.show({ message: 'Ejercicio creado', tone: 'success' });
+        onCreated?.(ex);
+        onClose();
       },
-    );
+      onError: (err) => {
+        toast.show({ message: err.message || 'No se pudo crear el ejercicio', tone: 'danger' });
+      },
+    });
   };
 
   return (
@@ -136,7 +177,7 @@ export function CreateExerciseSheet({ visible, onClose, onCreated }: Props) {
       onClose={onClose}
       snapPoints={['85%']}
       keyboardBehavior="extend"
-      title="Nuevo ejercicio"
+      title={isEdit ? 'Editar ejercicio' : 'Nuevo ejercicio'}
     >
       <BottomSheetScrollView
         contentContainerStyle={{
@@ -205,10 +246,10 @@ export function CreateExerciseSheet({ visible, onClose, onCreated }: Props) {
         />
 
         <Button
-          title="Crear"
+          title={isEdit ? 'Guardar cambios' : 'Crear'}
           onPress={submit}
           disabled={!valid}
-          loading={create.isPending}
+          loading={pending}
           fullWidth
           style={{ marginTop: spacing.sm }}
         />

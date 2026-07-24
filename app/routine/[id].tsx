@@ -30,6 +30,20 @@ const EMPTY_ROUTINE = (): Routine => ({
   createdAt: new Date().toISOString(),
 });
 
+// Limpia el supersetGroupId de cualquier grupo que quede con <2 miembros (p. ej.
+// tras borrar un miembro): un superset huérfano se disuelve a ejercicio suelto.
+function dissolveOrphanGroups(exercises: RoutineDayExercise[]): RoutineDayExercise[] {
+  const counts = new Map<string, number>();
+  for (const e of exercises) {
+    if (e.supersetGroupId) counts.set(e.supersetGroupId, (counts.get(e.supersetGroupId) ?? 0) + 1);
+  }
+  return exercises.map((e) =>
+    e.supersetGroupId && (counts.get(e.supersetGroupId) ?? 0) < 2
+      ? { ...e, supersetGroupId: undefined }
+      : e,
+  );
+}
+
 export default function RoutineEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -41,6 +55,9 @@ export default function RoutineEditor() {
   const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  // Modo agrupar: seleccionar 2 ejercicios y unirlos en un superset.
+  const [groupMode, setGroupMode] = useState(false);
+  const [groupSelection, setGroupSelection] = useState<string[]>([]);
 
   const day = routine.days[activeDayIdx];
 
@@ -87,7 +104,65 @@ export default function RoutineEditor() {
 
   const removeExercise = (exId: string) => {
     const days = routine.days.map((d, i) =>
-      i === activeDayIdx ? { ...d, exercises: d.exercises.filter((e) => e.id !== exId) } : d,
+      i === activeDayIdx
+        ? { ...d, exercises: dissolveOrphanGroups(d.exercises.filter((e) => e.id !== exId)) }
+        : d,
+    );
+    setRoutine({ ...routine, days });
+  };
+
+  // Alterna la selección de un ejercicio en modo agrupar (tope 2: ignora un 3º).
+  const toggleGroupSelect = (exId: string) => {
+    setGroupSelection((sel) => {
+      if (sel.includes(exId)) return sel.filter((id) => id !== exId);
+      if (sel.length >= 2) return sel;
+      return [...sel, exId];
+    });
+  };
+
+  const exitGroupMode = () => {
+    setGroupMode(false);
+    setGroupSelection([]);
+  };
+
+  // Une los 2 seleccionados en un superset: ordena por índice actual, mueve el
+  // segundo justo después del primero (si no son adyacentes) y les asigna un
+  // supersetGroupId compartido. Mantiene contiguos a los miembros del grupo.
+  const groupSelected = () => {
+    if (groupSelection.length !== 2) return;
+    const days = routine.days.map((d, i) => {
+      if (i !== activeDayIdx) return d;
+      const exercises = [...d.exercises];
+      const [firstIdx, secondIdx] = groupSelection
+        .map((id) => exercises.findIndex((e) => e.id === id))
+        .sort((a, b) => a - b);
+      if (firstIdx < 0 || secondIdx < 0) return d;
+      if (secondIdx !== firstIdx + 1) {
+        const [moved] = exercises.splice(secondIdx, 1);
+        exercises.splice(firstIdx + 1, 0, moved);
+      }
+      const groupId = nid();
+      exercises[firstIdx] = { ...exercises[firstIdx], supersetGroupId: groupId };
+      exercises[firstIdx + 1] = { ...exercises[firstIdx + 1], supersetGroupId: groupId };
+      // Si alguno de los 2 ya pertenecía a otro superset, su antigua pareja se queda
+      // sola — disolverla en vez de dejar un grupo huérfano de 1 miembro.
+      return { ...d, exercises: dissolveOrphanGroups(exercises) };
+    });
+    setRoutine({ ...routine, days });
+    exitGroupMode();
+  };
+
+  // Deshace un superset: limpia el supersetGroupId de todos sus miembros.
+  const ungroupPair = (groupId: string) => {
+    const days = routine.days.map((d, i) =>
+      i === activeDayIdx
+        ? {
+            ...d,
+            exercises: d.exercises.map((e) =>
+              e.supersetGroupId === groupId ? { ...e, supersetGroupId: undefined } : e,
+            ),
+          }
+        : d,
     );
     setRoutine({ ...routine, days });
   };
@@ -200,8 +275,79 @@ export default function RoutineEditor() {
               </Text>
             </Card>
           )}
-          {day.exercises.map((e) => {
+          {day.exercises.map((e, i) => {
             const ex = exerciseById(e.exerciseId);
+            const groupId = e.supersetGroupId;
+            // Miembros de un mismo grupo son contiguos: detecta vecinos por grupo.
+            const prevSameGroup =
+              i > 0 && !!groupId && day.exercises[i - 1].supersetGroupId === groupId;
+            const nextSameGroup =
+              i < day.exercises.length - 1 &&
+              !!groupId &&
+              day.exercises[i + 1].supersetGroupId === groupId;
+            const selected = groupMode && groupSelection.includes(e.id);
+
+            const card = (
+              <Card
+                padding="md"
+                style={{
+                  // Miembros del par van "pegados": el 1º casi sin margen inferior.
+                  marginBottom: nextSameGroup ? spacing.xs : spacing.sm,
+                  ...(selected ? { borderWidth: 2, borderColor: colors.primary.DEFAULT } : {}),
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  {/* Columna central: nombre + steppers */}
+                  <View style={{ flex: 1, alignItems: 'center' }}>
+                    <Text
+                      weight="semibold"
+                      numberOfLines={2}
+                      style={{ textAlign: 'center', marginBottom: spacing.sm }}
+                    >
+                      {ex?.name ?? e.exerciseId}
+                    </Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
+                      <StepperField
+                        label="Sets"
+                        value={e.targetSets}
+                        min={1}
+                        max={20}
+                        step={1}
+                        onChange={(v) => updateExercise(e.id, { targetSets: v })}
+                      />
+                    </View>
+                  </View>
+                  {/* En modo agrupar el tap selecciona la Card, así que ocultamos
+                      las acciones para no anidar pulsables. */}
+                  {!groupMode && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                      {groupId && (
+                        <IconButton
+                          icon="unlink"
+                          onPress={() => ungroupPair(groupId)}
+                          size={40}
+                          iconSize={20}
+                          tone="elevated"
+                          pressScale={0.88}
+                          hitSlop={12}
+                        />
+                      )}
+                      {/* Botón quitar — círculo danger */}
+                      <IconButton
+                        icon="close"
+                        onPress={() => removeExercise(e.id)}
+                        size={40}
+                        iconSize={22}
+                        tone="danger"
+                        pressScale={0.88}
+                        hitSlop={12}
+                      />
+                    </View>
+                  )}
+                </View>
+              </Card>
+            );
+
             return (
               // Animated.View para animar inserción/eliminación de ejercicios
               <Animated.View
@@ -209,52 +355,57 @@ export default function RoutineEditor() {
                 entering={FadeInDown.springify().damping(18)}
                 layout={LinearTransition.springify().damping(18)}
               >
-                <Card padding="md" style={{ marginBottom: spacing.sm }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                    {/* Columna central: nombre + steppers */}
-                    <View style={{ flex: 1, alignItems: 'center' }}>
-                      <Text
-                        weight="semibold"
-                        numberOfLines={2}
-                        style={{ textAlign: 'center', marginBottom: spacing.sm }}
-                      >
-                        {ex?.name ?? e.exerciseId}
-                      </Text>
-                      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
-                        <StepperField
-                          label="Sets"
-                          value={e.targetSets}
-                          min={1}
-                          max={20}
-                          step={1}
-                          onChange={(v) => updateExercise(e.id, { targetSets: v })}
-                        />
-                      </View>
-                    </View>
-                    {/* Botón quitar — círculo danger */}
-                    <IconButton
-                      icon="close"
-                      onPress={() => removeExercise(e.id)}
-                      size={40}
-                      iconSize={22}
-                      tone="danger"
-                      pressScale={0.88}
-                      hitSlop={12}
-                    />
+                {/* Indicador "Superset" entre los dos miembros (una vez, antes del 2º) */}
+                {prevSameGroup && (
+                  <View style={{ alignItems: 'center', marginVertical: spacing.xs }}>
+                    <Chip label="Superset" leftIcon="link" variant="outline" size="sm" />
                   </View>
-                </Card>
+                )}
+                {groupMode ? (
+                  <PressableScale onPress={() => toggleGroupSelect(e.id)} pressScale={0.98}>
+                    {card}
+                  </PressableScale>
+                ) : (
+                  card
+                )}
               </Animated.View>
             );
           })}
         </View>
 
-        <Button
-          title="+ Agregar ejercicio"
-          variant="secondary"
-          onPress={() => setPickerOpen(true)}
-          style={{ marginTop: spacing.md }}
-          fullWidth
-        />
+        {/* Acciones: agregar / agrupar — o confirmar/cancelar en modo agrupar */}
+        {!groupMode ? (
+          <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+            <Button
+              title="+ Agregar ejercicio"
+              variant="secondary"
+              onPress={() => setPickerOpen(true)}
+              fullWidth
+            />
+            {day.exercises.length >= 2 && (
+              <Button
+                title="Agrupar ejercicios"
+                variant="ghost"
+                leftIcon={<Icon name="link" size={18} color={colors.text.primary} />}
+                onPress={() => setGroupMode(true)}
+                fullWidth
+              />
+            )}
+          </View>
+        ) : (
+          <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+            <Text variant="caption" tone="muted" style={{ textAlign: 'center' }}>
+              Elige 2 ejercicios para unirlos en superset ({groupSelection.length}/2)
+            </Text>
+            <Button
+              title="Agrupar en superset"
+              onPress={groupSelected}
+              disabled={groupSelection.length !== 2}
+              fullWidth
+            />
+            <Button title="Cancelar" variant="secondary" onPress={exitGroupMode} fullWidth />
+          </View>
+        )}
       </ScrollView>
 
       <ExercisePickerSheet

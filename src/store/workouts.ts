@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuidv4 } from '@/lib/ids';
 import { exerciseById } from '@/data/exercises';
+import type { WarmupSuggestion } from '@/lib/warmupSets';
 
 export interface SetEntry {
   id: string;
@@ -21,6 +22,12 @@ export interface WorkoutExercise {
   muscleGroup: string;
   sets: SetEntry[];
   notes?: string;
+  /**
+   * Miembros de un mismo superset comparten este id (uuid) y quedan contiguos en
+   * `Workout.exercises`. `undefined` = ejercicio suelto. Heredado de la rutina al
+   * arrancar la sesión y conservado por `swapExercise`. MVP: grupos de 2.
+   */
+  supersetGroupId?: string;
 }
 
 export interface Workout {
@@ -50,6 +57,13 @@ interface State {
   finishWorkout: (extras: { feeling?: Workout['feeling']; photoUri?: string; published?: boolean }) => Workout | null;
   updateSet: (exerciseIndex: number, setIndex: number, patch: Partial<SetEntry>) => void;
   addSet: (exerciseIndex: number) => void;
+  /**
+   * Inserta series de calentamiento al FRENTE del ejercicio (antes de las de
+   * trabajo). Cada una queda como `isWarmup: true` e incompleta, sin alterar el
+   * orden relativo de las series ya existentes. Los cálculos de records/1RM/
+   * logros ya filtran `isWarmup`, así que no afectan PRs.
+   */
+  addWarmupSets: (exerciseIndex: number, suggestions: WarmupSuggestion[]) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
   toggleSetComplete: (exerciseIndex: number, setIndex: number) => void;
   /**
@@ -203,6 +217,23 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     set({ active: { ...a, exercises } });
   },
 
+  addWarmupSets: (exIdx, suggestions) => {
+    const a = get().active;
+    if (!a || suggestions.length === 0) return;
+    const exercises = [...a.exercises];
+    const ex = exercises[exIdx];
+    if (!ex) return;
+    const warmups: SetEntry[] = suggestions.map((s) => ({
+      id: nid(),
+      reps: s.reps,
+      weightKg: s.weightKg,
+      isWarmup: true,
+      isCompleted: false,
+    }));
+    exercises[exIdx] = { ...ex, sets: [...warmups, ...ex.sets] };
+    set({ active: { ...a, exercises } });
+  },
+
   removeSet: (exIdx, setIdx) => {
     const a = get().active;
     if (!a) return;
@@ -227,6 +258,9 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       exerciseId: newExerciseId,
       exerciseName: meta?.name ?? newExerciseId,
       muscleGroup: meta?.muscle ?? cur.muscleGroup,
+      // Hereda el grupo del ejercicio sustituido para quedar contiguo y en el
+      // mismo superset (cuando el original pertenecía a uno).
+      supersetGroupId: cur.supersetGroupId,
       sets: (pending.length > 0 ? pending : [{ reps: 8 } as SetEntry]).map((s) => ({
         id: nid(),
         reps: s.reps ?? 8,
@@ -241,7 +275,10 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       newIndex = exIdx;
     } else {
       // Conserva lo ya hecho bajo el ejercicio original e inserta el nuevo después.
-      exercises[exIdx] = { ...cur, sets: completed };
+      // El remanente completado sale del grupo (si tenía uno): si no, quedarían 3
+      // ejercicios contiguos con el mismo supersetGroupId (remanente + nuevo + pareja
+      // original), fusionando una pareja de 2 en una ronda de 3.
+      exercises[exIdx] = { ...cur, sets: completed, supersetGroupId: undefined };
       exercises.splice(exIdx + 1, 0, newEx);
       newIndex = exIdx + 1;
     }

@@ -331,6 +331,16 @@ export function addCustomExerciseToCache(exercise: Exercise): void {
   customExercises = [exercise, ...customExercises];
 }
 
+/** Reemplaza en el cache el ejercicio editado (misma razón que addCustomExerciseToCache). */
+export function updateCustomExerciseInCache(exercise: Exercise): void {
+  customExercises = customExercises.map((e) => (e.id === exercise.id ? exercise : e));
+}
+
+/** Saca del cache un ejercicio borrado para no dejarlo resoluble por exerciseById(). */
+export function removeCustomExerciseFromCache(id: string): void {
+  customExercises = customExercises.filter((e) => e.id !== id);
+}
+
 export const exerciseById = (id: string): Exercise | undefined =>
   EXERCISES.find((e) => e.id === id) ?? customExercises.find((e) => e.id === id);
 export const exercisesByMuscle = (m: MuscleGroup) => EXERCISES.filter((e) => e.muscle === m);

@@ -42,6 +42,7 @@ export async function saveRoutine(userId: string, r: Routine): Promise<void> {
           target_reps_max: ex.targetRepsMax,
           target_rir: ex.targetRir ?? null,
           rest_seconds: ex.restSeconds,
+          superset_group_id: ex.supersetGroupId ?? null,
         },
         { onConflict: 'id' },
       );
@@ -80,6 +81,7 @@ function mapRoutineRow(row: any): Routine {
             targetRepsMax: ex.target_reps_max,
             targetRir: ex.target_rir ?? undefined,
             restSeconds: ex.rest_seconds,
+            supersetGroupId: ex.superset_group_id ?? undefined,
           })),
       })),
   };

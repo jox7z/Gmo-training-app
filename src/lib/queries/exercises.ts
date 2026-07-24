@@ -2,11 +2,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listCustomExercises,
   createCustomExercise,
+  updateCustomExercise,
   deleteCustomExercise,
   getExercisesByIds,
   type CustomExerciseInput,
 } from '@/lib/repos/exercises';
-import { type Exercise, addCustomExerciseToCache } from '@/data/exercises';
+import {
+  type Exercise,
+  addCustomExerciseToCache,
+  updateCustomExerciseInCache,
+  removeCustomExerciseFromCache,
+} from '@/data/exercises';
 import { useAppStore } from '@/store/app';
 
 export const exercisesKeys = {
@@ -60,11 +66,35 @@ export function useCreateCustomExercise() {
   });
 }
 
+export function useUpdateCustomExercise(userId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation<Exercise, Error, { exercise: Exercise; patch: CustomExerciseInput }>({
+    mutationFn: async ({ exercise, patch }) => {
+      await updateCustomExercise(exercise.id, patch);
+      // El repo no devuelve la fila; reconstruimos el dominio localmente.
+      return { ...exercise, ...patch };
+    },
+    onSuccess: (updated) => {
+      // Cache de módulo primero (mismo criterio que useCreateCustomExercise),
+      // así los ~20 sitios no-React que resuelven por exerciseById() ven el
+      // nombre/músculo nuevos antes del próximo refetch.
+      updateCustomExerciseInCache(updated);
+      if (!userId) return;
+      qc.setQueryData<Exercise[]>(exercisesKeys.custom(userId), (old) =>
+        old ? old.map((e) => (e.id === updated.id ? updated : e)) : old,
+      );
+    },
+  });
+}
+
 export function useDeleteCustomExercise(userId: string | undefined) {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: (id) => deleteCustomExercise(id),
     onSuccess: (_data, id) => {
+      // Cache de módulo primero, para no dejar el ejercicio borrado resoluble
+      // por exerciseById() hasta el próximo refetch de useCustomExercises.
+      removeCustomExerciseFromCache(id);
       if (!userId) return;
       qc.setQueryData<Exercise[]>(exercisesKeys.custom(userId), (old) =>
         old ? old.filter((e) => e.id !== id) : old,
