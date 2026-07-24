@@ -46,6 +46,7 @@ import {
 } from '@/lib/queries/body';
 import { useToast } from '@/components/ui/Toast';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyProgressIllustration } from '@/components/illustrations';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { useQueryState } from '@/lib/queryState';
 import { goToTab, TAB_INDEX } from '@/lib/tabsNav';
@@ -166,6 +167,7 @@ export default function ProgressScreen() {
           <EmptyState
             icon="dumbbell"
             tone="primary"
+            illustration={<EmptyProgressIllustration />}
             title="Aún no tienes entrenamientos"
             subtitle="Empieza tu primer workout para ver tu progreso aquí."
             action={{ label: 'Empezar entreno', onPress: () => goToTab(TAB_INDEX.routines) }}

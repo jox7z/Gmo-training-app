@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyRoutineIllustration } from '@/components/illustrations';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore } from '@/store/routines';
 import { useAppStore } from '@/store/app';
@@ -143,6 +144,7 @@ export default function Routines() {
         <EmptyState
           icon="dumbbell"
           tone="primary"
+          illustration={<EmptyRoutineIllustration />}
           title="Aún no tienes una rutina"
           subtitle="Crea tu rutina de entrenamiento"
           action={{ label: 'Elegir plantilla', size: 'lg', onPress: () => router.push('/routine/templates') }}

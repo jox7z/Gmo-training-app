@@ -15,6 +15,7 @@ import { FeedItem } from '@/components/feed/FeedItem';
 import { StartWorkoutFab } from '@/components/StartWorkoutFab';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyFeedIllustration } from '@/components/illustrations';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { CommentSheet } from '@/components/feed/CommentSheet';
 import { useToast } from '@/components/ui/Toast';
@@ -361,6 +362,7 @@ export default function FeedHome() {
               <EmptyState
                 icon="users"
                 tone="info"
+                illustration={<EmptyFeedIllustration />}
                 title="Tu feed está vacío"
                 subtitle="Sigue a otros atletas y verás sus entrenos, PRs y rachas aquí."
                 action={{ label: 'Descubrir atletas →', onPress: goDiscover }}

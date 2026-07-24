@@ -16,6 +16,7 @@ import { Text } from '@/components/ui/Text';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { EmptyRecordsIllustration } from '@/components/illustrations';
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -117,6 +118,7 @@ export default function RecordsScreen() {
           <EmptyState
             icon="trophy"
             tone="primary"
+            illustration={<EmptyRecordsIllustration />}
             title="Aún no tienes récords"
             subtitle="Completa tu primer entreno para ver tus récords aquí."
             action={{

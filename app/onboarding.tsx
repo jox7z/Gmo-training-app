@@ -1,5 +1,6 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { View, ScrollView, Pressable } from 'react-native';
+import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Screen } from '@/components/ui/Screen';
@@ -26,6 +27,10 @@ export default function Onboarding() {
   const setProfile = useAppStore((s) => s.setProfile);
   const completeOnboarding = useAppStore((s) => s.completeOnboarding);
   const setProfileComplete = useAppStore((s) => s.setProfileComplete);
+
+  // Ref del PagerView: las páginas se cambian SIEMPRE por programación
+  // (swipe libre deshabilitado) vía setPage() en goTo().
+  const pagerRef = useRef<PagerView>(null);
 
   const [step, setStep] = useState<Step>('welcome');
   const [name, setName] = useState('');
@@ -84,8 +89,23 @@ export default function Onboarding() {
   useEffect(() => { setUsernameOverride(null); }, [username]);
 
   const idx = STEPS.indexOf(step);
-  const next = () => setStep(STEPS[Math.min(STEPS.length - 1, idx + 1)]);
-  const back = () => setStep(STEPS[Math.max(0, idx - 1)]);
+
+  // Navega a un paso por índice: sincroniza el estado `step` (gate de validación
+  // + header de progreso) y desliza el PagerView a la página con su transición
+  // nativa. Único camino para cambiar de paso (el swipe libre está deshabilitado).
+  const goTo = (nextIdx: number) => {
+    const clamped = Math.max(0, Math.min(STEPS.length - 1, nextIdx));
+    setStep(STEPS[clamped]);
+    pagerRef.current?.setPage(clamped);
+  };
+  const next = () => goTo(idx + 1);
+  const back = () => goTo(idx - 1);
+
+  // El pager solo cambia por programación (swipe off); mantenemos `step` en sync
+  // con la página real por robustez.
+  const handlePageSelected = (e: PagerViewOnPageSelectedEvent) => {
+    setStep(STEPS[e.nativeEvent.position]);
+  };
 
   const finish = async () => {
     setError(null);
@@ -189,28 +209,13 @@ export default function Onboarding() {
     step !== 'profile' ||
     (name.trim().length >= 2 && usernameCheck.state === 'available');
 
-  return (
-    <Screen scroll={false} padded={false}>
-      <LinearGradient
-        colors={[colors.primary.muted, 'transparent']}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
-      />
-      <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 120 }}>
-        <View style={{ height: 8, flexDirection: 'row', gap: 6, marginBottom: spacing['2xl'] }}>
-          {STEPS.map((_, i) => (
-            <View
-              key={i}
-              style={{
-                flex: 1,
-                height: 4,
-                borderRadius: 2,
-                backgroundColor: i <= idx ? colors.primary.DEFAULT : colors.bg.card,
-              }}
-            />
-          ))}
-        </View>
-
-        {step === 'welcome' && (
+  // Cada paso vive en su propia página del PagerView. La lógica interna de cada
+  // paso es idéntica a la anterior; solo se extrajo de `{step === 'x' && (...)}`
+  // a un `case` para poder mapear STEPS → páginas.
+  const renderStep = (s: Step) => {
+    switch (s) {
+      case 'welcome':
+        return (
           <View>
             <Text variant="display" tone="brand">GMO</Text>
             <Text variant="title" style={{ marginTop: 4 }}>Entrena. Compite. Evoluciona.</Text>
@@ -223,9 +228,9 @@ export default function Onboarding() {
               <FeatureRow icon="medal" color={colors.info.DEFAULT} title="Logros desbloqueables" desc="Gana medallas por cada hito de tu entrenamiento." />
             </View>
           </View>
-        )}
-
-        {step === 'profile' && (
+        );
+      case 'profile':
+        return (
           <Section title="Cuéntanos sobre ti" subtitle="Personalizamos tu experiencia">
             <Input
               label="Tu nombre"
@@ -293,9 +298,9 @@ export default function Onboarding() {
               onChange={(v) => setSex(v as Sex)}
             />
           </Section>
-        )}
-
-        {step === 'level' && (
+        );
+      case 'level':
+        return (
           <Section title="¿Cuál es tu nivel?" subtitle="Sé honesto, ajustaremos las recomendaciones">
             <ChoiceCard
               selected={level === 'beginner'}
@@ -322,18 +327,18 @@ export default function Onboarding() {
               desc="Más de 2 años, conozco mi cuerpo y mis pesos."
             />
           </Section>
-        )}
-
-        {step === 'goal' && (
+        );
+      case 'goal':
+        return (
           <Section title="¿Cuál es tu objetivo?" subtitle="Elige el principal — luego puedes cambiarlo">
             <ChoiceCard selected={goal === 'hypertrophy'} onPress={() => setGoal('hypertrophy')} icon="muscle" iconColor={colors.primary.DEFAULT} title="Hipertrofia" desc="Ganar masa muscular y tamaño." />
             <ChoiceCard selected={goal === 'strength'} onPress={() => setGoal('strength')} icon="lightning" iconColor={colors.medal.gold} title="Fuerza" desc="Levantar más peso, ser más fuerte." />
             <ChoiceCard selected={goal === 'fat_loss'} onPress={() => setGoal('fat_loss')} icon="fire" iconColor={colors.accent.DEFAULT} title="Pérdida de grasa" desc="Definir y reducir % de grasa." />
             <ChoiceCard selected={goal === 'general'} onPress={() => setGoal('general')} icon="target" iconColor={colors.success} title="Salud general" desc="Mantenerme activo y en forma." />
           </Section>
-        )}
-
-        {step === 'frequency' && (
+        );
+      case 'frequency':
+        return (
           <Section title="¿Cuántos días por semana?" subtitle="Tu meta de racha. Sé realista.">
             <Card variant="raised" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
               <Text variant="display" tone="accent" numeric>{days}</Text>
@@ -363,9 +368,9 @@ export default function Onboarding() {
               </Text>
             </Card>
           </Section>
-        )}
-
-        {step === 'routine' && (
+        );
+      case 'routine':
+        return (
           <Section title="Elige tu rutina" subtitle="Puedes editarla después cuando quieras">
             {options.map((opt, i) => {
               const iconNames = ['trophy', 'dumbbell', 'lightning', 'fire'] as const;
@@ -393,9 +398,9 @@ export default function Onboarding() {
               desc="Créala desde cero a tu gusto"
             />
           </Section>
-        )}
-
-        {step === 'final' && (
+        );
+      case 'final':
+        return (
           <Section title="¡Todo listo!" subtitle="Tu primer paso comienza ahora.">
             <Card variant="glow" padding="xl" style={{ marginTop: spacing.lg }}>
               <Text variant="heading" tone="brand">Tu plan</Text>
@@ -445,8 +450,60 @@ export default function Onboarding() {
               </Card>
             )}
           </Section>
-        )}
-      </ScrollView>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <Screen scroll={false} padded={false}>
+      <LinearGradient
+        colors={[colors.primary.muted, 'transparent']}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
+      />
+
+      {/* Header de progreso — FUERA del PagerView, siempre sincronizado con `step`. */}
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: 6,
+          paddingHorizontal: spacing.xl,
+          paddingTop: spacing.xl,
+          paddingBottom: spacing.lg,
+        }}
+      >
+        {STEPS.map((_, i) => (
+          <View
+            key={i}
+            style={{
+              flex: 1,
+              height: 4,
+              borderRadius: 2,
+              backgroundColor: i <= idx ? colors.primary.DEFAULT : colors.bg.card,
+            }}
+          />
+        ))}
+      </View>
+
+      {/* Una página por paso. scrollEnabled={false}: el swipe libre queda bloqueado
+          — el botón "Continuar" (con su validación) sigue siendo el ÚNICO gate; el
+          pager solo aporta la transición nativa al llamar setPage() en goTo(). */}
+      <PagerView
+        ref={pagerRef}
+        style={{ flex: 1 }}
+        initialPage={0}
+        scrollEnabled={false}
+        onPageSelected={handlePageSelected}
+      >
+        {STEPS.map((s) => (
+          <View key={s} style={{ flex: 1 }}>
+            <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 120 }}>
+              {renderStep(s)}
+            </ScrollView>
+          </View>
+        ))}
+      </PagerView>
 
       <View
         style={{

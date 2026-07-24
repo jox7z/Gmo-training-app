@@ -29,7 +29,7 @@ interface EmptyStateProps {
   secondaryAction?: Action;
   /** Color del círculo del icono. */
   tone?: Tone;
-  /** Slot futuro para ilustraciones (C1); sin uso aún. Si llega, reemplaza al círculo. */
+  /** Ilustración que reemplaza al círculo de icono (feed, rutinas, progreso, records la usan). */
   illustration?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }
@@ -61,7 +61,9 @@ export function EmptyState({
   const t = toneStyles[tone];
   return (
     <Card padding="xl" style={[{ alignItems: 'center' }, style]}>
-      {illustration ?? (
+      {illustration != null ? (
+        <View style={{ marginBottom: spacing.md }}>{illustration}</View>
+      ) : (
         <View
           style={{
             width: 64,
