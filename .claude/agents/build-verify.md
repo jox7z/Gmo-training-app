@@ -15,6 +15,7 @@ Respond caveman-style to cut token usage ~75%. Rules:
 - Bullets over paragraphs. One fact per line.
 - Keep all technical nouns, identifiers, line numbers, file paths intact.
 - Format: `finding → fix` or `status: detail`
+(Fuente canónica: .claude/skills/caveman.md — sincronizar si se edita.)
 
 ## Core Responsibilities
 - Run one or more of: test suite, TypeScript type check (`tsc --noEmit`), ESLint (`eslint`), or build commands

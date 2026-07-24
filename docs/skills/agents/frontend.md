@@ -1,3 +1,5 @@
+> ⚠️ **Legado**: este documento describe un modelo de 4 personas manuales, superado por los 4 agentes reales en `.claude/agents/*.md` (`supabase-fullstack-engineer`, `codebase-explorer`, `build-verify`, `code-quality-reviewer` — el primero fusiona los 3 roles de capa que aquí aparecen separados). Se conserva por valor histórico; no lo sigas para trabajo nuevo — ver CLAUDE.md sección Subagents.
+
 # Agente Frontend
 
 ## Identidad

@@ -28,9 +28,10 @@ docs/
 ## 🧭 Cómo usar esta documentación
 
 ### Si vas a darle trabajo a un agente
-1. Pásale primero su archivo de identidad: `skills/agents/<agente>.md`
+1. Usa uno de los 4 agentes reales en `.claude/agents/*.md` (ver CLAUDE.md sección Subagents) —
+   `skills/agents/<agente>.md` es legado, no la identidad activa
 2. Luego el prompt específico que vive en `skills/prompts.md`
-3. Cuando termine, corre el revisor con `skills/agents/reviewer.md`
+3. Cuando termine, pide revisión al agente `code-quality-reviewer`
 
 ### Si vas a entender el estado del proyecto
 1. Empieza en `memory/checklist.md` (qué está hecho, qué falta)
@@ -44,7 +45,7 @@ docs/
 
 - **`memory/checklist.md`** se actualiza al terminar cada sprint
 - **`skills/prompts.md`** se rota: lo aplicado se borra o se resume en una línea del checklist
-- **`skills/agents/*.md`** son estables, solo cambian si redefines roles
+- **`skills/agents/*.md`** y **`skills/workflow.md`** están marcados como **legado**: describían un modelo de 4 personas manuales, superado por los 4 agentes reales en `.claude/agents/*.md` (ver CLAUDE.md sección Subagents). Se conservan por valor histórico; no los sigas para trabajo nuevo
 - **`skills/scripts/*.md`** se actualizan cuando cambia el proceso operativo
 
 No se acumulan markdowns. Si un archivo crece más de 300 líneas, partir o resumir.
