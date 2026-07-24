@@ -1,0 +1,2 @@
+- [User Profile](user_profile.md) — Advanced React Native / Expo + Supabase developer; skip basics, be precise
+- [Project Patterns](project_patterns.md) — Optimistic update conventions, frozen-list pattern, known divergence gaps
