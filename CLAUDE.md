@@ -93,8 +93,12 @@ the only place that decides where the user goes. Key invariants there:
   local stores using the `LOCAL_USER_ID` sentinel (`'local-user'`).
 
 ### Edge functions (Deno) — `supabase/functions/`
-- `generate_routine/` — AI routine generation (pairs with the offline heuristic in
-  `src/lib/routineGenerator.ts`). Uses the shared provider secrets
+- `generate_routine/` — AI routine generation edge function. **No client entry point
+  found**: no `callEdgeFunction('generate_routine', ...)` call site in `app/` or `src/`.
+  The client-side offline heuristic it used to pair with (`src/lib/routineGenerator.ts`)
+  was dead code (no call sites either) and was removed; routine templates now come from
+  `src/data/routineTemplates.ts` (`famousRoutineOptions`) instead. Treat this function as
+  legacy like `instagram_oauth/` until re-wired. The provider secrets stayed
   (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
   > The **AI coach was fully removed** (migration `0040_drop_ai_coach.sql`): the
   > `coach/` function, the `coach.tsx` screen + `src/lib/{coach,queries/coach,repos/coach}.ts`,

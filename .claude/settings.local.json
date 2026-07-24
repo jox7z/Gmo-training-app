@@ -40,7 +40,9 @@
       "Bash(git -C /d/Gmo/Gmo-training-app diff --stat)",
       "PowerShell(npm run *)",
       "Bash(npx eslint *)",
-      "PowerShell(git *)"
+      "PowerShell(git *)",
+      "Bash(node *)",
+      "Bash(ls *)"
     ]
   }
 }

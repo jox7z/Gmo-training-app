@@ -32,7 +32,6 @@ logros, coach IA, calendario heatmap anual.
 | Capa de auth | `src/lib/auth/index.ts` + `session.ts` |
 | Repos (sync BD) | `src/lib/repos/{workouts,routines,profile}.ts` |
 | Coach IA cliente | `src/lib/coach.ts` |
-| Generador rutinas | `src/lib/routineGenerator.ts` |
 | Score optimización | `src/lib/optimizationScore.ts` |
 | Iconografía | `src/components/Icon.tsx` |
 | Tokens diseño | `src/theme/tokens.ts` |

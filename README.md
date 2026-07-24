@@ -73,7 +73,6 @@ Escanea el QR con la app **Expo Go** (Android/iOS). La app funciona sin backend 
 │   ├── lib/
 │   │   ├── supabase.ts           # cliente Supabase + edge invoker
 │   │   ├── coach.ts              # askCoach() con fallback a mock
-│   │   ├── routineGenerator.ts   # generador heurístico offline
 │   │   └── units.ts              # kg ↔ lb, formato duración
 │   └── data/
 │       ├── exercises.ts          # catálogo (24 ejercicios)

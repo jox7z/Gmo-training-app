@@ -23,13 +23,13 @@
 - Ranking con 9 rangos + rachas + heatmap anual
 - Comunidades con roles
 - Eventos/retos con leaderboard
-- Generador de rutinas
 
 ### Limitaciones transversales
 
-- ~~**Cero tests** — sin test runner ni cobertura alguna~~ → ✅ 2026-07-17: runner jest-expo + 7 suites de lib pura (54 tests); componentes/stores/repos siguen sin cubrir
+- ~~**Cero tests** — sin test runner ni cobertura alguna~~ → ✅ 2026-07-17: runner jest-expo + 7 suites de lib pura (54 tests); componentes/stores/repos siguen sin cubrir. + ✅ 2026-07-23: 8ª suite (`queryState.test.ts`, 5 tests) para el nuevo hook `useQueryState` — 59 tests en total
 - **Español hardcodeado** — sin i18n
 - **Corre en Expo Go** — limita push notifications y módulos nativos
+- ~~Dependencias y código sin usar~~ → ✅ 2026-07-23: `zod` (sin ninguna referencia) quitado de `dependencies`, `@expo/ngrok` movido a `devDependencies`; módulo `src/lib/routineGenerator.ts` y componente `src/components/ActivityCard.tsx` eliminados (huérfanos, sin call sites); `console.log` de depuración retirados de `app/_layout.tsx`, `src/store/app.ts`, `app/(tabs)/_layout.tsx` y `app/index.tsx`; `FIXES_ROUND_2.md` (documento de trabajo ya completado) eliminado
 
 ---
 
@@ -99,7 +99,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | Item | Prioridad | Esfuerzo | Notas y dependencias |
 |---|---|---|---|
 | Analytics de producto (PostHog) | P1 | M | Necesario antes de decidir paywall. |
-| Tests (Jest + RN Testing Library) | P1 | M inicial, continuo | ✅ PARCIAL 2026-07-17 — runner jest-expo (config en bloque `"jest"` de package.json, alias `@/*`, `testMatch` solo `__tests__/*.test.ts`) + 7 suites de lib pura (units, oneRepMax, plates, workoutCompare, optimizationScore, achievements, exerciseProgress — 54 tests) con `fixtures.ts` compartido. Desbloquea la skill de testing (A4). PENDIENTE: RN Testing Library para componentes; stores/repos/routineGenerator. |
+| Tests (Jest + RN Testing Library) | P1 | M inicial, continuo | ✅ PARCIAL 2026-07-17 — runner jest-expo (config en bloque `"jest"` de package.json, alias `@/*`, `testMatch` solo `__tests__/*.test.ts`) + 7 suites de lib pura (units, oneRepMax, plates, workoutCompare, optimizationScore, achievements, exerciseProgress — 54 tests) con `fixtures.ts` compartido. Desbloquea la skill de testing (A4). PENDIENTE: RN Testing Library para componentes; stores/repos. |
 | Monetización (RevenueCat/IAP) | P1–P2 | L | Tras analytics; Strong/Hevy/Fitbod monetizan con Pro. |
 | i18n (extraer strings) | P2 | M–L | Hacerlo antes de que crezca la superficie abarata el costo. |
 | Wearables / HealthKit / Google Fit | P2 | L | Requiere dev build; diferenciador de Strava. |
@@ -109,11 +109,11 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 
 De `docs/memory/checklist.md`:
 
-- Generador IA usa heurística local en vez de la edge function
+- ~~Generador IA usa heurística local en vez de la edge function~~ → ✅ 2026-07-23: `src/lib/routineGenerator.ts` no tenía ningún call site en `app/` ni `src/` (ni tampoco la edge function `generate_routine` desde el cliente) — era código huérfano, no una feature wireada con una limitación conocida; se eliminó. Las plantillas de rutina (`app/routine/templates.tsx`, onboarding) usan `famousRoutineOptions()` de `src/data/routineTemplates.ts`, que no dependía del generador.
 - Racha no estricta 1x día
 - Sin validación de "workout válido" antes de guardar
 - Redondeo KG↔LB en workout activo
-- El generador reemplaza la rutina activa sin confirmar
+- ~~El generador reemplaza la rutina activa sin confirmar~~ → ✅ 2026-07-23: moot, ver nota anterior (el generador nunca estuvo conectado a ninguna pantalla)
 
 ### Cierre pendiente — Coach IA (P0, S) — ✅ CERRADO 2026-07-11
 
