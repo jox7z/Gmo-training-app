@@ -35,7 +35,7 @@ import { WarmupSuggestionSheet } from '@/components/workout/WarmupSuggestionShee
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { SupersetBadge } from '@/components/workout/SupersetBadge';
 import { Chip } from '@/components/ui/Chip';
-import { buildStepSequence, findStepIndex, type WorkoutStep } from '@/lib/supersets';
+import { buildStepSequence, findStepIndex, dissolveNonContiguousGroups, type WorkoutStep } from '@/lib/supersets';
 
 const REST_PHRASES = [
   '¡Una más!',
@@ -348,6 +348,7 @@ export default function ActiveWorkout() {
         ? active.exercises.map((e) => ({
             done: e.sets.filter((s) => s.isCompleted).length,
             total: e.sets.length,
+            groupId: e.supersetGroupId,
           }))
         : [],
     [active],
@@ -459,10 +460,15 @@ export default function ActiveWorkout() {
   // ---- handlers ----
 
   const handleWarmupDone = () => {
+    // Saneo defensivo: la rutina persistida pudo guardarse con una versión anterior
+    // del editor donde un bug de contigüidad aún no estaba arreglado. Corre
+    // `dissolveNonContiguousGroups` antes de construir la sesión activa para no
+    // arrastrar un `supersetGroupId` no-contiguo a `buildStepSequence`.
+    const sanitizedExercises = dissolveNonContiguousGroups(day.exercises);
     startWorkout({
       routineDayId: day.id,
       routineName: `${routine.name} · ${day.name}`,
-      exercises: day.exercises.map((e) => {
+      exercises: sanitizedExercises.map((e) => {
         const ex = exerciseById(e.exerciseId);
         const isBodyweight = ex?.equipment === 'bodyweight';
         // Autocompleta peso/reps con lo que hiciste la última vez en este
@@ -475,6 +481,7 @@ export default function ActiveWorkout() {
           exerciseName: ex?.name ?? e.exerciseId,
           muscleGroup: ex?.muscle ?? 'core',
           supersetGroupId: e.supersetGroupId,
+          groupRestEnabled: e.groupRestEnabled,
           sets: Array.from({ length: e.targetSets }, (_, i) => {
             const src = prev ? prev[Math.min(i, prev.length - 1)] : null;
             return {

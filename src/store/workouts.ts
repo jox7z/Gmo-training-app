@@ -29,6 +29,12 @@ export interface WorkoutExercise {
    * arrancar la sesión y conservado por `swapExercise`. MVP: grupos de 2.
    */
   supersetGroupId?: string;
+  /**
+   * Descanso intra-grupo (heredado de la rutina): cuando true, cada serie del
+   * round-robin del grupo cierra ronda para medir descanso entre miembros. Todos
+   * los miembros de un grupo comparten el mismo valor. Conservado por `swapExercise`.
+   */
+  groupRestEnabled?: boolean;
 }
 
 export interface Workout {
@@ -262,6 +268,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       // Hereda el grupo del ejercicio sustituido para quedar contiguo y en el
       // mismo superset (cuando el original pertenecía a uno).
       supersetGroupId: cur.supersetGroupId,
+      groupRestEnabled: cur.groupRestEnabled,
       sets: (pending.length > 0 ? pending : [{ reps: 8 } as SetEntry]).map((s) => ({
         id: nid(),
         reps: s.reps ?? 8,
@@ -278,8 +285,10 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       // Conserva lo ya hecho bajo el ejercicio original e inserta el nuevo después.
       // El remanente completado sale del grupo (si tenía uno): si no, quedarían 3
       // ejercicios contiguos con el mismo supersetGroupId (remanente + nuevo + pareja
-      // original), fusionando una pareja de 2 en una ronda de 3.
-      exercises[exIdx] = { ...cur, sets: completed, supersetGroupId: undefined };
+      // original), fusionando una pareja de 2 en una ronda de 3. groupRestEnabled
+      // también se limpia — si no, un ejercicio ya suelto queda con el flag colgando
+      // (inerte hoy, pero listo para contaminar el próximo grupo en el que reentre).
+      exercises[exIdx] = { ...cur, sets: completed, supersetGroupId: undefined, groupRestEnabled: undefined };
       exercises.splice(exIdx + 1, 0, newEx);
       newIndex = exIdx + 1;
     }

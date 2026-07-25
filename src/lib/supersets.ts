@@ -64,6 +64,11 @@ export function buildStepSequence(exercises: WorkoutExercise[]): WorkoutStep[] {
         exercises[idx].sets.map((s, si) => (s.isWarmup ? -1 : si)).filter((si) => si >= 0),
       ]),
     );
+    // Descanso intra-grupo: si el grupo lo tiene activo, CADA serie del round-robin
+    // cierra ronda (dispara el descanso autopausado entre miembros); si no, solo la
+    // del último miembro de la ronda. Todos los miembros comparten el mismo valor:
+    // basta leerlo del primero.
+    const groupRestEnabled = exercises[groupIdxs[0]].groupRestEnabled ?? false;
     const maxRounds = Math.max(...groupIdxs.map((idx) => workIdxByMember.get(idx)!.length));
     for (let round = 0; round < maxRounds; round++) {
       const members = groupIdxs.filter((idx) => round < workIdxByMember.get(idx)!.length);
@@ -71,7 +76,7 @@ export function buildStepSequence(exercises: WorkoutExercise[]): WorkoutStep[] {
         steps.push({
           exIdx: idx,
           setIdx: workIdxByMember.get(idx)![round],
-          closesRound: k === members.length - 1,
+          closesRound: groupRestEnabled || k === members.length - 1,
         }),
       );
     }
@@ -85,18 +90,23 @@ export function findStepIndex(steps: WorkoutStep[], exIdx: number, setIdx: numbe
 }
 
 /**
- * Limpia `supersetGroupId` de cualquier elemento cuya "corrida" contigua con el
- * mismo id mida <2 — un grupo se define por CONTIGÜIDAD, no solo por compartir el
- * mismo id. Reutilizable en el editor de rutina (agrupar/desagrupar/borrar) y en
- * `swapExercise` del entreno activo: ambos pueden dejar residuos con el mismo id
- * pero ya no adyacentes (ej. al reagrupar un subconjunto de un grupo de 3+, o al
- * insertar el reemplazo de un swap en medio de un grupo), lo que rompe el
- * supuesto de `buildStepSequence` (que solo agrupa corridas contiguas) y deja el
- * badge/UI mostrando "compañeros" que ya no participan del mismo round-robin.
+ * Limpia `supersetGroupId` (y `groupRestEnabled`, si el tipo lo tiene) de cualquier
+ * elemento cuya "corrida" contigua con el mismo id mida <2 — un grupo se define por
+ * CONTIGÜIDAD, no solo por compartir el mismo id. Reutilizable en el editor de rutina
+ * (agrupar/desagrupar/borrar) y en `swapExercise` del entreno activo: ambos pueden
+ * dejar residuos con el mismo id pero ya no adyacentes (ej. al reagrupar un
+ * subconjunto de un grupo de 3+, o al insertar el reemplazo de un swap en medio de un
+ * grupo), lo que rompe el supuesto de `buildStepSequence` (que solo agrupa corridas
+ * contiguas) y deja el badge/UI mostrando "compañeros" que ya no participan del mismo
+ * round-robin. También limpiar `groupRestEnabled` importa: si no, un ejercicio que
+ * queda solo conserva el flag colgando, y si luego se reagrupa con otro (que parte de
+ * `undefined`), el grupo nuevo queda con miembros en desacuerdo — `buildStepSequence`
+ * lee el flag del primer miembro, así que la UI (que muestra el del último) y la
+ * mecánica real podrían divergir silenciosamente.
  */
-export function dissolveNonContiguousGroups<T extends { supersetGroupId?: string }>(
-  items: T[],
-): T[] {
+export function dissolveNonContiguousGroups<
+  T extends { supersetGroupId?: string; groupRestEnabled?: boolean },
+>(items: T[]): T[] {
   const result = [...items];
   let i = 0;
   while (i < result.length) {
@@ -108,7 +118,7 @@ export function dissolveNonContiguousGroups<T extends { supersetGroupId?: string
     let j = i;
     while (j < result.length && result[j].supersetGroupId === groupId) j += 1;
     if (j - i < 2) {
-      result[i] = { ...result[i], supersetGroupId: undefined };
+      result[i] = { ...result[i], supersetGroupId: undefined, groupRestEnabled: undefined };
     }
     i = j;
   }

@@ -176,9 +176,44 @@ the only place that decides where the user goes. Key invariants there:
   (migration `0049_supersets.sql`, applied to remote, partial indexes, RLS unchanged —
   covered by parent join; `get_advisors` clean except expected INFO "unused_index" with
   no grouped data yet — no further migration needed for 3-4 member groups, the column
-  already allows any number of rows sharing a uuid). **Deferred (not built):** drag&drop
-  reordering in the group-select UI, editing group membership without ungrouping first,
-  header bracket visual in `WorkoutHeader`, configurable intra-group rest (fixed 0s).
+  already allows any number of rows sharing a uuid). `group_rest_enabled boolean not
+  null default false` (migration `0050_superset_group_rest.sql`, applied to remote)
+  is the SAME kind of per-member-redundant flag as `supersetGroupId` — never a
+  separate "group" table.
+  **Intra-group rest is measured, never prescribed**: `groupRestEnabled` (opt-in per
+  group, default off = classic superset skip) makes `buildStepSequence` force
+  `closesRound: true` on every work-phase step of that group instead of only the
+  round's last member — this reuses the EXISTING self-paced `RestPhase`
+  (`captureRest`/`handleRestConfirm` in `active.tsx`, untouched) which has no imposed
+  countdown/target; it only measures `restAfterSeconds`. No standardized rest value is
+  ever suggested — that was an explicit product requirement, not an oversight.
+  Toggled per group via the (now pressable) label chip between members in
+  `app/routine/[id].tsx` (`toggleGroupRest`, sets an EXPLICIT shared value on ALL
+  members — never negates each member's own value, which would let a
+  divergent group get MORE divergent instead of converging).
+  **Group homogeneity invariant**: every member of a group must share the same
+  `groupRestEnabled` (`buildStepSequence` only reads it from `groupIdxs[0]`, the first
+  member of the run, but the UI chip displays whichever member's card triggered
+  `prevSameGroup`, typically NOT the first — a mismatch is invisible in the algorithm
+  but visibly wrong in the UI). Every mutation site must keep this true:
+  `dissolveNonContiguousGroups` clears `groupRestEnabled` (not just `supersetGroupId`)
+  on any run it dissolves; `groupSelected` resets it to `false` explicit on newly
+  formed groups (never inherits a stale value from a member's PREVIOUS group
+  membership); `swapExercise`'s completed remainder clears it alongside
+  `supersetGroupId`. Membership editing (`app/routine/[id].tsx`) is now granular
+  instead of all-or-nothing: `removeFromGroup(exId)` drops just that member (auto-
+  dissolves the rest if <2 remain — reproduces the old full-ungroup behavior for pairs
+  for free) and `addToGroup` (the "+" button on a sub-cap group's last member, reusing
+  the same `ExercisePickerSheet` via `addToGroupTarget` + `handlePickerSelect`) inserts
+  a new member right after the group's last member, inheriting its `groupRestEnabled`.
+  Both the routine editor's initial load and `active.tsx`'s `handleWarmupDone` run
+  `dissolveNonContiguousGroups` defensively on load/session-start, in case any routine
+  persisted before these invariant fixes existed still carries a non-contiguous
+  `supersetGroupId`.
+  `WorkoutHeader`'s segment bar gets a thin bracket line under contiguous
+  same-`groupId` runs (`computeGroupBrackets`, percentage-positioned, doesn't account
+  for the 4px inter-segment gap — decorative approximation, not exact).
+  **Deferred (not built):** drag&drop reordering in the group-select UI.
 - **PRs / 1RM / previous-session data** all derive from local `Workout[]` history via
   pure helpers: `src/lib/workoutCompare.ts` (`detectPRs`, `historicMaxWeight` — live PR
   splash in `app/workout/active.tsx` uses the same helper as the summary so they never

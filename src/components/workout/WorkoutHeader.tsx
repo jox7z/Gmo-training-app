@@ -8,9 +8,41 @@ interface Props {
   context: string;
   /** Tiempo total formateado; null oculta el chip. */
   elapsedLabel: string | null;
-  /** Un segmento por ejercicio de la sesión; vacío oculta la barra. */
-  segments: { done: number; total: number }[];
+  /**
+   * Un segmento por ejercicio de la sesión; vacío oculta la barra. `groupId`
+   * agrupa segmentos contiguos de un mismo superset para dibujar el bracket.
+   */
+  segments: { done: number; total: number; groupId?: string }[];
   onClose: () => void;
+}
+
+/**
+ * Escanea corridas CONTIGUAS de `groupId` compartido y devuelve un bracket por
+ * corrida de 2+ segmentos, con posición/ancho en % del ancho total de la barra.
+ * El guard `j - i >= 2` evita dibujar un bracket para una corrida de 1 (no debería
+ * ocurrir dado `dissolveNonContiguousGroups`, pero es defensa barata).
+ */
+function computeGroupBrackets(segments: { groupId?: string }[]) {
+  const brackets: { groupId: string; startPct: number; widthPct: number }[] = [];
+  let i = 0;
+  while (i < segments.length) {
+    const groupId = segments[i].groupId;
+    if (!groupId) {
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < segments.length && segments[j].groupId === groupId) j += 1;
+    if (j - i >= 2) {
+      brackets.push({
+        groupId,
+        startPct: (i / segments.length) * 100,
+        widthPct: ((j - i) / segments.length) * 100,
+      });
+    }
+    i = j;
+  }
+  return brackets;
 }
 
 /**
@@ -19,6 +51,7 @@ interface Props {
  * El accent sweep animado vive en la pantalla (depende de un Animated.Value local).
  */
 export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Props) {
+  const brackets = computeGroupBrackets(segments);
   return (
     <View style={{ paddingHorizontal: spacing.lg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -55,31 +88,52 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
       </View>
 
       {segments.length > 0 && (
-        <View style={{ flexDirection: 'row', gap: 4, marginTop: spacing.sm }}>
-          {segments.map((seg, i) => {
-            const pct = seg.total > 0 ? Math.min(seg.done / seg.total, 1) : 0;
-            return (
-              <View
-                key={i}
-                style={{
-                  flex: 1,
-                  height: 6,
-                  borderRadius: radius.full,
-                  backgroundColor: colors.bg.elevated,
-                  overflow: 'hidden',
-                }}
-              >
+        <View style={{ marginTop: spacing.sm }}>
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            {segments.map((seg, i) => {
+              const pct = seg.total > 0 ? Math.min(seg.done / seg.total, 1) : 0;
+              return (
                 <View
+                  key={i}
                   style={{
-                    width: `${pct * 100}%`,
-                    height: '100%',
+                    flex: 1,
+                    height: 6,
+                    borderRadius: radius.full,
+                    backgroundColor: colors.bg.elevated,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <View
+                    style={{
+                      width: `${pct * 100}%`,
+                      height: '100%',
+                      borderRadius: radius.full,
+                      backgroundColor: colors.primary.DEFAULT,
+                    }}
+                  />
+                </View>
+              );
+            })}
+          </View>
+          {/* Bracket bajo la barra: una franja fina por cada corrida contigua de un
+              mismo superset (une visualmente sus segmentos). Solo si hay grupos. */}
+          {brackets.length > 0 && (
+            <View style={{ position: 'relative', height: 3, marginTop: 3 }}>
+              {brackets.map((b) => (
+                <View
+                  key={b.groupId}
+                  style={{
+                    position: 'absolute',
+                    left: `${b.startPct}%`,
+                    width: `${b.widthPct}%`,
+                    height: 3,
                     borderRadius: radius.full,
                     backgroundColor: colors.primary.DEFAULT,
                   }}
                 />
-              </View>
-            );
-          })}
+              ))}
+            </View>
+          )}
         </View>
       )}
     </View>

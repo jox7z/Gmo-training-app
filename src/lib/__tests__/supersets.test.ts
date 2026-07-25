@@ -15,6 +15,16 @@ function ex(name: string, n: number, groupId?: string) {
   });
 }
 
+/** Igual que `ex` pero con descanso intra-grupo activo (Parte F). */
+function exRest(name: string, n: number, groupId: string) {
+  return makeExercise({
+    exerciseName: name,
+    supersetGroupId: groupId,
+    groupRestEnabled: true,
+    sets: Array.from({ length: n }, () => makeSet()),
+  });
+}
+
 /** Aplana los pasos a tuplas legibles [exIdx, setIdx, closesRound]. */
 function tuples(steps: ReturnType<typeof buildStepSequence>) {
   return steps.map((s) => [s.exIdx, s.setIdx, s.closesRound] as const);
@@ -160,6 +170,76 @@ describe('buildStepSequence', () => {
       [2, 1, true], // C real 2 cierra ronda
     ]);
   });
+
+  it('grupo 2 con groupRestEnabled → TODAS las series de trabajo cierran ronda', () => {
+    const g = 'gr2';
+    const steps = buildStepSequence([exRest('A', 2, g), exRest('B', 2, g)]);
+    expect(tuples(steps)).toEqual([
+      [0, 0, true], // A1 — con descanso también cierra
+      [1, 0, true], // B1 cierra ronda 0
+      [0, 1, true], // A2 — con descanso también cierra
+      [1, 1, true], // B2 cierra ronda 1
+    ]);
+  });
+
+  it('triset con groupRestEnabled → los 3 miembros de cada ronda cierran individualmente', () => {
+    const g = 'gr3';
+    const steps = buildStepSequence([exRest('A', 2, g), exRest('B', 2, g), exRest('C', 2, g)]);
+    expect(tuples(steps)).toEqual([
+      [0, 0, true], // A1
+      [1, 0, true], // B1
+      [2, 0, true], // C1
+      [0, 1, true], // A2
+      [1, 1, true], // B2
+      [2, 1, true], // C2
+    ]);
+  });
+
+  it('groupRestEnabled=false explícito reproduce el intercalado clásico (sin regresión)', () => {
+    const g = 'grf';
+    const A = makeExercise({
+      exerciseName: 'A',
+      supersetGroupId: g,
+      groupRestEnabled: false,
+      sets: [makeSet(), makeSet()],
+    });
+    const B = makeExercise({
+      exerciseName: 'B',
+      supersetGroupId: g,
+      groupRestEnabled: false,
+      sets: [makeSet(), makeSet()],
+    });
+    expect(tuples(buildStepSequence([A, B]))).toEqual([
+      [0, 0, false], // A1
+      [1, 0, true], // B1 cierra ronda
+      [0, 1, false], // A2
+      [1, 1, true], // B2 cierra ronda
+    ]);
+  });
+
+  it('groupRestEnabled no altera la fase de calentamiento (los warmups ya cerraban ronda)', () => {
+    const g = 'grw';
+    // A: 1 warmup + 2 reales (con descanso); B: 2 reales (con descanso).
+    const A = makeExercise({
+      exerciseName: 'A',
+      supersetGroupId: g,
+      groupRestEnabled: true,
+      sets: [makeSet({ isWarmup: true }), makeSet(), makeSet()],
+    });
+    const B = makeExercise({
+      exerciseName: 'B',
+      supersetGroupId: g,
+      groupRestEnabled: true,
+      sets: [makeSet(), makeSet()],
+    });
+    expect(tuples(buildStepSequence([A, B]))).toEqual([
+      [0, 0, true], // A warmup (setIdx REAL 0) — igual que sin el flag
+      [0, 1, true], // A real 1 — ahora cierra por el flag
+      [1, 0, true], // B real 1 — cierra por el flag
+      [0, 2, true], // A real 2 — cierra por el flag
+      [1, 1, true], // B real 2 — cierra ronda
+    ]);
+  });
 });
 
 describe('findStepIndex', () => {
@@ -177,9 +257,9 @@ describe('findStepIndex', () => {
 });
 
 describe('dissolveNonContiguousGroups', () => {
-  /** Item mínimo con solo el campo que le importa a la función. */
-  function item(name: string, groupId?: string) {
-    return { name, supersetGroupId: groupId };
+  /** Item mínimo con solo los campos que le importan a la función. */
+  function item(name: string, groupId?: string, groupRestEnabled?: boolean) {
+    return { name, supersetGroupId: groupId, groupRestEnabled };
   }
 
   it('grupo contiguo de 2+ sobrevive intacto', () => {
@@ -227,5 +307,15 @@ describe('dissolveNonContiguousGroups', () => {
     expect(dissolveNonContiguousGroups([])).toEqual([]);
     const loose = [item('A'), item('B')];
     expect(dissolveNonContiguousGroups(loose)).toEqual(loose);
+  });
+
+  it('al disolver un huérfano también limpia groupRestEnabled (no deja el flag colgando)', () => {
+    // Un par con descanso activado (A,B ambos true); se quita B (queda solo, sin
+    // grupo, gestionado fuera de esta función) dejando a A como corrida de 1. Si
+    // solo se limpiara supersetGroupId, A quedaría "suelto" pero con
+    // groupRestEnabled:true colgando — listo para contaminar el próximo grupo en el
+    // que A entre (buildStepSequence lee el flag del primer miembro del grupo).
+    const result = dissolveNonContiguousGroups([item('A', 'g', true)]);
+    expect(result).toEqual([{ name: 'A', supersetGroupId: undefined, groupRestEnabled: undefined }]);
   });
 });

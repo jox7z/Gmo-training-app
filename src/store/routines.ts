@@ -16,6 +16,13 @@ export interface RoutineDayExercise {
    * `undefined` = ejercicio suelto. MVP: grupos de exactamente 2.
    */
   supersetGroupId?: string;
+  /**
+   * Descanso intra-grupo: cuando true, cada serie del round-robin del grupo cierra
+   * ronda (el flujo de descanso autopausado se dispara ENTRE miembros, no solo al
+   * final de la ronda). Todos los miembros de un grupo comparten el mismo valor.
+   * NO es un temporizador prescrito: solo decide SI se mide descanso entre miembros.
+   */
+  groupRestEnabled?: boolean;
 }
 
 export interface RoutineDay {

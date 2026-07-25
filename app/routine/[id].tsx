@@ -34,6 +34,15 @@ const EMPTY_ROUTINE = (): Routine => ({
   createdAt: new Date().toISOString(),
 });
 
+// Saneo defensivo al cargar: una rutina persistida (AsyncStorage/Supabase) pudo
+// guardarse con una versión anterior del editor donde un bug de contigüidad aún no
+// estaba arreglado. Corre `dissolveNonContiguousGroups` por día al entrar al editor
+// para que cualquier residuo se limpie solo, en vez de arrastrar un grupo corrupto
+// silenciosamente.
+function sanitizeRoutine(routine: Routine): Routine {
+  return { ...routine, days: routine.days.map((d) => ({ ...d, exercises: dissolveNonContiguousGroups(d.exercises) })) };
+}
+
 export default function RoutineEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -41,10 +50,13 @@ export default function RoutineEditor() {
   const upsert = useRoutinesStore((s) => s.upsertRoutine);
   const profile = useAppStore((s) => s.profile);
 
-  const [routine, setRoutine] = useState<Routine>(existing ?? EMPTY_ROUTINE());
+  const [routine, setRoutine] = useState<Routine>(() => sanitizeRoutine(existing ?? EMPTY_ROUTINE()));
   const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  // groupId del grupo que se está extendiendo con el picker (Parte G "agregar
+  // miembro"). null = el picker agrega un ejercicio suelto al final del día.
+  const [addToGroupTarget, setAddToGroupTarget] = useState<string | null>(null);
   // Modo agrupar: seleccionar 2-4 ejercicios y unirlos en un grupo.
   const [groupMode, setGroupMode] = useState(false);
   const [groupSelection, setGroupSelection] = useState<string[]>([]);
@@ -143,7 +155,11 @@ export default function RoutineEditor() {
       exercises.splice(anchor + 1, 0, ...moved);
       const groupId = nid();
       for (let p = anchor; p <= anchor + moved.length; p++) {
-        exercises[p] = { ...exercises[p], supersetGroupId: groupId };
+        // groupRestEnabled se resetea a false explícito (no se hereda): un miembro
+        // que ya vino de un grupo anterior podría cargar un valor colgado y dejar el
+        // grupo nuevo con miembros en desacuerdo (buildStepSequence lee el flag del
+        // primer miembro, la UI muestra el del último — divergirían en silencio).
+        exercises[p] = { ...exercises[p], supersetGroupId: groupId, groupRestEnabled: false };
       }
       // Si algún miembro ya pertenecía a otro grupo, su antiguo grupo puede quedar
       // huérfano (<2 miembros) — disolverlo en vez de dejar un grupo incompleto.
@@ -153,19 +169,79 @@ export default function RoutineEditor() {
     exitGroupMode();
   };
 
-  // Deshace un superset: limpia el supersetGroupId de todos sus miembros.
-  const ungroupPair = (groupId: string) => {
+  // Quita SOLO este ejercicio del grupo (no desarma el grupo entero). Si el grupo
+  // queda con <2 miembros contiguos, `dissolveNonContiguousGroups` disuelve al
+  // compañero restante — para pares reproduce el viejo "desagrupar" gratis.
+  const removeFromGroup = (exId: string) => {
     const days = routine.days.map((d, i) =>
       i === activeDayIdx
         ? {
             ...d,
-            exercises: d.exercises.map((e) =>
-              e.supersetGroupId === groupId ? { ...e, supersetGroupId: undefined } : e,
+            exercises: dissolveNonContiguousGroups(
+              d.exercises.map((e) =>
+                e.id === exId ? { ...e, supersetGroupId: undefined, groupRestEnabled: undefined } : e,
+              ),
             ),
           }
         : d,
     );
     setRoutine({ ...routine, days });
+  };
+
+  // Fija el descanso intra-grupo de TODOS los miembros del grupo al mismo valor
+  // explícito (nunca "negar el propio" por miembro: si por lo que sea llegaran a
+  // estar en desacuerdo, negar cada uno los dejaría igual de divergentes, solo que
+  // invertidos — fijar un valor único siempre converge). Parte F: decide SI se mide
+  // descanso entre miembros del round-robin.
+  const toggleGroupRest = (groupId: string, nextValue: boolean) => {
+    const days = routine.days.map((d, i) =>
+      i === activeDayIdx
+        ? {
+            ...d,
+            exercises: d.exercises.map((ex) =>
+              ex.supersetGroupId === groupId ? { ...ex, groupRestEnabled: nextValue } : ex,
+            ),
+          }
+        : d,
+    );
+    setRoutine({ ...routine, days });
+  };
+
+  // Agrega un ejercicio a un grupo existente: lo inserta justo detrás del último
+  // miembro contiguo del grupo, heredando su `groupRestEnabled`. Mantiene contiguos
+  // a los miembros; `dissolveNonContiguousGroups` es defensa (no debería disolver
+  // nada aquí porque insertamos adyacente al último miembro).
+  const addToGroup = (exerciseId: string) => {
+    if (!addToGroupTarget) return;
+    const groupId = addToGroupTarget;
+    const days = routine.days.map((d, i) => {
+      if (i !== activeDayIdx) return d;
+      const exercises = [...d.exercises];
+      const lastIdx = exercises.map((e) => e.supersetGroupId).lastIndexOf(groupId);
+      if (lastIdx < 0) return d;
+      const groupRestEnabled = exercises[lastIdx].groupRestEnabled;
+      exercises.splice(lastIdx + 1, 0, {
+        id: nid(),
+        exerciseId,
+        targetSets: 3,
+        targetRepsMin: 8,
+        targetRepsMax: 12,
+        restSeconds: 90,
+        supersetGroupId: groupId,
+        groupRestEnabled,
+      });
+      return { ...d, exercises: dissolveNonContiguousGroups(exercises) };
+    });
+    setRoutine({ ...routine, days });
+    setAddToGroupTarget(null);
+    setPickerOpen(false);
+  };
+
+  // Selección del picker: en modo "agregar miembro" extiende el grupo objetivo;
+  // si no, agrega un ejercicio suelto al final del día.
+  const handlePickerSelect = (exerciseId: string) => {
+    if (addToGroupTarget) addToGroup(exerciseId);
+    else addExercise(exerciseId);
   };
 
   const updateExercise = (exId: string, patch: Partial<RoutineDayExercise>) => {
@@ -294,6 +370,11 @@ export default function RoutineEditor() {
               !!groupId &&
               day.exercises[i + 1].supersetGroupId === groupId;
             const selected = groupMode && groupSelection.includes(e.id);
+            // Descanso intra-grupo del grupo de ESTE ejercicio (todos comparten valor).
+            const groupRestForThisGroup = !!e.groupRestEnabled;
+            // ¿Es el último miembro visual de un grupo que aún no llegó al tope?
+            const canAddToGroup =
+              !nextSameGroup && !!groupId && (groupSizes.get(groupId) ?? 0) < MAX_GROUP_SIZE;
 
             const card = (
               <Card
@@ -329,10 +410,27 @@ export default function RoutineEditor() {
                       las acciones para no anidar pulsables. */}
                   {!groupMode && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                      {/* Agregar miembro: solo en el último miembro de un grupo que no
+                          llegó al tope. Abre el picker en modo "extender grupo". */}
+                      {canAddToGroup && (
+                        <IconButton
+                          icon="plus"
+                          onPress={() => {
+                            setAddToGroupTarget(groupId!);
+                            setPickerOpen(true);
+                          }}
+                          size={40}
+                          iconSize={20}
+                          tone="elevated"
+                          pressScale={0.88}
+                          hitSlop={12}
+                        />
+                      )}
+                      {/* Quitar de grupo: saca SOLO este ejercicio del superset. */}
                       {groupId && (
                         <IconButton
                           icon="unlink"
-                          onPress={() => ungroupPair(groupId)}
+                          onPress={() => removeFromGroup(e.id)}
                           size={40}
                           iconSize={20}
                           tone="elevated"
@@ -368,10 +466,12 @@ export default function RoutineEditor() {
                 {prevSameGroup && (
                   <View style={{ alignItems: 'center', marginVertical: spacing.xs }}>
                     <Chip
-                      label={supersetLabel(groupId ? (groupSizes.get(groupId) ?? 0) : 0)}
-                      leftIcon="link"
-                      variant="outline"
+                      label={`${supersetLabel(groupId ? (groupSizes.get(groupId) ?? 0) : 0)}${groupRestForThisGroup ? ' · con descanso' : ''}`}
+                      leftIcon={groupRestForThisGroup ? 'clock' : 'link'}
+                      variant={groupRestForThisGroup ? 'solid' : 'outline'}
+                      selected={groupRestForThisGroup}
                       size="sm"
+                      onPress={() => groupId && toggleGroupRest(groupId, !groupRestForThisGroup)}
                     />
                   </View>
                 )}
@@ -393,7 +493,12 @@ export default function RoutineEditor() {
             <Button
               title="+ Agregar ejercicio"
               variant="secondary"
-              onPress={() => setPickerOpen(true)}
+              // Reset explícito: este botón SIEMPRE agrega suelto, nunca extiende un
+              // grupo (evita un addToGroupTarget stale de un flujo previo cancelado).
+              onPress={() => {
+                setAddToGroupTarget(null);
+                setPickerOpen(true);
+              }}
               fullWidth
             />
             {day.exercises.length >= 2 && (
@@ -424,12 +529,17 @@ export default function RoutineEditor() {
 
       <ExercisePickerSheet
         visible={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        onSelect={(ex) => addExercise(ex.id)}
+        // Cerrar sin elegir también sale del modo "extender grupo".
+        onClose={() => {
+          setPickerOpen(false);
+          setAddToGroupTarget(null);
+        }}
+        onSelect={(ex) => handlePickerSelect(ex.id)}
         title="Ejercicios"
         onCreatePress={() => {
           // Cierra el picker antes de abrir el sheet de creación: nunca dos
-          // AppBottomSheet apilados a la vez.
+          // AppBottomSheet apilados a la vez. Conserva addToGroupTarget para que un
+          // ejercicio recién creado también se una al grupo objetivo.
           setPickerOpen(false);
           setCreateOpen(true);
         }}
@@ -437,8 +547,13 @@ export default function RoutineEditor() {
 
       <CreateExerciseSheet
         visible={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={(ex) => addExercise(ex.id)}
+        // Cancelar la creación también limpia el target de grupo (si venía del flujo
+        // "agregar miembro" y el usuario cerró sin crear).
+        onClose={() => {
+          setCreateOpen(false);
+          setAddToGroupTarget(null);
+        }}
+        onCreated={(ex) => handlePickerSelect(ex.id)}
       />
     </Screen>
     </BottomSheetModalProvider>

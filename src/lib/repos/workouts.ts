@@ -21,6 +21,7 @@ interface DbWorkoutExerciseRow {
   exercise_id: string;
   position: number;
   superset_group_id: string | null;
+  group_rest_enabled: boolean;
   workout_sets: DbWorkoutSetRow[];
 }
 
@@ -67,6 +68,7 @@ async function insertWorkoutRows(userId: string, w: Workout): Promise<void> {
         exercise_id: ex.exerciseId,
         position: i,
         superset_group_id: ex.supersetGroupId ?? null,
+        group_rest_enabled: ex.groupRestEnabled ?? false,
       })
       .select('id')
       .single();
@@ -126,7 +128,7 @@ export async function getWorkouts(userId: string): Promise<Workout[]> {
   const { data, error } = await supabase
     .from('workouts')
     .select(
-      `*, workout_exercises ( id, exercise_id, position, superset_group_id, workout_sets ( id, set_index, reps, weight_kg, rpe, is_warmup, is_completed, duration_seconds, rest_after_seconds ) )`,
+      `*, workout_exercises ( id, exercise_id, position, superset_group_id, group_rest_enabled, workout_sets ( id, set_index, reps, weight_kg, rpe, is_warmup, is_completed, duration_seconds, rest_after_seconds ) )`,
     )
     .eq('user_id', userId)
     .order('started_at', { ascending: false })
@@ -157,6 +159,7 @@ export async function getWorkouts(userId: string): Promise<Workout[]> {
           exerciseName: exercise?.name ?? ex.exercise_id,
           muscleGroup: exercise?.muscle ?? '',
           supersetGroupId: ex.superset_group_id ?? undefined,
+          groupRestEnabled: ex.group_rest_enabled ?? undefined,
           sets: ex.workout_sets
             .slice()
             .sort((a, b) => a.set_index - b.set_index)
