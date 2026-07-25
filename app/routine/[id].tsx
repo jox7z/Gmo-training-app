@@ -1,6 +1,13 @@
 import { useState } from 'react';
 import { View, ScrollView } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import {
+  NestedReorderableList,
+  ScrollViewContainer,
+  reorderItems,
+  useReorderableDrag,
+  type ReorderableListReorderEvent,
+  type ReorderableListRenderItemInfo,
+} from 'react-native-reorderable-list';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
@@ -273,6 +280,58 @@ export default function RoutineEditor() {
     if (e.supersetGroupId) groupSizes.set(e.supersetGroupId, (groupSizes.get(e.supersetGroupId) ?? 0) + 1);
   }
 
+  // Reordenar libremente arrastrando el handle: el orden final es el índice del
+  // array (no hay campo `position` propio). SIEMPRE se pasa por
+  // `dissolveNonContiguousGroups` — si el drag separó a un miembro de su grupo, el
+  // grupo se disuelve solo (mismo criterio sin-confirm que removeExercise/removeFromGroup).
+  const handleReorder = ({ from, to }: ReorderableListReorderEvent) => {
+    const days = routine.days.map((d, i) =>
+      i === activeDayIdx
+        ? { ...d, exercises: dissolveNonContiguousGroups(reorderItems(d.exercises, from, to)) }
+        : d,
+    );
+    setRoutine({ ...routine, days });
+  };
+
+  // renderItem del NestedReorderableList: calcula los flags de grupo/vecindad por
+  // índice (igual que hacía el .map inline) y delega el JSX a ExerciseRow, que es el
+  // que puede usar useReorderableDrag() por vivir dentro de la celda de la lista.
+  const renderExerciseRow = ({ item: e, index: i }: ReorderableListRenderItemInfo<RoutineDayExercise>) => {
+    const ex = exerciseById(e.exerciseId);
+    const groupId = e.supersetGroupId;
+    const prevSameGroup = i > 0 && !!groupId && day.exercises[i - 1].supersetGroupId === groupId;
+    const nextSameGroup =
+      i < day.exercises.length - 1 && !!groupId && day.exercises[i + 1].supersetGroupId === groupId;
+    const selected = groupMode && groupSelection.includes(e.id);
+    const groupRestForThisGroup = !!e.groupRestEnabled;
+    const canAddToGroup =
+      !nextSameGroup && !!groupId && (groupSizes.get(groupId) ?? 0) < MAX_GROUP_SIZE;
+
+    return (
+      <ExerciseRow
+        exercise={e}
+        name={ex?.name ?? e.exerciseId}
+        groupMode={groupMode}
+        selected={selected}
+        prevSameGroup={prevSameGroup}
+        nextSameGroup={nextSameGroup}
+        canAddToGroup={canAddToGroup}
+        groupRestForThisGroup={groupRestForThisGroup}
+        groupId={groupId}
+        groupSize={groupId ? (groupSizes.get(groupId) ?? 0) : 0}
+        onUpdateSets={(v) => updateExercise(e.id, { targetSets: v })}
+        onRemove={() => removeExercise(e.id)}
+        onRemoveFromGroup={() => removeFromGroup(e.id)}
+        onToggleGroupRest={() => groupId && toggleGroupRest(groupId, !groupRestForThisGroup)}
+        onAddToGroup={() => {
+          setAddToGroupTarget(groupId!);
+          setPickerOpen(true);
+        }}
+        onToggleSelect={() => toggleGroupSelect(e.id)}
+      />
+    );
+  };
+
   // Provider LOCAL: esta ruta se presenta como modal nativo (presentation:'modal');
   // el portal al provider del root quedaría DETRÁS del modal en iOS.
   return (
@@ -296,7 +355,7 @@ export default function RoutineEditor() {
         <Button title="Guardar" size="sm" onPress={handleSave} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
+      <ScrollViewContainer contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
         <Input
           label="Nombre de la rutina"
           value={routine.name}
@@ -359,132 +418,22 @@ export default function RoutineEditor() {
               </Text>
             </Card>
           )}
-          {day.exercises.map((e, i) => {
-            const ex = exerciseById(e.exerciseId);
-            const groupId = e.supersetGroupId;
-            // Miembros de un mismo grupo son contiguos: detecta vecinos por grupo.
-            const prevSameGroup =
-              i > 0 && !!groupId && day.exercises[i - 1].supersetGroupId === groupId;
-            const nextSameGroup =
-              i < day.exercises.length - 1 &&
-              !!groupId &&
-              day.exercises[i + 1].supersetGroupId === groupId;
-            const selected = groupMode && groupSelection.includes(e.id);
-            // Descanso intra-grupo del grupo de ESTE ejercicio (todos comparten valor).
-            const groupRestForThisGroup = !!e.groupRestEnabled;
-            // ¿Es el último miembro visual de un grupo que aún no llegó al tope?
-            const canAddToGroup =
-              !nextSameGroup && !!groupId && (groupSizes.get(groupId) ?? 0) < MAX_GROUP_SIZE;
-
-            const card = (
-              <Card
-                padding="md"
-                style={{
-                  // Miembros del par van "pegados": el 1º casi sin margen inferior.
-                  marginBottom: nextSameGroup ? spacing.xs : spacing.sm,
-                  ...(selected ? { borderWidth: 2, borderColor: colors.primary.DEFAULT } : {}),
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                  {/* Columna central: nombre + steppers */}
-                  <View style={{ flex: 1, alignItems: 'center' }}>
-                    <Text
-                      weight="semibold"
-                      numberOfLines={2}
-                      style={{ textAlign: 'center', marginBottom: spacing.sm }}
-                    >
-                      {ex?.name ?? e.exerciseId}
-                    </Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
-                      <StepperField
-                        label="Sets"
-                        value={e.targetSets}
-                        min={1}
-                        max={20}
-                        step={1}
-                        onChange={(v) => updateExercise(e.id, { targetSets: v })}
-                      />
-                    </View>
-                  </View>
-                  {/* En modo agrupar el tap selecciona la Card, así que ocultamos
-                      las acciones para no anidar pulsables. */}
-                  {!groupMode && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                      {/* Agregar miembro: solo en el último miembro de un grupo que no
-                          llegó al tope. Abre el picker en modo "extender grupo". */}
-                      {canAddToGroup && (
-                        <IconButton
-                          icon="plus"
-                          onPress={() => {
-                            setAddToGroupTarget(groupId!);
-                            setPickerOpen(true);
-                          }}
-                          size={40}
-                          iconSize={20}
-                          tone="elevated"
-                          pressScale={0.88}
-                          hitSlop={12}
-                        />
-                      )}
-                      {/* Quitar de grupo: saca SOLO este ejercicio del superset. */}
-                      {groupId && (
-                        <IconButton
-                          icon="unlink"
-                          onPress={() => removeFromGroup(e.id)}
-                          size={40}
-                          iconSize={20}
-                          tone="elevated"
-                          pressScale={0.88}
-                          hitSlop={12}
-                        />
-                      )}
-                      {/* Botón quitar — círculo danger */}
-                      <IconButton
-                        icon="close"
-                        onPress={() => removeExercise(e.id)}
-                        size={40}
-                        iconSize={22}
-                        tone="danger"
-                        pressScale={0.88}
-                        hitSlop={12}
-                      />
-                    </View>
-                  )}
-                </View>
-              </Card>
-            );
-
-            return (
-              // Animated.View para animar inserción/eliminación de ejercicios
-              <Animated.View
-                key={e.id}
-                entering={FadeInDown.springify().damping(18)}
-                layout={LinearTransition.springify().damping(18)}
-              >
-                {/* Indicador de grupo entre miembros contiguos (una vez, antes de cada
-                    miembro posterior al primero); etiqueta según el tamaño del grupo. */}
-                {prevSameGroup && (
-                  <View style={{ alignItems: 'center', marginVertical: spacing.xs }}>
-                    <Chip
-                      label={`${supersetLabel(groupId ? (groupSizes.get(groupId) ?? 0) : 0)}${groupRestForThisGroup ? ' · con descanso' : ''}`}
-                      leftIcon={groupRestForThisGroup ? 'clock' : 'link'}
-                      variant={groupRestForThisGroup ? 'solid' : 'outline'}
-                      selected={groupRestForThisGroup}
-                      size="sm"
-                      onPress={() => groupId && toggleGroupRest(groupId, !groupRestForThisGroup)}
-                    />
-                  </View>
-                )}
-                {groupMode ? (
-                  <PressableScale onPress={() => toggleGroupSelect(e.id)} pressScale={0.98}>
-                    {card}
-                  </PressableScale>
-                ) : (
-                  card
-                )}
-              </Animated.View>
-            );
-          })}
+          {/* Lista reordenable por drag & drop del handle. Anidada en el
+              ScrollViewContainer general: `scrollable={false}` cede el scroll al
+              contenedor padre (el formulario entero comparte un solo scroll) y evita
+              el conflicto de gestos. El drag se deshabilita en modo agrupar (ahí la
+              Card entera es pulsable para seleccionar). El reorder pasa por
+              `dissolveNonContiguousGroups` en handleReorder. `key={day.id}` fuerza un
+              remonte limpio al cambiar de día (índices/datos totalmente distintos). */}
+          <NestedReorderableList
+            key={day.id}
+            data={day.exercises}
+            keyExtractor={(item) => item.id}
+            renderItem={renderExerciseRow}
+            onReorder={handleReorder}
+            dragEnabled={!groupMode}
+            scrollable={false}
+          />
         </View>
 
         {/* Acciones: agregar / agrupar — o confirmar/cancelar en modo agrupar */}
@@ -525,7 +474,7 @@ export default function RoutineEditor() {
             <Button title="Cancelar" variant="secondary" onPress={exitGroupMode} fullWidth />
           </View>
         )}
-      </ScrollView>
+      </ScrollViewContainer>
 
       <ExercisePickerSheet
         visible={pickerOpen}
@@ -557,6 +506,161 @@ export default function RoutineEditor() {
       />
     </Screen>
     </BottomSheetModalProvider>
+  );
+}
+
+interface ExerciseRowProps {
+  exercise: RoutineDayExercise;
+  /** Nombre resuelto del ejercicio (o el id crudo si es legacy desconocido). */
+  name: string;
+  groupMode: boolean;
+  selected: boolean;
+  prevSameGroup: boolean;
+  nextSameGroup: boolean;
+  canAddToGroup: boolean;
+  groupRestForThisGroup: boolean;
+  groupId?: string;
+  /** Tamaño total del grupo, para etiquetar el chip Superset/Triset/Circuito. */
+  groupSize: number;
+  onUpdateSets: (v: number) => void;
+  onRemove: () => void;
+  onRemoveFromGroup: () => void;
+  onToggleGroupRest: () => void;
+  onAddToGroup: () => void;
+  onToggleSelect: () => void;
+}
+
+// Fila de ejercicio dentro del NestedReorderableList. Se separó del .map inline
+// porque `useReorderableDrag()` SOLO puede llamarse dentro del componente de item de
+// la lista (necesita el contexto de celda que inyecta la librería). El handle de
+// arrastre vive en el borde izquierdo y es lo ÚNICO arrastrable: la Card tiene
+// steppers y botones que necesitan sus taps normales, y en groupMode la Card entera
+// ya es pulsable para seleccionar (por eso el handle se oculta ahí).
+function ExerciseRow({
+  exercise: e,
+  name,
+  groupMode,
+  selected,
+  prevSameGroup,
+  nextSameGroup,
+  canAddToGroup,
+  groupRestForThisGroup,
+  groupId,
+  groupSize,
+  onUpdateSets,
+  onRemove,
+  onRemoveFromGroup,
+  onToggleGroupRest,
+  onAddToGroup,
+  onToggleSelect,
+}: ExerciseRowProps) {
+  const drag = useReorderableDrag();
+
+  const card = (
+    <Card
+      padding="md"
+      style={{
+        // Miembros del par van "pegados": el 1º casi sin margen inferior.
+        marginBottom: nextSameGroup ? spacing.xs : spacing.sm,
+        ...(selected ? { borderWidth: 2, borderColor: colors.primary.DEFAULT } : {}),
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+        {/* Handle de arrastre — solo fuera de modo agrupar. Long-press inicia el
+            drag; el resto de la Card conserva sus taps (steppers, botones). */}
+        {!groupMode && (
+          <PressableScale
+            onLongPress={drag}
+            delayLongPress={200}
+            hitSlop={12}
+            pressScale={0.9}
+            style={{ paddingVertical: spacing.sm, justifyContent: 'center' }}
+          >
+            <Icon name="grip" size={22} color={colors.text.muted} />
+          </PressableScale>
+        )}
+        {/* Columna central: nombre + steppers */}
+        <View style={{ flex: 1, alignItems: 'center' }}>
+          <Text
+            weight="semibold"
+            numberOfLines={2}
+            style={{ textAlign: 'center', marginBottom: spacing.sm }}
+          >
+            {name}
+          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.lg }}>
+            <StepperField label="Sets" value={e.targetSets} min={1} max={20} step={1} onChange={onUpdateSets} />
+          </View>
+        </View>
+        {/* En modo agrupar el tap selecciona la Card, así que ocultamos las acciones
+            (y el handle) para no anidar pulsables. */}
+        {!groupMode && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+            {/* Agregar miembro: solo en el último miembro de un grupo que no llegó al
+                tope. Abre el picker en modo "extender grupo". */}
+            {canAddToGroup && (
+              <IconButton
+                icon="plus"
+                onPress={onAddToGroup}
+                size={40}
+                iconSize={20}
+                tone="elevated"
+                pressScale={0.88}
+                hitSlop={12}
+              />
+            )}
+            {/* Quitar de grupo: saca SOLO este ejercicio del superset. */}
+            {groupId && (
+              <IconButton
+                icon="unlink"
+                onPress={onRemoveFromGroup}
+                size={40}
+                iconSize={20}
+                tone="elevated"
+                pressScale={0.88}
+                hitSlop={12}
+              />
+            )}
+            {/* Botón quitar — círculo danger */}
+            <IconButton
+              icon="close"
+              onPress={onRemove}
+              size={40}
+              iconSize={22}
+              tone="danger"
+              pressScale={0.88}
+              hitSlop={12}
+            />
+          </View>
+        )}
+      </View>
+    </Card>
+  );
+
+  return (
+    <View>
+      {/* Indicador de grupo entre miembros contiguos (una vez, antes de cada miembro
+          posterior al primero); etiqueta según el tamaño del grupo. */}
+      {prevSameGroup && (
+        <View style={{ alignItems: 'center', marginVertical: spacing.xs }}>
+          <Chip
+            label={`${supersetLabel(groupSize)}${groupRestForThisGroup ? ' · con descanso' : ''}`}
+            leftIcon={groupRestForThisGroup ? 'clock' : 'link'}
+            variant={groupRestForThisGroup ? 'solid' : 'outline'}
+            selected={groupRestForThisGroup}
+            size="sm"
+            onPress={onToggleGroupRest}
+          />
+        </View>
+      )}
+      {groupMode ? (
+        <PressableScale onPress={onToggleSelect} pressScale={0.98}>
+          {card}
+        </PressableScale>
+      ) : (
+        card
+      )}
+    </View>
   );
 }
 

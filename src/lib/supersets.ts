@@ -18,6 +18,7 @@
  * contra las series reales del otro.
  */
 import type { WorkoutExercise } from '@/store/workouts';
+import { uuidv4 } from '@/lib/ids';
 
 export interface WorkoutStep {
   exIdx: number;
@@ -102,12 +103,19 @@ export function findStepIndex(steps: WorkoutStep[], exIdx: number, setIdx: numbe
  * queda solo conserva el flag colgando, y si luego se reagrupa con otro (que parte de
  * `undefined`), el grupo nuevo queda con miembros en desacuerdo — `buildStepSequence`
  * lee el flag del primer miembro, así que la UI (que muestra el del último) y la
- * mecánica real podrían divergir silenciosamente.
+ * mecánica real podrían divergir silenciosamente. También reasigna un id NUEVO a
+ * cualquier corrida ≥2 que reutilice un `supersetGroupId` ya cerrado por una corrida
+ * ANTERIOR no contigua con ella: el drag puede clavar un ejercicio ajeno justo en el
+ * medio de un grupo, partiéndolo en dos pares/tríos separados que individualmente
+ * siguen midiendo ≥2 (sobreviven el chequeo de longitud) pero comparten id — sin este
+ * paso, `toggleGroupRest`/`groupSizes`/el chip (que matchean por VALOR de id, no por
+ * contigüidad) tratarían a los dos grupos visualmente separados como uno solo.
  */
 export function dissolveNonContiguousGroups<
   T extends { supersetGroupId?: string; groupRestEnabled?: boolean },
 >(items: T[]): T[] {
   const result = [...items];
+  const seenGroupIds = new Set<string>();
   let i = 0;
   while (i < result.length) {
     const groupId = result[i].supersetGroupId;
@@ -119,6 +127,14 @@ export function dissolveNonContiguousGroups<
     while (j < result.length && result[j].supersetGroupId === groupId) j += 1;
     if (j - i < 2) {
       result[i] = { ...result[i], supersetGroupId: undefined, groupRestEnabled: undefined };
+    } else if (seenGroupIds.has(groupId)) {
+      const freshId = uuidv4();
+      for (let p = i; p < j; p++) {
+        result[p] = { ...result[p], supersetGroupId: freshId };
+      }
+      seenGroupIds.add(freshId);
+    } else {
+      seenGroupIds.add(groupId);
     }
     i = j;
   }

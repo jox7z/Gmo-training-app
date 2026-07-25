@@ -318,4 +318,25 @@ describe('dissolveNonContiguousGroups', () => {
     const result = dissolveNonContiguousGroups([item('A', 'g', true)]);
     expect(result).toEqual([{ name: 'A', supersetGroupId: undefined, groupRestEnabled: undefined }]);
   });
+
+  it('un ejercicio ajeno insertado en medio de un circuito lo parte en 2 pares — cada uno debe quedar con un id DISTINTO', () => {
+    // Circuito de 4 [A,B,C,D] + un drag que clava E justo en el medio:
+    // [A,B,E,C,D] — [A,B] y [C,D] miden ≥2 cada uno (sobreviven el chequeo de
+    // longitud) pero YA NO son el mismo grupo visual/mecánico. Sin la reasignación,
+    // ambos seguirían compartiendo "g" y togglear el descanso de uno afectaría al otro.
+    const result = dissolveNonContiguousGroups([
+      item('A', 'g'),
+      item('B', 'g'),
+      item('E'),
+      item('C', 'g'),
+      item('D', 'g'),
+    ]);
+    const [a, b, e, c, d] = result;
+    expect(e.supersetGroupId).toBeUndefined();
+    expect(a.supersetGroupId).toBeDefined();
+    expect(a.supersetGroupId).toBe(b.supersetGroupId); // A y B siguen pareja
+    expect(c.supersetGroupId).toBeDefined();
+    expect(c.supersetGroupId).toBe(d.supersetGroupId); // C y D siguen pareja
+    expect(a.supersetGroupId).not.toBe(c.supersetGroupId); // pero YA NO es el mismo grupo
+  });
 });

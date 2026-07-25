@@ -45,6 +45,7 @@ import {
   Home,
   User,
   LayoutGrid,
+  GripVertical,
   Trash2,
   Link2,
   Unlink2,
@@ -95,6 +96,7 @@ export type IconName =
   | 'home'
   | 'user'
   | 'layout-grid'
+  | 'grip'
   | 'trash'
   | 'link'
   | 'unlink';
@@ -162,6 +164,8 @@ const REGISTRY: Record<Exclude<IconName, 'scale' | 'instagram'>, RegistryEntry> 
   home: { Comp: Home },
   user: { Comp: User },
   'layout-grid': { Comp: LayoutGrid },
+  // Handle de arrastre (drag & drop del editor de rutina): 6 puntos verticales.
+  grip: { Comp: GripVertical },
   trash: { Comp: Trash2 },
   link: { Comp: Link2 },
   unlink: { Comp: Unlink2 },

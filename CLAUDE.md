@@ -213,7 +213,34 @@ the only place that decides where the user goes. Key invariants there:
   `WorkoutHeader`'s segment bar gets a thin bracket line under contiguous
   same-`groupId` runs (`computeGroupBrackets`, percentage-positioned, doesn't account
   for the 4px inter-segment gap — decorative approximation, not exact).
-  **Deferred (not built):** drag&drop reordering in the group-select UI.
+  **Drag & drop** (`app/routine/[id].tsx`, `react-native-reorderable-list@0.18.1`,
+  Tier 1 Expo Go — see `docs/memory/visual-stack.md`): `NestedReorderableList` inside
+  `ScrollViewContainer` (drop-in replacement for the form's outer `ScrollView`, one
+  shared scroll, `scrollable={false}` on the list cedes scrolling to the parent).
+  Card extracted to `ExerciseRow` because `useReorderableDrag()` only works inside the
+  list's own cell; dedicated `grip` handle (left edge, `onLongPress={drag}`) is the
+  ONLY draggable trigger — never the whole card, which still needs normal taps on its
+  steppers/buttons — and is hidden together with `dragEnabled={!groupMode}` while in
+  group-select mode. Row `entering`/`layout` Reanimated props were removed (the
+  library's own cell animation owns the transform now). `handleReorder` always pipes
+  the result through `dissolveNonContiguousGroups` — a drag that splits a member away
+  from its group dissolves it silently, no confirm (same no-confirm precedent as
+  `removeExercise`/`removeFromGroup`).
+  **`dissolveNonContiguousGroups` gained a second invariant check because of drag**:
+  before, it only cleared a run shorter than 2 — but dragging an unrelated exercise
+  into the exact MIDDLE of a group (e.g. a 4-member circuit) splits it into two
+  disjoint runs that EACH still measure ≥2 (survive the length check) while still
+  sharing the same `supersetGroupId` — no prior mutation path (group/ungroup/swap)
+  could produce two disjoint runs of a shared id, only drag can. `buildStepSequence`
+  itself was unaffected (it re-scans contiguity from scratch, so it already treated
+  the two runs as independent groups regardless of id) — but `toggleGroupRest`/
+  `groupSizes`/`canAddToGroup`/the chip label all match by id VALUE, not contiguity,
+  so they silently coupled two groups the user sees as separate. Fixed: the function
+  now tracks a `Set` of already-closed group ids and reassigns a fresh `uuidv4()` to
+  any later run (length ≥2) that reuses one.
+  With this the supersets/trisets/circuitos system's 6 originally-deferred items are
+  all closed — **nothing left deferred** in this area besides the deliberate product
+  decision to never offer a prescribed/standardized rest duration.
 - **PRs / 1RM / previous-session data** all derive from local `Workout[]` history via
   pure helpers: `src/lib/workoutCompare.ts` (`detectPRs`, `historicMaxWeight` — live PR
   splash in `app/workout/active.tsx` uses the same helper as the summary so they never
