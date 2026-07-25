@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuidv4 } from '@/lib/ids';
 import { exerciseById } from '@/data/exercises';
 import type { WarmupSuggestion } from '@/lib/warmupSets';
+import { dissolveNonContiguousGroups } from '@/lib/supersets';
 
 export interface SetEntry {
   id: string;
@@ -282,7 +283,13 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       exercises.splice(exIdx + 1, 0, newEx);
       newIndex = exIdx + 1;
     }
-    set({ active: { ...a, exercises } });
+    // Swapear un miembro DEL MEDIO de un grupo de 3-4 inserta el remanente entre
+    // sus antiguos compañeros, partiendo la corrida contigua en dos: el/los que
+    // quedan antes del remanente conservan el mismo supersetGroupId por VALOR pero
+    // ya no son adyacentes a los que quedan después — buildStepSequence solo agrupa
+    // por contigüidad, así que quedarían "huérfanos" con un id que ya no significa
+    // nada (y el badge de compañeros, que matchea por valor, mentiría). Normaliza.
+    set({ active: { ...a, exercises: dissolveNonContiguousGroups(exercises) } });
     return newIndex;
   },
 }));

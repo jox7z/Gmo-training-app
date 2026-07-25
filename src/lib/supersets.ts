@@ -6,10 +6,16 @@
  * consecutivas. Toda la lógica es pura (sin efectos, sin RN/AsyncStorage): recibe
  * `WorkoutExercise[]` y devuelve pasos, para poder testearla en aislamiento.
  *
- * El algoritmo soporta grupos de 3+ miembros sin cambios (la UI de selección se
- * limita a 2 en el MVP). Series desiguales entre miembros se cubren solas: cuando
- * un miembro se queda sin series en una ronda, se excluye y el resto pasa a
- * comportarse como suelto (descanso normal) el resto de rondas.
+ * El algoritmo soporta grupos de 2 a 4 miembros (supersets, trisets y circuitos).
+ * Series desiguales entre miembros se cubren solas: cuando un miembro se queda sin
+ * series en una ronda, se excluye y el resto pasa a comportarse como suelto
+ * (descanso normal) el resto de rondas.
+ *
+ * Calentamiento dentro de un grupo: cada miembro hace sus PROPIAS series isWarmup
+ * primero (en orden de miembro, cada una con descanso normal), y solo cuando todos
+ * terminaron su calentamiento arranca la fase de trabajo intercalada (round-robin)
+ * sobre las series que NO son warmup. Así el calentamiento de uno nunca se empareja
+ * contra las series reales del otro.
  */
 import type { WorkoutExercise } from '@/store/workouts';
 
@@ -38,11 +44,35 @@ export function buildStepSequence(exercises: WorkoutExercise[]): WorkoutStep[] {
     let j = i;
     while (j < exercises.length && exercises[j].supersetGroupId === groupId) j += 1;
     const groupIdxs = Array.from({ length: j - i }, (_, k) => i + k);
-    const maxSets = Math.max(...groupIdxs.map((idx) => exercises[idx].sets.length));
-    for (let round = 0; round < maxSets; round++) {
-      const members = groupIdxs.filter((idx) => round < exercises[idx].sets.length);
+
+    // Fase de calentamiento: cada miembro hace sus propias series isWarmup como pasos
+    // sueltos (descanso normal), en orden de miembro, ANTES de la fase de trabajo
+    // intercalada del grupo — evita emparejar el calentamiento de uno contra las
+    // series reales del otro.
+    groupIdxs.forEach((idx) => {
+      exercises[idx].sets.forEach((s, si) => {
+        if (s.isWarmup) steps.push({ exIdx: idx, setIdx: si, closesRound: true });
+      });
+    });
+
+    // Fase de trabajo: solo series NO warmup, intercaladas por ronda. setIdx usa el
+    // índice REAL dentro de sets[] (puede no coincidir con el nº de ronda si hay
+    // warmups prependeados).
+    const workIdxByMember = new Map(
+      groupIdxs.map((idx) => [
+        idx,
+        exercises[idx].sets.map((s, si) => (s.isWarmup ? -1 : si)).filter((si) => si >= 0),
+      ]),
+    );
+    const maxRounds = Math.max(...groupIdxs.map((idx) => workIdxByMember.get(idx)!.length));
+    for (let round = 0; round < maxRounds; round++) {
+      const members = groupIdxs.filter((idx) => round < workIdxByMember.get(idx)!.length);
       members.forEach((idx, k) =>
-        steps.push({ exIdx: idx, setIdx: round, closesRound: k === members.length - 1 }),
+        steps.push({
+          exIdx: idx,
+          setIdx: workIdxByMember.get(idx)![round],
+          closesRound: k === members.length - 1,
+        }),
       );
     }
     i = j;
@@ -52,4 +82,42 @@ export function buildStepSequence(exercises: WorkoutExercise[]): WorkoutStep[] {
 
 export function findStepIndex(steps: WorkoutStep[], exIdx: number, setIdx: number): number {
   return steps.findIndex((s) => s.exIdx === exIdx && s.setIdx === setIdx);
+}
+
+/**
+ * Limpia `supersetGroupId` de cualquier elemento cuya "corrida" contigua con el
+ * mismo id mida <2 — un grupo se define por CONTIGÜIDAD, no solo por compartir el
+ * mismo id. Reutilizable en el editor de rutina (agrupar/desagrupar/borrar) y en
+ * `swapExercise` del entreno activo: ambos pueden dejar residuos con el mismo id
+ * pero ya no adyacentes (ej. al reagrupar un subconjunto de un grupo de 3+, o al
+ * insertar el reemplazo de un swap en medio de un grupo), lo que rompe el
+ * supuesto de `buildStepSequence` (que solo agrupa corridas contiguas) y deja el
+ * badge/UI mostrando "compañeros" que ya no participan del mismo round-robin.
+ */
+export function dissolveNonContiguousGroups<T extends { supersetGroupId?: string }>(
+  items: T[],
+): T[] {
+  const result = [...items];
+  let i = 0;
+  while (i < result.length) {
+    const groupId = result[i].supersetGroupId;
+    if (!groupId) {
+      i += 1;
+      continue;
+    }
+    let j = i;
+    while (j < result.length && result[j].supersetGroupId === groupId) j += 1;
+    if (j - i < 2) {
+      result[i] = { ...result[i], supersetGroupId: undefined };
+    }
+    i = j;
+  }
+  return result;
+}
+
+/** Etiqueta del grupo según su tamaño total: 2 → Superset, 3 → Triset, 4+ → Circuito. */
+export function supersetLabel(size: number): string {
+  if (size >= 4) return 'Circuito';
+  if (size === 3) return 'Triset';
+  return 'Superset';
 }

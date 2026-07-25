@@ -130,38 +130,55 @@ the only place that decides where the user goes. Key invariants there:
 - **Muscle optimization** uses fractional set counting: a primary muscle gets 1 set per
   working set, each `secondary` muscle gets 0.5. See `Exercise` in `src/data/exercises.ts`
   and `src/lib/optimizationScore.ts`.
-- **Supersets (MVP pares de 2)** — members share a `supersetGroupId` (uuid) and MUST stay
-  **contiguous** in `RoutineDay.exercises` / `Workout.exercises` (invariant kept by the
-  routine editor's group flow). The active-workout advance machine is a precomputed step
-  sequence, `src/lib/supersets.ts` `buildStepSequence` (pure, `import type` only — testable,
-  `supersets.test.ts`): it interleaves group rounds A1→B1→A2→B2… and marks `closesRound`.
-  In `app/workout/active.tsx`, `steps` is a `useMemo` keyed by **shape**
-  (`supersetGroupId + sets.length` per exercise, NOT `active` — same reason as `prevSets`).
-  `getNextPosition`/`advancePosition`/`isLastSet`/`nextLabel` all derive from `steps`.
-  Rest rule: `handleLogSave` skips rest (no `captureRest`, `restAfterSeconds` stays
-  undefined) when the closed set does NOT close its round — it jumps straight to the
-  partner. Weight/reps preload only when the next step is the **same** exercise
-  (`next.exIdx === exIdx`), never across a superset partner (keeps the Parte C `isWarmup`
-  guard). `swapExercise` inherits `cur.supersetGroupId` so the replacement stays in-group,
-  AND clears it on the completed remainder (`exercises[exIdx] = {...cur, sets: completed,
-  supersetGroupId: undefined}`) — without this a live swap left 3 exercises contiguous
-  with the same group id, merging a pair into a round-robin of 3 (found by
-  `code-quality-reviewer`, fixed). The routine editor's `groupSelected` calls
-  `dissolveOrphanGroups` after assigning the new pair — re-grouping an exercise that
-  already had a partner used to leave that old partner orphaned with a dangling
-  `supersetGroupId` (same review, fixed). `canAddWarmup` in `active.tsx` excludes
-  superset members (`!currentEx.supersetGroupId`): `buildStepSequence` interleaves by
-  set INDEX, blind to `isWarmup`, so prepending warm-up sets to one member would
-  interleave them against the partner's real working sets — deferred, not fixed, same
-  MVP scope cut.
+- **Supersets/trisets/circuitos (2-4 miembros)** — members share a `supersetGroupId`
+  (uuid) and MUST stay **contiguous** in `RoutineDay.exercises` / `Workout.exercises`.
+  `MAX_GROUP_SIZE = 4` in `app/routine/[id].tsx`. Contiguity is not just a count check:
+  `src/lib/supersets.ts` `dissolveNonContiguousGroups` (generic, reused by the routine
+  editor's `groupSelected`/`removeExercise` AND by `swapExercise` in
+  `src/store/workouts.ts`) scans **contiguous runs** and clears `supersetGroupId` on any
+  run shorter than 2 — a plain "does this id appear ≥2 times anywhere" count is NOT
+  enough, because re-grouping a subset of an existing 3+ group, or swapping a MIDDLE
+  member live, can leave two same-id items with a valid count but no longer adjacent
+  (found by `code-quality-reviewer` on the trisets/circuitos pass, fixed by moving this
+  from a local per-file count-based helper to the shared contiguity-based one).
+  The active-workout advance machine is a precomputed step sequence,
+  `src/lib/supersets.ts` `buildStepSequence` (pure, testable, `supersets.test.ts`): it
+  interleaves group rounds A1→B1→C1→A2→B2→C2… and marks `closesRound`. Inside a group,
+  each member does its OWN `isWarmup` sets first (in member order, normal rest each),
+  and only once every member is done warming up does the round-robin over the
+  non-warmup sets start — `setIdx` in a work-phase step is the REAL index into `sets[]`
+  (not a round number), since warm-ups prepended to the front shift it. This is why
+  `canAddWarmup` in `app/workout/active.tsx` gates on **the whole group having zero
+  progress**, not just the current exercise (`groupHasProgress`, checks
+  `active.exercises` for ANY member of the same group with a completed set): adding a
+  warm-up recomputes `steps` from scratch, and since ALL warm-up steps of ALL members
+  sort before ANY work step, doing this after the group's round-robin has already
+  started re-sorts already-completed steps to a later position — the user gets walked
+  back onto a set they already logged. Found via manual trace during the
+  trisets/warm-ups-in-superset review, fixed before merge (not a theoretical risk — the
+  default 2-member case triggers it: complete A1, land on B with 0 progress, add
+  warm-up to B). In `app/workout/active.tsx`, `steps` is a `useMemo` keyed by **shape**
+  (`supersetGroupId + sets.length` per exercise, NOT `active` — same reason as
+  `prevSets`). `getNextPosition`/`advancePosition`/`isLastSet`/`nextLabel` all derive
+  from `steps`. Rest rule: `handleLogSave` skips rest (no `captureRest`,
+  `restAfterSeconds` stays undefined) when the closed set does NOT close its round — it
+  jumps straight to the next member. Weight/reps preload only when the next step is the
+  **same** exercise (`next.exIdx === exIdx`), never across a group partner. `swapExercise`
+  inherits `cur.supersetGroupId` so the replacement stays in-group, clears it on the
+  completed remainder, and runs the whole result through `dissolveNonContiguousGroups`
+  (needed for swaps on a MIDDLE member of a 3-4 group, which otherwise splits one
+  contiguous run into two same-id-but-non-adjacent pieces).
+  `partnerExercises: WorkoutExercise[]` (filter, not find) feeds `SupersetBadge`, which
+  takes `partnerNames: string[]` and labels via `supersetLabel(size)`
+  (2→"Superset", 3→"Triset", 4→"Circuito"); the joined name list caps at 2 names
+  ("X, Y y N más") to avoid an unbounded `Chip` with a 4-member circuit.
   DB: `superset_group_id uuid null` on `routine_day_exercises` + `workout_exercises`
   (migration `0049_supersets.sql`, applied to remote, partial indexes, RLS unchanged —
   covered by parent join; `get_advisors` clean except expected INFO "unused_index" with
-  no grouped data yet). `SupersetBadge` (presentational Chip) renders in SetPhase/LogPhase;
-  `WorkoutHeader` / `SetProgressPills` unchanged. **Deferred (not built):** trisets 3+
-  (algorithm already supports them; only the 2-picker UI limits it), drag&drop, editing
-  group membership without ungrouping, header bracket, configurable intra-group rest
-  (fixed 0s), warm-up sets inside a superset.
+  no grouped data yet — no further migration needed for 3-4 member groups, the column
+  already allows any number of rows sharing a uuid). **Deferred (not built):** drag&drop
+  reordering in the group-select UI, editing group membership without ungrouping first,
+  header bracket visual in `WorkoutHeader`, configurable intra-group rest (fixed 0s).
 - **PRs / 1RM / previous-session data** all derive from local `Workout[]` history via
   pure helpers: `src/lib/workoutCompare.ts` (`detectPRs`, `historicMaxWeight` — live PR
   splash in `app/workout/active.tsx` uses the same helper as the summary so they never

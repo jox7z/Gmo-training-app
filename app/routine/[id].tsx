@@ -21,6 +21,10 @@ import { exerciseById } from '@/data/exercises';
 import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
 import { CreateExerciseSheet } from '@/components/CreateExerciseSheet';
 import { Icon } from '@/components/Icon';
+import { supersetLabel, dissolveNonContiguousGroups } from '@/lib/supersets';
+
+// Tope de miembros por grupo: 2 superset, 3 triset, 4 circuito.
+const MAX_GROUP_SIZE = 4;
 
 const EMPTY_ROUTINE = (): Routine => ({
   id: nid(),
@@ -29,20 +33,6 @@ const EMPTY_ROUTINE = (): Routine => ({
   days: [{ id: nid(), name: 'Día 1', exercises: [] }],
   createdAt: new Date().toISOString(),
 });
-
-// Limpia el supersetGroupId de cualquier grupo que quede con <2 miembros (p. ej.
-// tras borrar un miembro): un superset huérfano se disuelve a ejercicio suelto.
-function dissolveOrphanGroups(exercises: RoutineDayExercise[]): RoutineDayExercise[] {
-  const counts = new Map<string, number>();
-  for (const e of exercises) {
-    if (e.supersetGroupId) counts.set(e.supersetGroupId, (counts.get(e.supersetGroupId) ?? 0) + 1);
-  }
-  return exercises.map((e) =>
-    e.supersetGroupId && (counts.get(e.supersetGroupId) ?? 0) < 2
-      ? { ...e, supersetGroupId: undefined }
-      : e,
-  );
-}
 
 export default function RoutineEditor() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -55,7 +45,7 @@ export default function RoutineEditor() {
   const [activeDayIdx, setActiveDayIdx] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
-  // Modo agrupar: seleccionar 2 ejercicios y unirlos en un superset.
+  // Modo agrupar: seleccionar 2-4 ejercicios y unirlos en un grupo.
   const [groupMode, setGroupMode] = useState(false);
   const [groupSelection, setGroupSelection] = useState<string[]>([]);
 
@@ -105,17 +95,17 @@ export default function RoutineEditor() {
   const removeExercise = (exId: string) => {
     const days = routine.days.map((d, i) =>
       i === activeDayIdx
-        ? { ...d, exercises: dissolveOrphanGroups(d.exercises.filter((e) => e.id !== exId)) }
+        ? { ...d, exercises: dissolveNonContiguousGroups(d.exercises.filter((e) => e.id !== exId)) }
         : d,
     );
     setRoutine({ ...routine, days });
   };
 
-  // Alterna la selección de un ejercicio en modo agrupar (tope 2: ignora un 3º).
+  // Alterna la selección de un ejercicio en modo agrupar (tope MAX_GROUP_SIZE).
   const toggleGroupSelect = (exId: string) => {
     setGroupSelection((sel) => {
       if (sel.includes(exId)) return sel.filter((id) => id !== exId);
-      if (sel.length >= 2) return sel;
+      if (sel.length >= MAX_GROUP_SIZE) return sel;
       return [...sel, exId];
     });
   };
@@ -125,28 +115,39 @@ export default function RoutineEditor() {
     setGroupSelection([]);
   };
 
-  // Une los 2 seleccionados en un superset: ordena por índice actual, mueve el
-  // segundo justo después del primero (si no son adyacentes) y les asigna un
-  // supersetGroupId compartido. Mantiene contiguos a los miembros del grupo.
+  // Une los 2-4 seleccionados en un grupo: ordena por índice actual, usa el primero
+  // como ancla y reagrupa al resto justo detrás (preservando su orden relativo),
+  // asignándoles un supersetGroupId compartido. Mantiene contiguos a los miembros.
   const groupSelected = () => {
-    if (groupSelection.length !== 2) return;
+    if (groupSelection.length < 2) return;
     const days = routine.days.map((d, i) => {
       if (i !== activeDayIdx) return d;
       const exercises = [...d.exercises];
-      const [firstIdx, secondIdx] = groupSelection
+      const sortedIdxs = groupSelection
         .map((id) => exercises.findIndex((e) => e.id === id))
+        .filter((idx) => idx >= 0)
         .sort((a, b) => a - b);
-      if (firstIdx < 0 || secondIdx < 0) return d;
-      if (secondIdx !== firstIdx + 1) {
-        const [moved] = exercises.splice(secondIdx, 1);
-        exercises.splice(firstIdx + 1, 0, moved);
+      if (sortedIdxs.length < 2) return d;
+      const anchor = sortedIdxs[0];
+      // Extrae el resto (todos con índice > ancla) de atrás hacia adelante para no
+      // invalidar los índices menores aún por extraer; acumula con unshift para
+      // conservar su orden relativo original. El ancla no se mueve.
+      const rest = sortedIdxs.slice(1);
+      const moved: RoutineDayExercise[] = [];
+      for (let k = rest.length - 1; k >= 0; k--) {
+        const [m] = exercises.splice(rest[k], 1);
+        moved.unshift(m);
       }
+      // Reinserta el bloque justo después del ancla y asigna el grupo compartido a
+      // las posiciones [anchor, anchor + moved.length].
+      exercises.splice(anchor + 1, 0, ...moved);
       const groupId = nid();
-      exercises[firstIdx] = { ...exercises[firstIdx], supersetGroupId: groupId };
-      exercises[firstIdx + 1] = { ...exercises[firstIdx + 1], supersetGroupId: groupId };
-      // Si alguno de los 2 ya pertenecía a otro superset, su antigua pareja se queda
-      // sola — disolverla en vez de dejar un grupo huérfano de 1 miembro.
-      return { ...d, exercises: dissolveOrphanGroups(exercises) };
+      for (let p = anchor; p <= anchor + moved.length; p++) {
+        exercises[p] = { ...exercises[p], supersetGroupId: groupId };
+      }
+      // Si algún miembro ya pertenecía a otro grupo, su antiguo grupo puede quedar
+      // huérfano (<2 miembros) — disolverlo en vez de dejar un grupo incompleto.
+      return { ...d, exercises: dissolveNonContiguousGroups(exercises) };
     });
     setRoutine({ ...routine, days });
     exitGroupMode();
@@ -188,6 +189,13 @@ export default function RoutineEditor() {
     }
     router.back();
   };
+
+  // Conteo de miembros por grupo del día activo, para etiquetar el chip entre
+  // miembros como Superset / Triset / Circuito según su tamaño total.
+  const groupSizes = new Map<string, number>();
+  for (const e of day.exercises) {
+    if (e.supersetGroupId) groupSizes.set(e.supersetGroupId, (groupSizes.get(e.supersetGroupId) ?? 0) + 1);
+  }
 
   // Provider LOCAL: esta ruta se presenta como modal nativo (presentation:'modal');
   // el portal al provider del root quedaría DETRÁS del modal en iOS.
@@ -355,10 +363,16 @@ export default function RoutineEditor() {
                 entering={FadeInDown.springify().damping(18)}
                 layout={LinearTransition.springify().damping(18)}
               >
-                {/* Indicador "Superset" entre los dos miembros (una vez, antes del 2º) */}
+                {/* Indicador de grupo entre miembros contiguos (una vez, antes de cada
+                    miembro posterior al primero); etiqueta según el tamaño del grupo. */}
                 {prevSameGroup && (
                   <View style={{ alignItems: 'center', marginVertical: spacing.xs }}>
-                    <Chip label="Superset" leftIcon="link" variant="outline" size="sm" />
+                    <Chip
+                      label={supersetLabel(groupId ? (groupSizes.get(groupId) ?? 0) : 0)}
+                      leftIcon="link"
+                      variant="outline"
+                      size="sm"
+                    />
                   </View>
                 )}
                 {groupMode ? (
@@ -395,12 +409,12 @@ export default function RoutineEditor() {
         ) : (
           <View style={{ gap: spacing.md, marginTop: spacing.md }}>
             <Text variant="caption" tone="muted" style={{ textAlign: 'center' }}>
-              Elige 2 ejercicios para unirlos en superset ({groupSelection.length}/2)
+              Elige 2 a 4 ejercicios para agrupar ({groupSelection.length}/{MAX_GROUP_SIZE})
             </Text>
             <Button
-              title="Agrupar en superset"
+              title="Agrupar ejercicios"
               onPress={groupSelected}
-              disabled={groupSelection.length !== 2}
+              disabled={groupSelection.length < 2}
               fullWidth
             />
             <Button title="Cancelar" variant="secondary" onPress={exitGroupMode} fullWidth />

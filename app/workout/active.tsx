@@ -401,13 +401,13 @@ export default function ActiveWorkout() {
   const currentEx  = active?.exercises[exIdx];
   const currentSet = currentEx?.sets[setIdx];
 
-  // Compañero de superset del ejercicio en curso (si pertenece a un grupo). MVP:
-  // grupos de 2, así que hay como mucho un compañero.
-  const partnerEx = currentEx?.supersetGroupId
-    ? active?.exercises.find(
+  // Compañeros de grupo del ejercicio en curso (superset/triset/circuito, 2-4
+  // miembros): todos los del mismo supersetGroupId menos él mismo.
+  const partnerExercises: WorkoutExercise[] = currentEx?.supersetGroupId
+    ? (active?.exercises.filter(
         (e) => e.id !== currentEx.id && e.supersetGroupId === currentEx.supersetGroupId,
-      )
-    : undefined;
+      ) ?? [])
+    : [];
 
   // El selector de cambio arranca filtrado por el músculo del ejercicio actual
   // y destaca sus equivalentes (mismo músculo primero).
@@ -432,17 +432,27 @@ export default function ActiveWorkout() {
   const warmupTarget =
     prevSets && prevSets.length > 0 ? Math.max(...prevSets.map((s) => s.weightKg)) : null;
   // El botón solo aplica a la PRIMERA serie de trabajo, antes de completar nada,
-  // sin warm-ups ya presentes y para equipo con carga (no peso corporal). Excluye
-  // miembros de un superset: buildStepSequence intercala por índice de set sin
-  // distinguir isWarmup, así que prependear calentamiento en un ejercicio agrupado
-  // desalinearía las rondas contra el compañero (sus warmups se emparejarían con
-  // las series reales del otro) — diferido junto con el resto de MVP de supersets.
+  // sin warm-ups ya presentes y para equipo con carga (no peso corporal). Los
+  // miembros de un grupo lo soportan: buildStepSequence hace primero todas las
+  // series isWarmup de cada miembro (descanso normal) y solo después intercala las
+  // series reales, así que un calentamiento agrupado no desalinea las rondas — SIEMPRE
+  // que se agregue antes de que el grupo arranque su round-robin. Agregarlo después
+  // (ej. A ya completó su serie 1 y el usuario está parado en B) recalcula `steps`
+  // desde cero con la nueva fase de calentamiento intercalada AL PRINCIPIO de la
+  // secuencia, lo que reordena pasos ya completados a una posición posterior y puede
+  // devolver al usuario a una serie que ya registró. Por eso se bloquea para TODO el
+  // grupo (no solo el ejercicio actual) en cuanto cualquier miembro tiene progreso.
+  const groupHasProgress = currentEx?.supersetGroupId
+    ? (active?.exercises.some(
+        (e) => e.supersetGroupId === currentEx.supersetGroupId && e.sets.some((s) => s.isCompleted),
+      ) ?? false)
+    : false;
   const canAddWarmup =
     !!currentEx &&
-    !currentEx.supersetGroupId &&
     setIdx === 0 &&
     !currentEx.sets.some((s) => s.isCompleted) &&
     !currentEx.sets.some((s) => s.isWarmup) &&
+    !groupHasProgress &&
     currentEquipment !== undefined &&
     currentEquipment !== 'bodyweight';
 
@@ -722,7 +732,7 @@ export default function ActiveWorkout() {
             exerciseId={currentEx.exerciseId}
             exerciseName={currentEx.exerciseName}
             subtitle={muscleLabel(currentEx.muscleGroup)}
-            partnerName={partnerEx?.exerciseName}
+            partnerNames={partnerExercises.map((e) => e.exerciseName)}
             setNumber={setIdx + 1}
             totalSets={currentEx.sets.length}
             completedCount={currentEx.sets.filter((s) => s.isCompleted).length}
@@ -741,7 +751,7 @@ export default function ActiveWorkout() {
             unit={profile.unit}
             exerciseId={currentEx.exerciseId}
             exerciseName={currentEx.exerciseName}
-            partnerName={partnerEx?.exerciseName}
+            partnerNames={partnerExercises.map((e) => e.exerciseName)}
             setNumber={setIdx + 1}
             totalSets={currentEx.sets.length}
             previous={prevSetForCurrent}
@@ -1077,7 +1087,7 @@ function SetPhase({
   exerciseId,
   exerciseName,
   subtitle,
-  partnerName,
+  partnerNames,
   setNumber,
   totalSets,
   completedCount,
@@ -1091,7 +1101,7 @@ function SetPhase({
   exerciseId: string;
   exerciseName: string;
   subtitle?: string;
-  partnerName?: string;
+  partnerNames: string[];
   setNumber: number;
   totalSets: number;
   completedCount: number;
@@ -1109,9 +1119,9 @@ function SetPhase({
         <Text variant="overline" tone="brand" style={{ textAlign: 'center', marginBottom: spacing.md }}>
           SERIE {setNumber}/{totalSets}
         </Text>
-        {partnerName && (
+        {partnerNames.length > 0 && (
           <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
-            <SupersetBadge partnerName={partnerName} />
+            <SupersetBadge partnerNames={partnerNames} />
           </View>
         )}
         <SetProgressPills total={totalSets} current={setNumber - 1} completedCount={completedCount} />
@@ -1172,7 +1182,7 @@ function LogPhase({
   unit,
   exerciseId,
   exerciseName,
-  partnerName,
+  partnerNames,
   setNumber,
   totalSets,
   previous,
@@ -1184,7 +1194,7 @@ function LogPhase({
   unit: 'kg' | 'lb';
   exerciseId: string;
   exerciseName: string;
-  partnerName?: string;
+  partnerNames: string[];
   setNumber: number;
   totalSets: number;
   previous?: { weightKg: number; reps: number } | null;
@@ -1248,10 +1258,10 @@ function LogPhase({
         </View>
       </View>
 
-      {/* Badge de superset (si el ejercicio forma pareja) */}
-      {partnerName && (
+      {/* Badge de grupo (si el ejercicio forma superset/triset/circuito) */}
+      {partnerNames.length > 0 && (
         <View style={{ alignItems: 'center', marginTop: spacing.md }}>
-          <SupersetBadge partnerName={partnerName} />
+          <SupersetBadge partnerNames={partnerNames} />
         </View>
       )}
 
