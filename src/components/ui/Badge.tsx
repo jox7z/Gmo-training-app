@@ -26,7 +26,7 @@ export function Badge({ label, tone = 'muted' }: Props) {
         backgroundColor: c.bg,
         paddingHorizontal: spacing.sm + 2,
         paddingVertical: 4,
-        borderRadius: radius.full,
+        borderRadius: radius.sm,
         alignSelf: 'flex-start',
       }}
     >

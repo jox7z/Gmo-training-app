@@ -1,26 +1,19 @@
-import { Text as RNText, TextProps } from 'react-native';
-import { colors, fontSize, fontWeight } from '@/theme/tokens';
+import { StyleSheet, Text as RNText, TextProps, type TextStyle } from 'react-native';
+import {
+  colors,
+  fontWeight,
+  typography,
+  type TypographyVariant,
+} from '@/theme/tokens';
 
-type Variant = 'display' | 'title' | 'heading' | 'body' | 'caption' | 'label' | 'metric' | 'metricLg';
 type Tone = 'primary' | 'secondary' | 'muted' | 'accent' | 'brand' | 'info' | 'danger' | 'success';
 
 interface Props extends TextProps {
-  variant?: Variant;
+  variant?: TypographyVariant;
   tone?: Tone;
   weight?: keyof typeof fontWeight;
   numeric?: boolean;
 }
-
-const variantStyles: Record<Variant, { size: number; weight: keyof typeof fontWeight }> = {
-  display: { size: fontSize['4xl'], weight: 'black' },
-  title: { size: fontSize['2xl'], weight: 'bold' },
-  heading: { size: fontSize.lg, weight: 'semibold' },
-  body: { size: fontSize.base, weight: 'regular' },
-  caption: { size: fontSize.sm, weight: 'regular' },
-  label: { size: fontSize.xs, weight: 'semibold' },
-  metric: { size: fontSize['3xl'], weight: 'black' },
-  metricLg: { size: fontSize['6xl'], weight: 'black' },
-};
 
 const toneColors: Record<Tone, string> = {
   primary: colors.text.primary,
@@ -34,17 +27,22 @@ const toneColors: Record<Tone, string> = {
 };
 
 export function Text({ variant = 'body', tone = 'primary', weight, numeric, style, ...rest }: Props) {
-  const v = variantStyles[variant];
+  const variantStyle = typography[variant];
+  const flattenedStyle = StyleSheet.flatten(style) as TextStyle | undefined;
+  const overridesFontSizeWithoutLineHeight =
+    flattenedStyle?.fontSize !== undefined && flattenedStyle.lineHeight === undefined;
+  const resolvedVariantStyle = overridesFontSizeWithoutLineHeight
+    ? { ...variantStyle, lineHeight: undefined }
+    : variantStyle;
+
   return (
     <RNText
       {...rest}
       style={[
         {
+          ...resolvedVariantStyle,
           color: toneColors[tone],
-          fontSize: v.size,
-          fontWeight: fontWeight[weight ?? v.weight],
-          letterSpacing: variant === 'label' ? 1.2 : 0,
-          textTransform: variant === 'label' ? 'uppercase' : 'none',
+          fontWeight: weight ? fontWeight[weight] : variantStyle.fontWeight,
           fontVariant: numeric ? ['tabular-nums'] : undefined,
         },
         style,

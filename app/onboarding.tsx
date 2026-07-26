@@ -121,8 +121,6 @@ export default function Onboarding() {
         weeklyGoalDays: days,
         rankPoints: 0,
         currentRank: 'rookie' as const,
-        privacy: { profilePublic: true, showActivity: true, showStats: true },
-        notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
       };
 
       // Push to backend FIRST. Solo si el backend acepta el perfil, mutamos
@@ -203,7 +201,7 @@ export default function Onboarding() {
               style={{
                 flex: 1,
                 height: 4,
-                borderRadius: 2,
+                borderRadius: radius.sm,
                 backgroundColor: i <= idx ? colors.primary.DEFAULT : colors.bg.card,
               }}
             />
@@ -335,7 +333,7 @@ export default function Onboarding() {
 
         {step === 'frequency' && (
           <Section title="¿Cuántos días por semana?" subtitle="Tu meta de racha. Sé realista.">
-            <Card variant="raised" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
+            <Card variant="section" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
               <Text variant="display" tone="accent" numeric>{days}</Text>
               <Text variant="body" tone="secondary">días por semana</Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
@@ -346,7 +344,7 @@ export default function Onboarding() {
                     style={{
                       width: 44,
                       height: 44,
-                      borderRadius: 22,
+                      borderRadius: radius.sm,
                       alignItems: 'center',
                       justifyContent: 'center',
                       backgroundColor: days === n ? colors.primary.DEFAULT : colors.bg.elevated,
@@ -397,14 +395,18 @@ export default function Onboarding() {
 
         {step === 'final' && (
           <Section title="¡Todo listo!" subtitle="Tu primer paso comienza ahora.">
-            <Card variant="glow" padding="xl" style={{ marginTop: spacing.lg }}>
+            <Card
+              variant="section"
+              padding="xl"
+              style={{ marginTop: spacing.lg, borderColor: colors.primary.DEFAULT }}
+            >
               <Text variant="heading" tone="brand">Tu plan</Text>
               <Text variant="body" tone="secondary" style={{ marginTop: spacing.sm }}>
                 Empezarás en rango <Text tone="accent" weight="bold">Bronze</Text> con meta de{' '}
                 <Text weight="bold">{days} días/semana</Text>.
               </Text>
             </Card>
-            <Card variant="raised" padding="lg" style={{ marginTop: spacing.md }}>
+            <Card variant="section" padding="lg" style={{ marginTop: spacing.md }}>
               <Text variant="label" tone="muted">Rutina seleccionada</Text>
               {customSelected ? (
                 <>
@@ -502,7 +504,7 @@ function FeatureRow({ icon, color, title, desc }: { icon: IconName; color: strin
         style={{
           width: 44,
           height: 44,
-          borderRadius: 12,
+          borderRadius: radius.sm,
           backgroundColor: color + '22',
           alignItems: 'center',
           justifyContent: 'center',
@@ -546,7 +548,7 @@ function ChoiceCard({
           style={{
             width: 44,
             height: 44,
-            borderRadius: 12,
+            borderRadius: radius.sm,
             backgroundColor: iconColor + '22',
             alignItems: 'center',
             justifyContent: 'center',
@@ -561,7 +563,7 @@ function ChoiceCard({
               <View
                 style={{
                   backgroundColor: colors.primary.muted,
-                  borderRadius: 6,
+                  borderRadius: radius.sm,
                   paddingHorizontal: 6,
                   paddingVertical: 1,
                 }}
@@ -582,7 +584,7 @@ function ChoiceCard({
           style={{
             width: 22,
             height: 22,
-            borderRadius: 11,
+            borderRadius: radius.sm,
             borderWidth: 2,
             borderColor: selected ? colors.primary.DEFAULT : colors.border,
             backgroundColor: selected ? colors.primary.DEFAULT : 'transparent',

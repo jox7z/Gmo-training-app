@@ -17,13 +17,55 @@ metadata:
 - handleRefresh clears frozen + refetches
 - Bug: `frozen` is never reset when `type` (followers/following) or `targetUsername` changes while the component stays mounted (e.g. param change via router). [[frozen-stale-on-param-change]]
 
-## ExercisePickerModal dropdown
-- `groupOpen` state is never reset to false when the modal is hidden (visible=false) and re-shown — it can open with the dropdown already expanded
-- No zIndex issues for inline dropdown since it sits above ScrollView in the tree
+## Progress metrics
+- Exercise progress is factual: completed non-warmup sets only; selectable trends
+  are top load, reps and recorded active time. Work stays only in ledger/social.
+- Never reintroduce estimated-strength formulas, rep prescriptions or automatic
+  improved/same/declined verdicts.
+- `hasValidSetPerformance` is the shared 1–999 reps / 0–1000 kg boundary for
+  workout completion, legacy history, records and charts.
+- `WorkoutResultsModal` is a factual ledger. No comparison deltas, motivational
+  verdicts or inferred improvement/decline.
+- Workout social metadata is parsed through `workoutPostMetadata.ts` and rendered
+  with `WorkoutShareCard`; legacy metadata remains supported. Publishing must set
+  local `isPublished` and remove the session from future composer choices.
+- Publishing an older workout compares PRs with the total order
+  `(started_at, coalesce(created_at, started_at), id)`; future workouts and equal
+  timestamps cannot erase or duplicate a historical PR.
+- Workout hydration validates full workout/exercise/set structure and dates before
+  setting Zustand state. Keep persistence failures observable instead of swallowing them.
+- Privacy/notification switches must not exist as local-only decoration.
+- Work uses `kg·rep`/`lb·rep`; plain `kg`/`lb` is reserved for load.
+- Mixed bodyweight/loaded exercise windows use reps so zero external load is not
+  rendered as a false performance collapse.
 
 ## FeedItem ActionButton
 - `label` is now `''` (empty string) when no reaction is active — component conditionally omits the Text node, which is correct
 - The reaction button's emoji fallback '👊' is always rendered, so the button never collapses to zero width — layout is stable
+
+## Social stream layout
+- `Card variant="stream"` removes lateral borders/radius but preserves top/bottom separators.
+- `SocialStreamColumn` owns phone full-width and tablet `maxWidth: 600` centering.
+- Reusable social cards default to `contained`; all stream consumers opt in explicitly.
+- Stream copy/actions use 16px horizontal padding; photos use 4:5 full-bleed; post gaps are 8px.
+- Public profile gallery is 3 columns, 1px gaps, zero outer margin/radius/border.
+- Never attach `entering`/`layout` to recycled `FeedItem` rows.
+
+## Section and skeleton primitives
+- `Card variant="section"` is for information panels: radius 0, top/bottom borders only.
+- `raised` remains for compact selectable/navigation tiles, forms and controls.
+- `SkeletonGroup` owns one animated pulse for all nested `Skeleton` bones.
+- Skeletons render only for initial empty load; cached refetch, pagination and mutations keep existing UI.
+
+## Exercise progress picker
+- `ExerciseProgressPicker` receives only `buildExercisePerformance(history)` results.
+- Search is diacritic-insensitive and covers the complete trained list, even from Recent.
+- Recent limits to six by `latest.ms`; Most trained sorts session count/latest/name.
+- Muscle/equipment metadata comes from `exerciseById`; legacy IDs stay in All/search.
+- Selection is screen-local and has no Supabase or persisted-store contract.
+- Rows use local `exerciseImage` WebPs through recycled `expo-image`; missing/legacy
+  IDs fall back to the dumbbell icon without a remote request.
+- Sheet height stays fixed while filters/search change only the scrollable results.
 
 ## Redesign: Button 3D chunky pattern (added 2026-06-09)
 - Button has chunky 3D mode for md/lg sizes when variant has `edgeColor` (primary, accent, secondary, danger). Ghost never chunky. Use `flat` prop to disable.

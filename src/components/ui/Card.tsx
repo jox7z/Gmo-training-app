@@ -2,7 +2,7 @@ import { View, ViewProps, ViewStyle } from 'react-native';
 import { colors, radius, spacing, shadow } from '@/theme/tokens';
 
 interface Props extends ViewProps {
-  variant?: 'default' | 'elevated' | 'outlined' | 'glow' | 'raised';
+  variant?: 'default' | 'elevated' | 'outlined' | 'glow' | 'raised' | 'stream' | 'section';
   padding?: keyof typeof spacing | 0;
   glowColor?: string;
 }
@@ -15,6 +15,7 @@ export function Card({
   children,
   ...rest
 }: Props) {
+  const hasOpenSides = variant === 'stream' || variant === 'section';
   const variantStyle: ViewStyle = (() => {
     switch (variant) {
       case 'elevated':
@@ -29,9 +30,7 @@ export function Card({
         return {
           backgroundColor: colors.bg.card,
           borderWidth: 1,
-          borderColor: colors.border,
-          borderBottomWidth: 3,
-          borderBottomColor: colors.bg.cardEdge,
+          borderColor: colors.accent.DEFAULT,
           borderRadius: radius['2xl'],
         };
       case 'glow':
@@ -44,6 +43,24 @@ export function Card({
           shadowOpacity: 0.5,
           shadowRadius: 14,
           elevation: 10,
+        };
+      case 'stream':
+        return {
+          backgroundColor: colors.bg.card,
+          borderRadius: 0,
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderColor: colors.border,
+        };
+      case 'section':
+        return {
+          backgroundColor: colors.bg.card,
+          borderRadius: 0,
+          borderTopWidth: 1,
+          borderBottomWidth: 1,
+          borderLeftWidth: 0,
+          borderRightWidth: 0,
+          borderColor: colors.border,
         };
       default:
         return { backgroundColor: colors.bg.card };
@@ -61,6 +78,11 @@ export function Card({
         },
         variantStyle,
         style,
+        hasOpenSides && {
+          borderRadius: 0,
+          borderLeftWidth: 0,
+          borderRightWidth: 0,
+        },
       ]}
     >
       {children}

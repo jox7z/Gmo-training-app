@@ -16,6 +16,7 @@ import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useCommunities } from '@/lib/queries/communities';
 import { CommunityCard } from './CommunityCard';
+import { SocialErrorState } from '@/components/social/SocialErrorState';
 import type { CommunityFilter, Community } from '@/lib/repos/communities';
 
 const FILTERS: { key: CommunityFilter; label: string }[] = [
@@ -40,6 +41,9 @@ export function CommunitiesExplorer() {
 
   const query = useCommunities(filter, search || undefined);
   const data  = query.data ?? [];
+  const hasCommunities = data.length > 0;
+  const showBlockingError = query.isError && !hasCommunities;
+  const showStaleError = query.isError && hasCommunities;
 
   return (
     <FlatList<Community>
@@ -48,13 +52,21 @@ export function CommunitiesExplorer() {
       renderItem={({ item }) => (
         <CommunityCard
           community={item}
+          layout="stream"
           onPress={() =>
             router.push({ pathname: '/communities/[id]', params: { id: item.id } })
           }
         />
       )}
       ListHeaderComponent={
-        <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
+        <View
+          style={{
+            gap: spacing.md,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            marginBottom: spacing.sm,
+          }}
+        >
           {/* Buscador */}
           <View
             style={{
@@ -103,7 +115,7 @@ export function CommunitiesExplorer() {
                     style={{
                       paddingHorizontal: spacing.md,
                       paddingVertical: 8,
-                      borderRadius: radius.full,
+                      borderRadius: radius.sm,
                       borderWidth: 1,
                       borderColor: active ? colors.primary.DEFAULT : colors.border,
                       backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
@@ -129,56 +141,77 @@ export function CommunitiesExplorer() {
             onPress={() => router.push('/communities/new')}
             fullWidth
           />
+
+          {showStaleError && (
+            <SocialErrorState
+              compact
+              title="No pudimos actualizar las comunidades"
+              subtitle="Mostramos la última información disponible mientras recuperas la conexión."
+              onRetry={() => void query.refetch()}
+              isRetrying={query.isFetching}
+            />
+          )}
         </View>
       }
       contentContainerStyle={{
-        padding: spacing.lg,
         paddingBottom: insets.bottom + spacing.lg,
-        gap: spacing.md,
+        width: '100%',
+        maxWidth: 600,
+        alignSelf: 'center',
+        gap: spacing.sm,
         flexGrow: 1,
       }}
       ListEmptyComponent={
-        query.isLoading ? (
-          <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.primary.DEFAULT} />
-          </View>
-        ) : (
-          <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.xl }}>
-            <View
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: 32,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-                marginBottom: spacing.md,
-              }}
-            >
-              <Icon name="users" size={28} color={colors.text.secondary} />
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          {query.isLoading ? (
+            <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
+              <ActivityIndicator color={colors.primary.DEFAULT} />
             </View>
-            <Text variant="heading" style={{ textAlign: 'center' }}>
-              {filter === 'mine'
-                ? 'Aún no creaste ninguna'
-                : filter === 'joined'
-                ? 'Todavía no te uniste a ninguna'
-                : search
-                ? `Sin resultados para "${search}"`
-                : 'No hay comunidades todavía'}
-            </Text>
-            <Text
-              variant="caption"
-              tone="secondary"
-              style={{ marginTop: spacing.xs, textAlign: 'center' }}
-            >
-              {filter === 'all' && !search
-                ? '¡Crea la primera y reúne a tu tribu fitness!'
-                : 'Prueba con otro filtro o busca algo distinto'}
-            </Text>
-          </Card>
-        )
+          ) : showBlockingError ? (
+            <SocialErrorState
+              title="No pudimos cargar las comunidades"
+              subtitle="Revisa tu conexión y vuelve a intentarlo. Tus filtros y búsqueda seguirán aquí."
+              onRetry={() => void query.refetch()}
+              isRetrying={query.isFetching}
+            />
+          ) : (
+            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.xl }}>
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: radius.sm,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.bg.elevated,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  marginBottom: spacing.md,
+                }}
+              >
+                <Icon name="users" size={28} color={colors.text.secondary} />
+              </View>
+              <Text variant="heading" style={{ textAlign: 'center' }}>
+                {filter === 'mine'
+                  ? 'Aún no creaste ninguna'
+                  : filter === 'joined'
+                  ? 'Todavía no te uniste a ninguna'
+                  : search
+                  ? `Sin resultados para "${search}"`
+                  : 'No hay comunidades todavía'}
+              </Text>
+              <Text
+                variant="caption"
+                tone="secondary"
+                style={{ marginTop: spacing.xs, textAlign: 'center' }}
+              >
+                {filter === 'all' && !search
+                  ? '¡Crea la primera y reúne a tu tribu fitness!'
+                  : 'Prueba con otro filtro o busca algo distinto'}
+              </Text>
+            </Card>
+          )}
+        </View>
       }
       showsVerticalScrollIndicator={false}
     />

@@ -6,7 +6,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { resendConfirmationEmail, resetPasswordForEmail, AuthError } from '@/lib/auth';
 
 export default function CheckEmail() {
@@ -57,7 +57,7 @@ export default function CheckEmail() {
             style={{
               width: 88,
               height: 88,
-              borderRadius: 44,
+              borderRadius: radius.sm,
               backgroundColor: colors.accent.soft,
               alignItems: 'center',
               justifyContent: 'center',

@@ -31,7 +31,7 @@ export function PasswordStrengthMeter({ password }: Props) {
             style={{
               flex: 1,
               height: 4,
-              borderRadius: radius.full,
+              borderRadius: radius.sm,
               backgroundColor: i < filled ? color : colors.bg.card,
             }}
           />

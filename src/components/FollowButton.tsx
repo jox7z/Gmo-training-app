@@ -74,7 +74,7 @@ export function FollowButton({ userId, isFollowing, size = 'md', onChange, onCha
           {
             paddingHorizontal: isSm ? spacing.md : spacing.lg,
             paddingVertical: isSm ? 6 : spacing.sm,
-            borderRadius: radius.full,
+            borderRadius: radius.sm,
             borderWidth: 1.5,
             alignItems: 'center' as const,
             justifyContent: 'center' as const,

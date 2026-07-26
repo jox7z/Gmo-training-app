@@ -9,8 +9,8 @@ import { Badge } from '@/components/ui/Badge';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
-import { Loader } from '@/components/ui/Loader';
-import { colors, spacing, RANKS, RankId } from '@/theme/tokens';
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton';
+import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
 import {
   useFollowers,
@@ -49,37 +49,46 @@ export default function Connections() {
   const followersQuery = useFollowers(type === 'followers' ? resolvedId : undefined);
   const followingQuery = useFollowing(type === 'following' ? resolvedId : undefined);
   const query = type === 'followers' ? followersQuery : followingQuery;
+  const refetch = query.refetch;
 
-  // Membresía congelada durante la vida de la pantalla: al dejar de seguir, la fila
-  // permanece visible (estilo Instagram) con la opción de volver a seguir. Solo se
-  // re-sincroniza al refrescar manualmente, al re-montar la pantalla, o al cambiar
-  // el destino de la lista (tipo o usuario).
-  const [frozen, setFrozen] = useState<FollowProfile[] | null>(null);
-
-  // Si cambia el destino dentro del mismo montaje (expo-router actualiza params
-  // in-place), descongela para no mostrar la lista anterior.
-  useEffect(() => {
-    setFrozen(null);
-  }, [type, resolvedId]);
+  // Membresía congelada por destino: dejar de seguir no elimina la fila. La key
+  // evita mostrar seguidores de otro perfil cuando expo-router cambia params
+  // dentro del mismo montaje.
+  const listKey = `${type}:${resolvedId ?? 'pending'}`;
+  const [frozen, setFrozen] = useState<{
+    key: string;
+    rows: FollowProfile[];
+  } | null>(null);
 
   useEffect(() => {
-    if (frozen === null && !query.isLoading && query.data) {
-      setFrozen(query.data);
+    if (frozen?.key !== listKey && !query.isFetching && query.data) {
+      setFrozen({ key: listKey, rows: query.data });
     }
-  }, [frozen, query.isLoading, query.data]);
+  }, [frozen?.key, listKey, query.data, query.isFetching]);
 
-  const data = frozen ?? EMPTY_LIST;
+  const frozenRows = frozen?.key === listKey ? frozen.rows : null;
+  const data = frozenRows ?? query.data ?? EMPTY_LIST;
 
   const handleFollowChange = useCallback((userId: string, next: boolean) => {
     setFrozen((prev) =>
-      prev ? prev.map((u) => (u.id === userId ? { ...u, isFollowing: next } : u)) : prev,
+      prev?.key === listKey
+        ? {
+            ...prev,
+            rows: prev.rows.map((user) =>
+              user.id === userId ? { ...user, isFollowing: next } : user,
+            ),
+          }
+        : prev,
     );
-  }, []);
+  }, [listKey]);
 
   const handleRefresh = useCallback(() => {
-    setFrozen(null);
-    query.refetch();
-  }, [query.refetch]);
+    void refetch().then((result) => {
+      if (result.isSuccess && result.data) {
+        setFrozen({ key: listKey, rows: result.data });
+      }
+    });
+  }, [listKey, refetch]);
 
   const title = type === 'followers' ? 'Seguidores' : 'Siguiendo';
   const subtitle = isSelf ? 'Tu cuenta' : `@${targetUsername}`;
@@ -100,12 +109,17 @@ export default function Connections() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <View
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.bg.elevated,
@@ -126,7 +140,7 @@ export default function Connections() {
       </View>
 
       {searchQuery.isLoading && !isSelf ? (
-        <Loader />
+        <ConnectionsSkeleton label={`Cargando ${title.toLowerCase()}`} />
       ) : !resolvedId ? (
         <View style={{ flex: 1, padding: spacing.lg, justifyContent: 'center' }}>
           <Card padding="xl" style={{ alignItems: 'center' }}>
@@ -140,11 +154,7 @@ export default function Connections() {
           </Card>
         </View>
       ) : query.isLoading && data.length === 0 ? (
-        <View style={{ flex: 1, padding: spacing.lg, gap: spacing.sm }}>
-          {[0, 1, 2, 3].map((i) => (
-            <Card key={i} padding="lg" style={{ height: 72 }} />
-          ))}
-        </View>
+        <ConnectionsSkeleton label={`Cargando ${title.toLowerCase()}`} />
       ) : (
         <FlatList<FollowProfile>
           data={data}
@@ -192,6 +202,30 @@ export default function Connections() {
         />
       )}
     </SafeAreaView>
+  );
+}
+
+function ConnectionsSkeleton({ label }: { label: string }) {
+  return (
+    <SkeletonGroup
+      accessibilityLabel={label}
+      style={{ flex: 1, padding: spacing.lg, gap: spacing.sm }}
+    >
+      {[0, 1, 2, 3].map((i) => (
+        <Card
+          key={i}
+          padding="md"
+          style={{ minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+        >
+          <Skeleton width={44} height={44} borderRadius={radius.full} />
+          <View style={{ flex: 1, gap: spacing.sm }}>
+            <Skeleton width="58%" height={14} />
+            <Skeleton width="42%" height={10} />
+          </View>
+          <Skeleton width={72} height={32} />
+        </Card>
+      ))}
+    </SkeletonGroup>
   );
 }
 

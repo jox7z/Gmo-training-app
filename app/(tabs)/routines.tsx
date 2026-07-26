@@ -15,6 +15,8 @@ import { Icon } from '@/components/Icon';
 import { computeRoutineScore, MUSCLE_LABELS, analyzeRoutineMuscles } from '@/lib/optimizationScore';
 import { MuscleOptimizationTable, STATUS_COLOR } from '@/components/MuscleOptimizationTable';
 import { MuscleMap, type MuscleKey } from '@/components/MuscleMap';
+import { nextRoutineDay } from '@/lib/routineSchedule';
+import { MascotState } from '@/components/GmoMascot';
 
 export default function Routines() {
   const router = useRouter();
@@ -22,6 +24,7 @@ export default function Routines() {
   const activeId = useRoutinesStore((s) => s.activeRoutineId);
   const profile = useAppStore((s) => s.profile);
   const history = useWorkoutsStore((s) => s.history);
+  const activeWorkout = useWorkoutsStore((s) => s.active);
 
   const [selectedMuscle, setSelectedMuscle] = useState<string>('all');
   const [muscleOpen, setMuscleOpen] = useState(false);
@@ -29,7 +32,29 @@ export default function Routines() {
 
   // Una sola rutina por usuario.
   const activeRoutine = routines.find((r) => r.id === activeId) ?? routines[0] ?? null;
-  const nextDay = activeRoutine?.days[history.length % (activeRoutine.days.length || 1)];
+  const nextDay = nextRoutineDay(activeRoutine, history);
+  const activeWorkoutDay = activeRoutine?.days.find(
+    (day) => day.id === activeWorkout?.routineDayId,
+  );
+
+  const openWorkout = () => {
+    if (activeWorkout) {
+      if (activeWorkoutDay && activeRoutine) {
+        router.push({
+          pathname: '/workout/active',
+          params: { routineId: activeRoutine.id, dayId: activeWorkoutDay.id },
+        });
+      } else {
+        router.push('/workout/active');
+      }
+      return;
+    }
+    if (!activeRoutine || !nextDay) return;
+    router.push({
+      pathname: '/workout/active',
+      params: { routineId: activeRoutine.id, dayId: nextDay.id },
+    });
+  };
 
   // Al cambiar de rutina, vuelve a "Todos" para no quedar con un músculo que ya
   // no existe (filtro stale → tabla vacía).
@@ -119,13 +144,12 @@ export default function Routines() {
       </View>
 
       {!activeRoutine ? (
-        <View style={{ alignItems: 'center', marginTop: spacing['2xl'], gap: spacing.lg }}>
-          <Text variant="heading" tone="muted" style={{ textAlign: 'center' }}>
-            Aún no tienes una rutina
-          </Text>
-          <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-            Crea tu rutina de entrenamiento
-          </Text>
+        <MascotState
+          title="Construyamos tu primera rutina"
+          description="Elige una plantilla probada o créala desde cero."
+          mascotSize={168}
+          style={{ marginTop: spacing.xl }}
+        >
           <Button
             title="Elegir plantilla"
             size="lg"
@@ -138,26 +162,23 @@ export default function Routines() {
             onPress={() => router.push({ pathname: '/routine/[id]', params: { id: 'new' } })}
             fullWidth
           />
-        </View>
+        </MascotState>
       ) : (
         <>
-          <Card variant="raised" padding="xl" style={{ marginTop: spacing.lg }}>
+          <Card variant="section" padding="xl" style={{ marginTop: spacing.lg }}>
             <Text variant="label" tone="brand">RUTINA ACTIVA</Text>
             <Text variant="title" style={{ marginTop: 4 }}>{activeRoutine.name}</Text>
             <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
-              {activeRoutine.days.length} días · próximo: {nextDay?.name ?? '—'}
+              {activeWorkout
+                ? `${activeWorkout.routineName ?? 'Sesión activa'} · en curso`
+                : `${activeRoutine.days.length} días · próximo: ${nextDay?.name ?? '—'}`}
             </Text>
-            {nextDay && (
+            {(activeWorkout || nextDay) && (
               <Button
-                title="Empezar"
+                title={activeWorkout ? 'Continuar entrenamiento' : 'Empezar'}
                 size="lg"
-                leftIcon={<Icon name="dumbbell" size={18} color="#fff" />}
-                onPress={() =>
-                  router.push({
-                    pathname: '/workout/active',
-                    params: { routineId: activeRoutine.id, dayId: nextDay.id },
-                  })
-                }
+                leftIcon={<Icon name="dumbbell" size={18} color={colors.text.primary} />}
+                onPress={openWorkout}
                 fullWidth
                 style={{ marginTop: spacing.lg }}
               />
@@ -179,13 +200,13 @@ export default function Routines() {
               style={{ marginTop: spacing['2xl'], alignItems: 'center' }}
             >
               <Text variant="heading" style={{ marginBottom: spacing.md, alignSelf: 'stretch' }}>Score de optimización</Text>
-              <Card variant="raised" padding="lg" style={{ alignSelf: 'stretch' }}>
+              <Card variant="section" padding="lg" style={{ alignSelf: 'stretch' }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   <View
                     style={{
                       width: 68,
                       height: 68,
-                      borderRadius: 34,
+                      borderRadius: radius.full,
                       backgroundColor: scoreColor + '22',
                       borderWidth: 2,
                       borderColor: scoreColor,
@@ -211,8 +232,8 @@ export default function Routines() {
                             const barColor = val > 80 ? colors.success : val >= 50 ? colors.warning : colors.danger;
                             return (
                               <View key={key} style={{ flex: 1 }}>
-                                <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.border }}>
-                                  <View style={{ height: 3, borderRadius: 2, backgroundColor: barColor, width: `${val}%` as any }} />
+                                <View style={{ height: 3, borderRadius: radius.sm, backgroundColor: colors.border }}>
+                                  <View style={{ height: 3, borderRadius: radius.sm, backgroundColor: barColor, width: `${val}%` as any }} />
                                 </View>
                               </View>
                             );
@@ -238,7 +259,7 @@ export default function Routines() {
               style={{ marginTop: spacing['2xl'] }}
             >
               <Text variant="heading" style={{ marginBottom: spacing.md }}>Mapa muscular</Text>
-              <Card variant="raised" padding="lg">
+              <Card variant="section" padding="lg">
                 {/* Toggle frente / espalda */}
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
                   {(['front', 'back'] as const).map((v) => {
@@ -252,7 +273,7 @@ export default function Routines() {
                         style={{
                           flex: 1,
                           paddingVertical: 8,
-                          borderRadius: radius.full,
+                          borderRadius: radius.sm,
                           alignItems: 'center',
                           backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
                           borderWidth: 1,
@@ -291,7 +312,7 @@ export default function Routines() {
                         style={{
                           width: 10,
                           height: 10,
-                          borderRadius: 5,
+                          borderRadius: radius.full,
                           backgroundColor: STATUS_COLOR[status],
                         }}
                       />
@@ -387,7 +408,7 @@ export default function Routines() {
                 )}
               </View>
 
-              <Card variant="raised" padding="lg" style={{ alignSelf: 'stretch' }}>
+              <Card variant="section" padding="lg" style={{ alignSelf: 'stretch' }}>
                 <MuscleOptimizationTable
                   items={selectedMuscle === 'all' ? muscleStats : muscleStats.filter((m) => m.muscle === selectedMuscle)}
                   grouped={selectedMuscle === 'all'}

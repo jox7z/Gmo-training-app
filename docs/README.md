@@ -10,6 +10,7 @@ docs/
 ├── memory/                      # contexto vivo — qué hay y qué falta
 │   ├── overview.md             # qué es la app, stack, ambiente
 │   ├── checklist.md            # bitácora de avance
+│   ├── exercises-dataset-audit.md # cobertura, commit y límite de licencia
 │   └── architecture.md         # diseño de capas + modelo multi-agente
 └── skills/                      # capacidades reusables para agentes
     ├── agents/                  # rol e identidad de cada agente
@@ -28,9 +29,10 @@ docs/
 ## 🧭 Cómo usar esta documentación
 
 ### Si vas a darle trabajo a un agente
-1. Pásale primero su archivo de identidad: `skills/agents/<agente>.md`
-2. Luego el prompt específico que vive en `skills/prompts.md`
-3. Cuando termine, corre el revisor con `skills/agents/reviewer.md`
+1. Empieza con `CAVEMAN` y `.claude/skills/caveman.md`
+2. Pásale su archivo de identidad: `skills/agents/<agente>.md`
+3. Luego el prompt específico que vive en `skills/prompts.md`
+4. Cuando termine, corre tests y el revisor
 
 ### Si vas a entender el estado del proyecto
 1. Empieza en `memory/checklist.md` (qué está hecho, qué falta)
@@ -42,9 +44,12 @@ docs/
 
 ## 🔄 Reglas de mantenimiento
 
-- **`memory/checklist.md`** se actualiza al terminar cada sprint
+- **`memory/checklist.md`** se actualiza al terminar cada request que cambie código,
+  producto, datos u operación; incluye fecha, checks, riesgo y siguiente paso
+- **`roadmap*.md`** se actualiza cuando cambia prioridad, benchmark, dependencia o estado
 - **`skills/prompts.md`** se rota: lo aplicado se borra o se resume en una línea del checklist
 - **`skills/agents/*.md`** son estables, solo cambian si redefines roles
 - **`skills/scripts/*.md`** se actualizan cuando cambia el proceso operativo
+- No se cierra trabajo con claims obsoletos en otros `.md` relacionados
 
 No se acumulan markdowns. Si un archivo crece más de 300 líneas, partir o resumir.

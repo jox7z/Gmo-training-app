@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, FlatList, RefreshControl, Image } from 'react-native';
+import { View, FlatList, RefreshControl, Image, useWindowDimensions } from 'react-native';
 import { openInstagram } from '@/lib/linking';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -32,6 +32,7 @@ function rankInfo(id: RankId) {
 export default function PublicProfile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width: viewportWidth } = useWindowDimensions();
   const params = useLocalSearchParams<{ username: string }>();
   const username = (params.username ?? '').toLowerCase();
   const me = useAppStore((s) => s.profile);
@@ -141,6 +142,8 @@ export default function PublicProfile() {
   const followersCount = followersQuery.data?.length ?? displayProfile.followersCount;
   const followingCount = followingQuery.data?.length ?? 0;
   const postsCount = userPosts.length;
+  const streamWidth = Math.min(viewportWidth, 600);
+  const cellSize = (streamWidth - 2) / 3;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
@@ -148,18 +151,18 @@ export default function PublicProfile() {
       <Header onBack={() => router.back()} title={`@${displayProfile.username}`} />
 
       <FlatList<Post>
+        style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}
         data={userPosts}
         keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={{ gap: spacing.sm }}
+        numColumns={3}
+        columnWrapperStyle={{ gap: 1 }}
         contentContainerStyle={{
-          paddingHorizontal: spacing.lg,
           paddingTop: spacing.lg,
           paddingBottom: insets.bottom + spacing.lg,
-          gap: spacing.sm,
+          gap: 1,
         }}
         ListHeaderComponent={
-          <View>
+          <View style={{ paddingHorizontal: spacing.lg }}>
             <Card padding="lg">
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
                 <Avatar
@@ -188,7 +191,7 @@ export default function PublicProfile() {
                         alignSelf: 'flex-start',
                         paddingHorizontal: spacing.sm,
                         paddingVertical: spacing.xs,
-                        borderRadius: radius.full,
+                        borderRadius: radius.sm,
                         backgroundColor: 'rgba(225,48,108,0.12)',
                         borderWidth: 1,
                         borderColor: 'rgba(225,48,108,0.4)',
@@ -265,20 +268,24 @@ export default function PublicProfile() {
           </View>
         }
         renderItem={({ item }) => (
-          <PostCell post={item} onPress={() => setCommentsPost(item)} />
+          <PostCell post={item} size={cellSize} onPress={() => setCommentsPost(item)} />
         )}
         ListEmptyComponent={
           userPostsQuery.isLoading ? (
-            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
-              <Text variant="caption" tone="muted">Cargando publicaciones…</Text>
-            </Card>
+            <View style={{ paddingHorizontal: spacing.lg }}>
+              <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
+                <Text variant="caption" tone="muted">Cargando publicaciones…</Text>
+              </Card>
+            </View>
           ) : (
-            <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
-              <Icon name="image" size={32} color={colors.text.muted} />
-              <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-                Aún no hay publicaciones.
-              </Text>
-            </Card>
+            <View style={{ paddingHorizontal: spacing.lg }}>
+              <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.md }}>
+                <Icon name="image" size={32} color={colors.text.muted} />
+                <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
+                  Aún no hay publicaciones.
+                </Text>
+              </Card>
+            </View>
           )
         }
         refreshControl={
@@ -308,6 +315,9 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <View
       style={{
+        width: '100%',
+        maxWidth: 600,
+        alignSelf: 'center',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: spacing.lg,
@@ -323,7 +333,7 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
           style={{
             width: 36,
             height: 36,
-            borderRadius: 18,
+            borderRadius: radius.full,
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: colors.bg.elevated,
@@ -342,20 +352,17 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
   );
 }
 
-function PostCell({ post, onPress }: { post: Post; onPress: () => void }) {
+function PostCell({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
   return (
     <PressableScale
       onPress={onPress}
       pressScale={0.96}
       haptic={false}
       style={{
-        flex: 1,
-        aspectRatio: 1,
-        borderRadius: radius.lg,
+        width: size,
+        height: size,
         overflow: 'hidden',
         backgroundColor: colors.bg.elevated,
-        borderWidth: 1,
-        borderColor: colors.border,
       }}
     >
       {post.photoUrl ? (

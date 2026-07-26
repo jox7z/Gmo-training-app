@@ -1,5 +1,5 @@
 import { View, Image, ViewStyle } from 'react-native';
-import { colors, radius } from '@/theme/tokens';
+import { colors } from '@/theme/tokens';
 import { Text } from './ui/Text';
 
 interface Props {

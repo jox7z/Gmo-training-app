@@ -229,7 +229,7 @@ export default function EditProfile() {
               style={{
                 width: 36,
                 height: 36,
-                borderRadius: 18,
+                borderRadius: radius.full,
                 backgroundColor: colors.bg.elevated,
                 borderWidth: 1,
                 borderColor: colors.border,
@@ -271,7 +271,7 @@ export default function EditProfile() {
                     right: 0,
                     width: 36,
                     height: 36,
-                    borderRadius: 18,
+                    borderRadius: radius.full,
                     backgroundColor: colors.primary.DEFAULT,
                     borderWidth: 3,
                     borderColor: colors.bg.base,
@@ -399,7 +399,7 @@ export default function EditProfile() {
                         style={{
                           flex: 1,
                           paddingVertical: 10,
-                          borderRadius: radius.full,
+                          borderRadius: radius.sm,
                           alignItems: 'center',
                           backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
                           borderWidth: 1,

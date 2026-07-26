@@ -1,170 +1,430 @@
 # Checklist de avance
 
-> Bitácora de estado del proyecto. Última actualización: 2026-05-26.
-> Sprint 4 + 4.1 completados ✅ — Sprint 4.2 (polish de red social)
-> en progreso. Siguiente: Sprint 5 (Coach IA).
+> Fuente viva del estado del proyecto. Última actualización: 2026-07-24.
+> No marcar un bloque como completado sin `npm test`, `npm run typecheck`,
+> `npm run lint` y revisión de calidad. El smoke visual en Expo sigue siendo manual.
 
-## 📊 Resumen ejecutivo
+## Resumen ejecutivo
 
-| Capa | Estado | Comentario |
+| Capa | Estado | Evidencia actual |
 |---|---|---|
-| Auth (login + registro) | ✅ | Email-only signup, redirect basado en `is_profile_complete`, no más loop de onboarding |
-| Base de datos Supabase | ✅ | Migrations 0001-0009 aplicadas, BD en producción |
-| Frontend UI core | ✅ ~92% | 4 tabs (Feed/Rutinas/Progreso/Perfil), tracking granular por serie |
-| Sync cliente ↔ servidor | ✅ ~85% | Repos cableados + storage de fotos |
-| Feed social | ✅ v2 | Posts manuales con foto, comentarios, share, reacciones, follow |
-| Body tracking | ✅ | body_measurements + gráfico SVG de peso en Progreso |
-| User search | ✅ | RPC search_users + pantalla Discover + lupa en Feed |
-| Fotos públicas | ✅ | post-photos bucket público + fix FileSystem upload |
-| Coach IA | 🟡 | Mock local funcional; pendiente desplegar edge function |
-| Build distribución | 🟡 | EAS preview probado; falta production AAB |
-| Calidad técnica | 🔴 | Sin tests, sin Sentry, sin analytics |
+| Auth y onboarding | ✅ | Gating central en `app/_layout.tsx` con RPC `is_profile_complete` y timeouts |
+| Supabase | ✅ Producción | Migraciones `0001`→`0046`; RPC atómica, publicación monotónica y PR históricos con orden total |
+| Workout core | 🟡 pre-release | Flujo competitivo y sync remoto listos; falta smoke físico end-to-end |
+| Rutinas | ✅ | CRUD local/remoto, templates y generador con fallback offline |
+| Social | ✅ factual | Stream edge-to-edge, comentarios, follow y tarjeta workout con metadata real + share externo |
+| Progreso | ✅ honesto | Tendencia real, peso corporal separado y punto→sesión; sin estimaciones ni veredictos |
+| Gamificación | ✅ | Racha derivada por meta, 9 rangos, logros, eventos y comunidades |
+| Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
+| Calidad técnica | 🟡 | 66 tests puros en 11 suites; faltan Sentry, analytics y smoke automatizado |
 
-## ✅ Hitos completados
+## Corrección — Selector de progreso con altura estable (2026-07-24)
 
-### Auth & Registro
-- [x] Login, signup, forgot-password, check-email, reset-password
-- [x] Capa `src/lib/auth/` con AuthError tipado + mapping en español
-- [x] Hook `useSession()` suscrito a `onAuthStateChange`
-- [x] Redirect centralizado en `app/_layout.tsx`
-- [x] RPC `complete_signup` + `check_username_available`
-- [x] Sign out desde Profile
-- [x] Signup email-only (SIMPL-1B)
-- [x] RPC `is_profile_complete` + redirect basado en backend (SIMPL-1B)
-- [x] `markOnboarded()` sincroniza el flag local con el backend (Sprint N)
-- [x] Loop de onboarding post-login corregido (Sprint N)
+Objetivo: mantener cabecera, buscador y filtros en una posición fija aunque la
+consulta deje muchos, uno o cero ejercicios.
 
-### Base de datos
-- [x] Proyecto Supabase creado y desplegado
-- [x] Migrations 0001-0007 aplicadas
-- [x] Seed de 24 ejercicios
-- [x] `.env` configurado
-- [x] Email auth habilitado
-- [x] Bucket `post-photos` privado + RLS por prefijo de uid (SOCIAL-V2)
+### Implementación
 
-### Frontend core
-- [x] Onboarding 6 pasos
-- [x] Workout interactivo set-by-set con cronómetro de descanso
-- [x] Editor de rutinas con tabs por día
-- [x] Score de optimización (5 métricas) en Routines
-- [x] Heatmap anual estilo GitHub en Profile
-- [x] Sistema de iconografía SVG custom
-- [x] Tokens consistentes (modo oscuro)
-- [x] Safe area en iPhone
+- [x] Sheet del picker con altura explícita de 90 % del viewport disponible
+- [x] `FlatList` limitada al espacio interior; resultados ya no definen el alto del modal
+- [x] Estado vacío centrado dentro de la misma superficie
+- [x] Sin cambio en selección, filtros, historial, persistencia o Supabase
+- [x] AGENTS, CLAUDE, Caveman, agentes, memoria, arquitectura y roadmaps actualizados
 
-### Sync cliente ↔ servidor
-- [x] Repos workouts, profile, routines
-- [x] Wiring: workout/active → saveWorkout
-- [x] Wiring: routines → saveRoutine/deleteRoutineRemote
-- [x] Wiring: onboarding → completeSignup (RPC)
-- [x] Login carga perfil remoto
+### Verificación
 
-### Distribución
-- [x] EAS preview build APK probado en Android
-- [x] `app.config.js` lee env vars
+- [x] Suite completa — 11 suites / 66 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 2 warnings preexistentes
+- [x] Bundle Android — 2033 módulos / HBC 6,03 MB
+- [x] Revisión `code-quality-reviewer` — sin hallazgos P0–P3
+- [ ] Smoke físico Android/iOS: muchos, uno y cero resultados; teclado abierto/cerrado
 
-## 🚧 Próximos cambios (en orden)
+### Riesgo restante
 
-### Sprint 1 — Simplificar registro ✅
-Signup reducido a email + password. Backend (`is_profile_complete`)
-decide si forzar onboarding. Loop post-login eliminado en Sprint N.
+- El layout visual necesita confirmación física con teclado y safe areas reales.
+- Landscape y Dynamic Type máximo siguen sin validación física.
 
-### Sprint 2 — Feed social v2 estilo LinkedIn ✅
-Posts manuales con foto + texto, comentarios, share sheet, reacciones,
-follow, perfiles públicos. Migración 0007 + storage `post-photos`.
+### Siguiente paso ejecutable
 
-### Sprint 3 — Progreso & restructura de Perfil ✅
-4 tabs (Feed/Rutinas/Progreso/Perfil), tracking granular por serie
-(duración + descanso posterior), pantalla Progreso con summary +
-timeline (gráfico de barras), Perfil enfocado en identidad social.
-Migración 0008 + RPCs `progress_summary`/`progress_timeline`.
+1. Smoke físico en 360/390/430/768 px con filtros combinados.
+2. Validar teclado, landscape y Dynamic Type máximo.
+3. Continuar C2-1 después del smoke sin mezclar alcance.
 
-### Sprint 3.1 — Cleanup post-revisión Sprint 3 ✅
-Bucket `avatars` separado de `post-photos`. RPC `profile_counters`
-consolida 3 round-trips en 1. `aggregateLocal` borrado. Magic strings
-y casts dobles eliminados. Migración 0009.
+## Sprint en cierre — Picker visual + progreso sin Trabajo (2026-07-22)
 
-### Sprint 3.2 — Invalidación de profileCounters ✅
-6 hooks de mutación (follow, unfollow, publishWorkout, publishPR,
-publishManualPost, deletePost) invalidan `['profileCounters']` por
-prefix. Counters se refrescan al instante tras la acción.
+Objetivo: reconocer variantes por imagen y simplificar la comparación a señales
+directas: carga, repeticiones y tiempo registrado.
 
-### Sprint 3.3 — Centralizar profileCountersKey ✅
-`profileCountersKey` exportada desde `queries/profile.ts` y reusada
-en `feed.ts`. Fuente única, sin riesgo de divergencia.
+### Implementación
 
-### Sprint 4 — Red social completa + Body tracking ✅
-- [x] Migration 0010: post-photos público, body_measurements, body_timeline, search_users, list_followers, list_following, list_user_posts
-- [x] photos.ts arreglado: expo-file-system + base64-arraybuffer + getPublicUrl (no más signed URLs)
-- [x] repos/body.ts + queries/body.ts (listMeasurements, addMeasurement, deleteMeasurement)
-- [x] queries/search.ts: useSearchUsers (debounce 30s stale)
-- [x] queries/social.ts: useFollow/useUnfollow con optimistic update en profileCounters
-- [x] discover.tsx: búsqueda con debounce 350ms, follow/unfollow, → /profile/[username]
-- [x] body/new.tsx: modal peso + avanzado (grasa/músculo/agua) con validación
-- [x] profile/[username].tsx: followers/following/posts cableados, botón follow/unfollow
-- [x] profile/connections.tsx: lista con avatar + rango + botón seguir
-- [x] progress.tsx: BodySection + WeightTimelineCard SVG (≥2 puntos)
-- [x] _layout.tsx: body/new (modal) + discover + inAllowedAuthedRoute actualizados
-- [x] Feed header: lupa arriba-derecha → /discover; CoachFab arriba-izquierda
-- [x] TypeScript: 0 errores
+- [x] Miniatura WebP local en ejercicio seleccionado y filas del picker
+- [x] `expo-image` con cache/recycling y fallback dumbbell para asset/ID ausente
+- [x] `Trabajo` retirado del selector y timeline principal de Progreso
+- [x] Hub: tendencia carga/reps y récord secundario de reps; sin comparación por trabajo
+- [x] Trabajo conservado como dato factual en ledgers y tarjeta/share social
+- [x] Campos/cálculos de volumen muertos retirados de helpers de progreso
+- [x] Sin dependencia ni cambio Supabase/RLS/RPC/Storage/migraciones
+- [x] AGENTS, CLAUDE, Caveman, agentes, overview, arquitectura y roadmaps actualizados
 
-### Sprint 4.1 — Bugfixes post-S4 ✅
-- [x] **BUG-1** `useFollow`/`useUnfollow` invalidan `['search','users']` → botón Seguir reacciona al instante en Discover
-- [x] **BUG-2** Migration 0011: `list_followers`/`list_following` devuelven `rank_points`; `repos/social.ts` mapea `row.rank_points`
-- [x] **BUG-3** `profile/[username].tsx`: `isSelf` usa `me.id` directo; `useSearchUsers('')` deshabilitado cuando isSelf
-- [x] **BUG-4** `ConnectionRow`: eliminado `useIsFollowing` por fila; usa `user.isFollowing` del RPC
-- [x] TypeScript: 0 errores
+### Verificación
 
-### Sprint 4.2 — Polish de red social 🚧 EN PROGRESO
-Que se sienta como Instagram/Strava. Reportado por el usuario:
-botón Seguir no cambia al pulsar, no hay swipe entre tabs, las 3
-reacciones (fire/muscle/clap) confunden — reducir a 2 (muscle+heart).
-- Migration 0012: post_reactions con CHECK (type in 'muscle','heart')
-- Optimistic update real en useFollow/useUnfollow/useToggleReaction
-- react-native-pager-view para swipe entre las 4 tabs
-- FeedItem con 2 botones (muscle outline/filled + heart outline/filled)
-- FollowButton reusable con haptics + scale animation
-- Haptics en reacciones, comments, publicar, navegación
-→ Prompts SP4.2-SB, SP4.2-BE, SP4.2-FE en `docs/skills/prompts.md`
+- [x] Suite completa — 11 suites / 66 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 2 warnings preexistentes
+- [x] Bundle Android — 2033 módulos / HBC 6,03 MB
+- [x] Revisión `code-quality-reviewer` — limpia tras corregir fallback métrico, campos muertos y accesibilidad
+- [ ] Smoke físico: thumbnails, fallback, Carga/Reps/Tiempo, hub y ledger
 
-### Sprint 5 — Coach IA en la nube 🟡
-- [ ] `supabase functions deploy coach`
-- [ ] Configurar `GEMINI_API_KEY`
-- [ ] Verificar logs
+### Riesgo restante
 
-### Sprint 6 — Push notifications 🟡
-- [ ] Setup expo-notifications
-- [ ] Recordatorio diario
-- [ ] Notificación al subir de rango
-- [ ] Notificaciones sociales
+- Las imágenes son decorativas; identificación textual y accesibilidad siguen mandando.
+- Sin dispositivo conectado no puede cerrarse recycling, memoria ni lectura visual real.
 
-### Sprint 7 — Polish UX 🟢
-- [ ] Splash screen + íconos reales
-- [ ] Skeleton loaders en feed
-- [ ] Onboarding tour con coach marks
-- [ ] Settings editar peso/altura post-onboarding
-- [ ] Confetti al subir de rango
+### Siguiente paso ejecutable
 
-### Sprint 8 — Calidad técnica 🟡
-- [ ] Tests (Jest + RNTL)
-- [ ] Sentry crash reporting
-- [ ] PostHog / Amplitude analytics
-- [ ] EAS Update OTA
+1. Smoke físico con ejercicios con/sin asset y varias densidades.
+2. Continuar C2-1 después del smoke sin mezclar alcance.
+3. Auditar C2-2 después del smoke sin ampliar el alcance de Progreso.
 
-## 🐛 Bugs conocidos
+## Sprint en cierre — Selector de progreso escalable (2026-07-22)
 
-- [x] S4.1-BUG-1 → S4.1 ✅
-- [x] S4.1-BUG-2 → S4.1 ✅
-- [x] S4.1-BUG-3 → S4.1 ✅
-- [x] S4.1-BUG-4 → S4.1 ✅
-- [x] **Loop de bienvenida post-signup** — `profileComplete` en `_layout.tsx` no se
-  actualizaba tras `completeSignup()` (no hay SIGNED_IN event nuevo). CASE 3 veía
-  `profileComplete===false && !inOnboarding` y mandaba a `/onboarding` → loop.
-  Fix: condición ahora es `profileComplete===false && !onboarded`. Effect 3b
-  re-sincroniza `profileComplete` cuando `onboarded` pasa a `true`. Sprint 4.2 ✅
-- [ ] Generador IA de rutinas usa heurística local, no edge function
-- [ ] Racha se incrementa local sin respetar "1 vez por día" estricto
-- [ ] Sin validación "workout válido" antes de guardar
-- [ ] Cambiar KG↔LB en workout activo redondea inputs
-- [ ] Cronómetro no se pausa al ir a background
-- [ ] Generador IA reemplaza rutina activa sin confirmar
+Objetivo: encontrar rápidamente un ejercicio entrenado aunque existan muchas
+variantes, sin convertir Progreso en guía ni añadir estado remoto.
+
+### Implementación
+
+- [x] Carrusel horizontal retirado de `Progreso por ejercicio`
+- [x] Fila compacta muestra ejercicio, metadata, sesiones, fecha y acceso al picker
+- [x] Modal buscable con Recientes, Más entrenados y Todos
+- [x] Búsqueda sin diacríticos sobre la lista completa entrenada
+- [x] Filtros combinables por músculo primario y equipo
+- [x] IDs legacy sin catálogo permanecen disponibles en Todos/búsqueda
+- [x] Selección conserva métricas factuales, rango, punto→sesión y hub del ejercicio
+- [x] Sin dependencia, persistencia, recomendación ni cambio Supabase/RLS/RPC/migración
+- [x] AGENTS, CLAUDE, Caveman, agentes, overview, arquitectura y roadmaps actualizados
+
+### Verificación
+
+- [x] Tests del picker y suite completa — 11 suites / 66 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 2 warnings preexistentes
+- [x] Bundle Android — 2033 módulos / HBC 6,03 MB
+- [x] Revisión `code-quality-reviewer` — limpia tras bloquear hub legacy y completar etiquetas accesibles
+- [ ] Smoke físico: muchos ejercicios, teclado, Back, TalkBack y filtros combinados
+
+### Riesgo restante
+
+- El historial remoto de un dispositivo nuevo conserva el límite actual de 100 workouts.
+- No hay infraestructura de tests de componentes RN; interacción queda cubierta por smoke.
+- Sin dispositivo conectado no puede cerrarse teclado, foco, safe-area ni TalkBack.
+
+### Siguiente paso ejecutable
+
+1. Smoke físico del picker en 360/390/430/768 px.
+2. Continuar C2-1 en loaders restantes sin mezclar alcance.
+3. Auditar C2-2 después del smoke; el Modal nativo actual no completa la consolidación.
+
+## Sprint en cierre — Secciones sin bordes laterales + Skeleton C2-1 (2026-07-22)
+
+Objetivo: eliminar marcos laterales de paneles informativos en toda la app y
+unificar cargas iniciales sin añadir dependencia ni alterar estados de datos.
+
+### Implementación
+
+- [x] `Card variant="section"`: radio 0, solo separadores superior/inferior
+- [x] `stream`, defaults y tiles `raised` compactos permanecen intactos
+- [x] Secciones migradas en Rutinas, Progreso, Perfil, Logros y hub de ejercicio
+- [x] Secciones migradas en workout activo, onboarding, evento y rutina vacía
+- [x] Formularios, controles, botones, inputs, modales, estados y círculos conservan borde
+- [x] `Skeleton` + `SkeletonGroup` compartidos; un pulso por grupo
+- [x] Reduce Motion detiene el pulso y conserva skeleton estático
+- [x] Feed, conexiones, posts propios, peso principal y detalle de peso migrados
+- [x] Skeleton solo en carga inicial vacía; cache/refetch/paginación/mutación intactos
+- [x] Sin dependencia nueva ni cambios en Supabase/Post/RLS/RPC/migraciones
+- [x] AGENTS, CLAUDE, Caveman, agentes, arquitectura, overview y roadmaps actualizados
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 10 suites / 58 tests / 0 snapshots
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 2 warnings preexistentes
+- [x] Bundle Android — 2031 módulos / HBC 6,01 MB
+- [x] Revisión `code-quality-reviewer` — limpia tras corregir carga cacheada, reduced-motion y cierre lateral inmutable
+- [ ] Smoke físico: secciones, carga inicial, refetch con cache y reduced-motion
+
+### Riesgo restante
+
+- Notificaciones, discovery y comunidades conservan loaders anteriores; C2-1 sigue parcial.
+- Sin dispositivo conectado no puede cerrarse inspección visual ni reduced-motion.
+
+### Siguiente paso ejecutable
+
+1. Smoke físico de secciones y loaders en 360/390/430/768 px.
+2. Continuar C2-1 en notificaciones/discovery/comunidades sin tocar paginación.
+3. Auditar el siguiente bloque C2 después del smoke, sin ampliar alcance de producto.
+
+## Sprint en cierre — Stream social edge-to-edge (2026-07-22)
+
+Objetivo: usar el ancho de pantalla en superficies públicas tipo Instagram sin
+degradar legibilidad, controles contenidos ni contratos sociales existentes.
+
+### Implementación
+
+- [x] `Card variant="stream"`: radio 0 y solo separadores superior/inferior
+- [x] `SocialStreamColumn`: ancho móvil completo y máximo 600 px centrado
+- [x] Feed/FlashList sin padding lateral; compositor, skeleton y estados alineados
+- [x] `FeedItem` stream para manual, workout, PR, rank_up, streak y achievement
+- [x] Copy/metadata/reacciones/acciones a 16 px y targets táctiles de 44 px
+- [x] Fotos manual/workout/PR 4:5 full-bleed sin radio
+- [x] PR dorado sin doble marco; animación limitada a líneas superior/inferior
+- [x] `WorkoutShareCard` conserva rail/divisor y elimina marco estadístico lateral
+- [x] Muro comunitario reutiliza `FeedItem layout="stream"`
+- [x] `CommunityCard` y `EventCard` exponen `layout` con default `contained`
+- [x] Preview y publicaciones propias edge-to-edge; formularios siguen contenidos
+- [x] Perfil público: galería 3 columnas, gap 1 px, sin margen/radio/borde exterior
+- [x] Sin dependencias ni cambios en `Post`, Supabase, RLS, RPC o migraciones
+- [x] AGENTS, CLAUDE, Caveman, agentes, overview, arquitectura, roadmaps y prompts actualizados
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 10 suites / 58 tests / 0 snapshots
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 3 warnings preexistentes
+- [x] Bundle Android — 2030 módulos / HBC 6,01 MB
+- [x] Revisión `code-quality-reviewer` — limpia tras corregir targets 44 px, padding y footer
+- [x] Expo Web diagnosticado — bloqueado por import nativo de `react-native-pager-view`; no valida UI
+- [ ] Smoke físico Expo Go/Android: 360/390/430/768 px y acciones sociales
+
+### Riesgo restante
+
+- Falta inspección física en los cuatro anchos, incluyendo reciclado/paginación y
+  todos los tipos de post con contenido real.
+- Expo Web no sirve como sustituto: Metro falla al importar
+  `react-native/Libraries/Utilities/codegenNativeCommands` desde PagerView.
+
+### Siguiente paso ejecutable
+
+1. Smoke físico en 360/390/430 px y tablet 768 px con capturas.
+2. Continuar con una plantilla exportable de workout + mapa muscular.
+
+## Sprint en cierre — Social factual e historial navegable (2026-07-22)
+
+Objetivo: convertir el entrenamiento guardado en contenido social útil y conectar
+Progreso con el historial real, sin añadir guía automática ni controles ficticios.
+
+### Implementación
+
+- [x] `WorkoutShareCard` rectangular compartida por compositor y Feed
+- [x] Metadata tipada/legacy-safe para duración, series, reps, `kg·rep`, músculos y ejercicios
+- [x] Migración `0044` conserva firma, lock, publicación monotónica y ACL authenticated-only
+- [x] Migración `0045` evita comparar PR históricos contra sesiones futuras
+- [x] Migración `0046` desempata PR por `started_at`, `created_at` e ID
+- [x] Share nativo desde Feed y Comunidad solo incrementa contador tras compartir
+- [x] Texto externo incluye métricas reales en KG/LB y grupos musculares traducidos
+- [x] Publicación exitosa marca `isPublished` local y excluye el workout del compositor
+- [x] `mergeHistory` reconcilia `isPublished` de forma monotónica entre dispositivos
+- [x] Cada punto de Progreso conserva `workoutId` y abre el registro exacto
+- [x] `WorkoutResultsModal` muestra un ledger factual; sin deltas ni felicitaciones comparativas
+- [x] Summary post-workout deja de declarar mejoras o caídas automáticamente
+- [x] Helpers comparativos muertos retirados junto con sus contratos redundantes
+- [x] Switches locales sin efecto de privacidad/notificaciones retirados de Configuración
+- [x] Publicación bloquea doble toque, recupera un ID de workout stale y rechaza números parciales
+- [x] Hidratación local tolera JSON corrupto y registra fallos de persistencia
+- [x] AGENTS, CLAUDE, skill Caveman, memorias de agentes, overview, arquitectura y roadmaps actualizados
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 10 suites / 58 tests / 0 snapshots
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 3 warnings preexistentes
+- [x] Bundle Android — 2029 módulos / HBC 6,00 MB
+- [x] Revisión `code-quality-reviewer` — cierre limpio tras corregir P1/P2/P3
+- [x] `git diff --check` — limpio
+- [x] `0044`/`0045`/`0046` live; última versión `20260722140530`: firma/ACL/search_path/contrato verificados; 0 datos mutados
+- [ ] Smoke visual en Expo Go/Android: compositor, Feed, share nativo y punto→sesión
+
+### Riesgo restante
+
+- La plantilla externa aún es texto; falta exportar imagen PR/racha/mes con mapa muscular.
+- La privacidad social sigue siendo pública para usuarios autenticados; no hay switches
+  hasta que existan columnas, RPC/RLS y reglas de feed completas.
+- Las notificaciones siguen fuera de alcance hasta el salto a development build.
+- Posts anteriores a `0044` muestran solo las claves legacy disponibles.
+- El ledger de migraciones live usa timestamps y no alinea con los archivos
+  numéricos `0001–0046`; un `db push` futuro queda bloqueado hasta reconciliarlo.
+
+### Siguiente paso ejecutable
+
+1. Link/auth de Supabase CLI, auditoría del schema live y reparación del ledger
+   completo; no usar `--include-all` ni reparar solo `0044`/`0045`/`0046`.
+2. Smoke físico de tarjeta social, share y navegación desde la gráfica.
+3. Diseñar una sola plantilla de imagen de workout con mapa muscular antes de
+   multiplicarla a PR/racha/mes.
+
+## Sprint completado — Roadmap visual y workout competitivo (2026-07-19)
+
+Objetivo: reducir fricción para entrenar y convertir el sistema visual en una
+base reutilizable sin añadir dependencias ni romper Expo Go.
+
+### Implementación
+
+- [x] Tokens de metales y gradientes reutilizables
+- [x] Escala tipográfica con `lineHeight` y `letterSpacing` por variante
+- [x] `Text.tsx` usa los tokens tipográficos como fuente única
+- [x] Tipografía crítica del workout activo migrada a variantes
+- [x] Primitivas nuevas: `IconButton`, `Chip`, `SegmentedControl`
+- [x] Tab bar con `PressableScale`, accesibilidad y haptics sin duplicar
+- [x] CTA persistente en Feed para empezar o continuar entrenamiento
+- [x] CTA muestra rutina/día y progreso de series cuando hay sesión activa
+- [x] Reanudación segura en la primera serie pendiente; no reemplaza el workout activo
+- [x] Workout activo persistido en AsyncStorage con cola serializada de escrituras
+- [x] Reanudación funciona aunque la rutina fuente haya sido eliminada
+- [x] Benchmark incremental: Strava strength 2026, Hevy sync y Fitbod Focus Exercises
+- [x] Regla de documentación obligatoria añadida a AGENTS, workflow y skill caveman
+- [x] Serie anterior por posición + fallback y autofill que no pisa ediciones
+- [x] Banner de PR en vivo con detección histórica conservadora
+- [x] Descanso persistido por timestamp; reanuda tras background/remount
+- [x] Validación previa al finish; pendiente avisa y datos inválidos bloquean
+- [x] Calculadora de discos para barra 20/15 kg, discos configurables y kg/lb
+- [x] Records por ejercicio basados solo en series efectivas completadas
+- [x] Gráfica con ejes mínimos, tooltip táctil y accesibilidad ajustable
+- [x] Tendencias de carga, reps y tiempo sin estimaciones de fuerza; trabajo solo en ledger/social
+- [x] Estancamiento y caída permanecen visibles sin corregirse ni calificarse
+- [x] Comparación redundante “última vs anterior” retirada
+- [x] Peso corporal separado del rendimiento de ejercicios
+- [x] Racha, rangos, leaderboard y mapa muscular retirados de Progreso; viven en sus superficies propias
+- [x] Datos legacy fuera de 1–999 reps o 0–1000 kg excluidos con predicado compartido
+- [x] Trabajo usa unidad explícita `kg·rep`/`lb·rep`; carga conserva `kg`/`lb`
+- [x] Tendencia mixta con lastre/peso corporal cambia a reps comparables
+- [x] Selector de peso y borrado de medición accesibles por tap/lector de pantalla
+- [x] Modales, query, helper y estado fijado del Progreso anterior eliminados
+- [x] Hub `/exercise/[id]`: Información · Historial · Récords
+- [x] Estados de error/refetch preservando cache en toda Comunidad
+- [x] Primitivas migradas en Discover y formularios de Eventos
+- [x] Icono, splash, adaptive icon, favicon y nueve emblemas reales
+- [x] Rutinas y Feed comparten `nextRoutineDay`; templates confirman reemplazo
+- [x] exercises-dataset auditado e integrado solo para 46 instrucciones seguras
+- [x] Media Gym visual excluida; commit/licencias documentados
+- [x] Edición de evento persiste fecha/hora y ofrece error con retry
+- [x] RPC `0041` sincroniza el workout completo con transacción + advisory lock
+- [x] `0042` revoca grants automáticos; RPC ejecutable solo por `authenticated`
+- [x] `0043` evita que retry stale despublique un workout ya publicado
+- [x] `Text` evita line-height heredado al sobrescribir font-size
+- [x] CTA del hub selecciona Rutinas mediante request explícito al PagerView
+- [x] Snapshot legado con serie inválida reabre el editor y se puede reparar
+- [x] Nuevo icono GMO de rostro-robot crema/negro/rojo
+- [x] Una mascota WebP de 25 KB reutilizada en Feed, Rutinas y Summary
+- [x] Icono, splash y adaptive config comparten `assets/icon.png`; dos copias eliminadas
+- [x] Caveman permanente para root, agentes y workflow
+- [x] Sistema visual casi rectangular: superficies 2–4 px y círculos solo semánticos
+- [x] Racha semanal desde historial + `weeklyGoalDays`, lunes–domingo local
+- [x] Racha se refresca al volver a foreground o cruzar de semana
+- [x] Migración v2 re-siembra tiers de racha antiguos sin borrar otros logros
+- [x] Runner Jest/Expo y 49 contratos puros en 7 suites
+
+### Verificación
+
+- [x] `npm run typecheck` final integrado — 2026-07-19, 0 errores
+- [x] `npm run lint` integrado — 2026-07-19, 0 errores / 3 warnings preexistentes
+- [x] `npm test` — 2026-07-19, 7 suites / 49 tests / 0 snapshots
+- [x] Bundle Android (`expo export`) — 2026-07-19, 2025 módulos / HBC 5,99 MB
+- [x] `npm run exercises:audit` — 1324 fuente / 46 matches / 0 media importada
+- [x] `npm audit` diagnóstico — 22 vulnerabilidades en árbol de producción /
+  23 totales; sin `--force` porque las remediaciones propuestas cambian Expo
+- [x] Revisión `code-quality-reviewer` — hallazgos P1/P2/P3 corregidos;
+  cierre final con 0 hallazgos P0–P3
+- [x] Desplegar/verificar `0041`–`0043`: atomicidad, ACL y publicación monotónica
+- [x] Smoke SQL `true → snapshot false → true`; rollback dejó 0 filas — 2026-07-19
+- [ ] Smoke manual en Expo Go:
+  - Feed sin rutina → abre plantillas
+  - Feed con rutina → abre el día sugerido
+  - Feed con sesión activa → reanuda primera serie pendiente
+  - Swipe y tap entre las 4 tabs
+  - Progreso muestra carga/reps/tiempo, conserva líneas planas/descendentes y cada punto abre su sesión
+  - Picker muestra WebP local/fallback; ledger y tarjeta social conservan Trabajo factual
+  - Peso corporal no se mezcla con la carga del entrenamiento
+  - VoiceOver/TalkBack anuncia tabs y CTA
+  - Verificar robot GMO en máscaras de launcher, splash, Feed, Rutinas y Summary
+  - Editar fecha/hora de evento, guardar y volver a abrir
+  - Forzar retry de sync parcial y confirmar árbol completo en servidor
+
+### Riesgo restante
+
+- La sugerencia de “próximo día” sigue siendo cíclica; falta calendario real.
+- Las primitivas existen y ya se migraron en Comunidad/Eventos; otras pantallas
+  aún usan Pressable/hex locales.
+- Falta smoke físico de background/reinicio, modal de discos y máscaras de icono.
+- Expo web no permite el smoke visual porque `react-native-pager-view` importa un
+  módulo nativo; validar Progreso en Expo Go/Android.
+- RPC `0041` ya está desplegada; falta smoke físico con retry concurrente desde
+  dos clientes y confirmación visual del árbol remoto.
+- La media de exercises-dataset requiere licencia propia de Gym visual.
+- El árbol npm aún reporta 1 vulnerabilidad crítica y 2 altas; clasificar cada
+  advisory y actualizar dentro de la versión de Expo compatible, sin aplicar
+  upgrades mayores automáticos.
+
+## Siguiente secuencia ejecutable
+
+### 1. C0 — cerrar logging y consistencia visual
+
+- [x] Columna “anterior” + autofill por serie
+- [x] Banner de PR en vivo al completar set
+- [x] Migrar Discover/Eventos a `Chip`, `IconButton` y `SegmentedControl`
+- [ ] Reducir hex fuera de tokens con inventario reproducible
+- [x] Degradación/error explícito en Feed y Comunidad
+
+### 2. C1 — identidad visual crítica
+
+- [x] Reemplazar identidad launcher/splash/favicon con una sola fuente optimizada
+- [x] Reemplazar los 9 emblemas de `assets/ranks/`
+- [x] Añadir mascota propia compartida a estados vacíos y celebración
+
+### 3. B1 — fiabilidad y retención
+
+- [x] Rest timer basado en timestamps y resistente a background/remount
+- [ ] Notificación local de descanso; salto coordinado a development build
+- [x] Rendimiento real por ejercicio + Records/PRs sin fuerza estimada
+- [ ] Sentry mínimo
+- [x] Validar workout antes de guardar
+
+### 4. C2 — progreso moderno
+
+- [x] Charts con ejes, tooltip, selector de rango y drill-down a la sesión real
+- [x] Mapa muscular en Rutinas; retirado de Progreso para evitar duplicación
+- [x] Detalle de ejercicio: Información · Historial · Records
+- [x] Tarjeta factual workout + share externo de texto
+- [ ] Imágenes shareables de PR/racha/mes + mapa muscular con privacidad real
+
+### 5. B2 — diferenciación validada por benchmark
+
+- [ ] Evaluar exportación detallada a Strava (API, permisos y privacidad)
+- [ ] Supersets, warm-up automático y RPE (plate calculator ya completado)
+- [ ] Ejercicios personalizados
+
+## Deuda conocida
+
+- [ ] Generador de rutinas puede usar heurística local cuando falla/no se configura la edge function
+- [x] Racha local derivada de historial + meta semanal
+- [ ] Cambio KG↔LB en workout activo puede redondear inputs
+- [x] Templates confirman antes de reemplazar la rutina activa
+- [ ] Algunas pantallas aún usan `Pressable` directo y estilos/hex inline
+- [x] `README.md` sincronizado con SDK, catálogo, assets y features actuales
+- [ ] 163 ejercicios del dataset externo requieren mapeo manual conservador
+
+## Hitos cerrados
+
+- [x] Auth email, recuperación y onboarding server-driven
+- [x] Feed social v2, búsqueda, followers/following y perfiles públicos
+- [x] Body measurements y timeline de peso
+- [x] Comunidades, roles, eventos y leaderboards
+- [x] Catálogo local de 220 ejercicios con imágenes offline
+- [x] Logros offline por niveles con backfill silencioso y modal de celebración
+- [x] Instagram OAuth y coach IA retirados del cliente
+- [x] Migración `0040_drop_ai_coach.sql`
+
+## Protocolo de cierre
+
+Seguir [workflow.md](../skills/workflow.md): actualizar este archivo en cada
+request con cambios, rotar [prompts.md](../skills/prompts.md), sincronizar los
+roadmaps afectados y registrar checks, riesgo y siguiente paso.

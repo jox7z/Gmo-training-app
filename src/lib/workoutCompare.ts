@@ -1,5 +1,16 @@
 import { Workout, WorkoutExercise } from '@/store/workouts';
 
+export interface PreviousSetValue {
+  /** Peso guardado en kg. Conversión ocurre solo en UI. */
+  weightKg: number;
+  reps: number;
+  /** Índice cero-based dentro de las series laborales de la sesión previa. */
+  sourceSetIndex: number;
+  /** True cuando la sesión previa tenía menos series y se usó la última. */
+  usedFallback: boolean;
+  sessionId: string;
+}
+
 /** Top-set weight for a single exercise (completed non-warmup sets only). */
 export function exerciseTopWeight(ex: WorkoutExercise): number {
   const completed = ex.sets.filter((s) => s.isCompleted && !s.isWarmup);
@@ -8,113 +19,56 @@ export function exerciseTopWeight(ex: WorkoutExercise): number {
 }
 
 /**
- * Reps of the top set (heaviest; ties broken by most reps).
- * Returns 0 if no completed non-warmup sets.
+ * Returns reps/weight for a zero-based working-set position from the most
+ * recent prior workout containing the same exercise. When that workout has
+ * fewer working sets, its last completed working set is the fallback.
  */
-export function exerciseTopReps(ex: WorkoutExercise): number {
-  const completed = ex.sets.filter((s) => s.isCompleted && !s.isWarmup);
-  if (!completed.length) return 0;
-  const topWeight = Math.max(...completed.map((s) => s.weightKg));
-  const topSets = completed.filter((s) => s.weightKg === topWeight);
-  return Math.max(...topSets.map((s) => s.reps));
-}
-
-/**
- * Returns the most recent workout in `history` that shares the same
- * `routineDayId` as `current` but has a different `id` and started before it.
- */
-export function findPreviousSession(
+export function getPreviousSetValue(
   history: Workout[],
   current: Workout,
-): Workout | null {
-  if (!current.routineDayId) return null;
+  exerciseId: string,
+  workingSetIndex: number,
+): PreviousSetValue | null {
+  if (workingSetIndex < 0 || !Number.isInteger(workingSetIndex)) return null;
 
   const currentStart = new Date(current.startedAt).getTime();
+  if (!Number.isFinite(currentStart)) return null;
 
-  const candidates = history.filter(
-    (w) =>
-      w.id !== current.id &&
-      w.routineDayId === current.routineDayId &&
-      new Date(w.startedAt).getTime() < currentStart,
-  );
+  const previous = history
+    .filter((workout) => {
+      if (workout.id === current.id) return false;
+      const startedAt = new Date(workout.startedAt).getTime();
+      if (!Number.isFinite(startedAt) || startedAt >= currentStart) return false;
+      return workout.exercises.some(
+        (exercise) =>
+          exercise.exerciseId === exerciseId &&
+          exercise.sets.some((set) => set.isCompleted && !set.isWarmup),
+      );
+    })
+    .sort(
+      (a, b) =>
+        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+    )[0];
 
-  if (!candidates.length) return null;
+  if (!previous) return null;
 
-  // Most recent first
-  candidates.sort(
-    (a, b) =>
-      new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
-  );
-
-  return candidates[0];
-}
-
-export interface ExerciseComparison {
-  exerciseId: string;
-  /** Delta in top-set weight vs previous session (null if not present) */
-  topWeightDelta: number | null;
-  /** Delta in reps of the top set vs previous session (null if no prior exercise) */
-  repsDelta: number | null;
-  /** True if there was any improvement in weight or reps */
-  improved: boolean;
-}
-
-/**
- * For each exercise in `current`, computes the top-weight and reps delta
- * relative to the same exercise in `previous`.
- */
-export function comparePerExercise(
-  current: Workout,
-  previous: Workout | null,
-): ExerciseComparison[] {
-  return current.exercises.map((ex) => {
-    const prevEx = previous?.exercises.find(
-      (p) => p.exerciseId === ex.exerciseId,
+  const workingSets = previous.exercises
+    .filter((exercise) => exercise.exerciseId === exerciseId)
+    .flatMap((exercise) =>
+      exercise.sets.filter((set) => set.isCompleted && !set.isWarmup),
     );
+  if (!workingSets.length) return null;
 
-    const curTop = exerciseTopWeight(ex);
-    const curReps = exerciseTopReps(ex);
+  const sourceSetIndex = Math.min(workingSetIndex, workingSets.length - 1);
+  const source = workingSets[sourceSetIndex];
 
-    if (!prevEx) {
-      return {
-        exerciseId: ex.exerciseId,
-        topWeightDelta: null,
-        repsDelta: null,
-        improved: false,
-      };
-    }
-
-    const topWeightDelta = curTop - exerciseTopWeight(prevEx);
-    const repsDelta = curReps - exerciseTopReps(prevEx);
-
-    return {
-      exerciseId: ex.exerciseId,
-      topWeightDelta,
-      repsDelta,
-      improved: topWeightDelta > 0 || repsDelta > 0,
-    };
-  });
-}
-
-export interface ProgressSummary {
-  improvedCount: number;
-  prCount: number;
-  gainedWeight: boolean;
-  gainedReps: boolean;
-}
-
-/**
- * Aggregates comparisons and PRs into a high-level progress summary.
- */
-export function summarizeProgress(
-  comparisons: ExerciseComparison[],
-  prs: Set<string>,
-): ProgressSummary {
-  const improvedCount = comparisons.filter((c) => c.improved).length;
-  const prCount = prs.size;
-  const gainedWeight = comparisons.some((c) => (c.topWeightDelta ?? 0) > 0);
-  const gainedReps = comparisons.some((c) => (c.repsDelta ?? 0) > 0);
-  return { improvedCount, prCount, gainedWeight, gainedReps };
+  return {
+    weightKg: source.weightKg,
+    reps: source.reps,
+    sourceSetIndex,
+    usedFallback: sourceSetIndex !== workingSetIndex,
+    sessionId: previous.id,
+  };
 }
 
 /**
@@ -129,10 +83,7 @@ export function detectPRs(history: Workout[], current: Workout): Set<string> {
     const curTop = exerciseTopWeight(ex);
     if (curTop <= 0) continue;
 
-    const historicMax = history
-      .filter((w) => w.id !== current.id)
-      .flatMap((w) => w.exercises.filter((e) => e.exerciseId === ex.exerciseId))
-      .reduce((max, e) => Math.max(max, exerciseTopWeight(e)), 0);
+    const historicMax = historicTopWeight(history, current.id, ex.exerciseId) ?? 0;
 
     if (curTop > historicMax) {
       prs.add(ex.exerciseId);
@@ -140,4 +91,66 @@ export function detectPRs(history: Workout[], current: Workout): Set<string> {
   }
 
   return prs;
+}
+
+/**
+ * Detects whether one just-saved set establishes a new weight PR.
+ * Requires at least one prior positive-weight record, so partial/empty history
+ * never produces a live PR banner. Historical qualification stays delegated
+ * to detectPRs.
+ */
+export function detectSetPR(
+  history: Workout[],
+  current: Workout,
+  exerciseIndex: number,
+  setIndex: number,
+): boolean {
+  const exercise = current.exercises[exerciseIndex];
+  const set = exercise?.sets[setIndex];
+  if (!exercise || !set || set.isWarmup || set.weightKg <= 0) return false;
+
+  const historicMax = historicTopWeight(history, current.id, exercise.exerciseId);
+  if (historicMax === null || historicMax <= 0) return false;
+
+  const exerciseBeforeSave: WorkoutExercise = {
+    ...exercise,
+    sets: exercise.sets.map((entry, index) =>
+      index === setIndex ? { ...entry, isCompleted: false } : entry,
+    ),
+  };
+  if (set.weightKg <= exerciseTopWeight(exerciseBeforeSave)) return false;
+
+  const projected: Workout = {
+    ...current,
+    exercises: current.exercises.map((entry, index) =>
+      index === exerciseIndex
+        ? {
+            ...entry,
+            sets: entry.sets.map((candidate, candidateIndex) =>
+              candidateIndex === setIndex
+                ? { ...candidate, isCompleted: true }
+                : candidate,
+            ),
+          }
+        : entry,
+    ),
+  };
+
+  return detectPRs(history, projected).has(exercise.exerciseId);
+}
+
+function historicTopWeight(
+  history: Workout[],
+  currentWorkoutId: string,
+  exerciseId: string,
+): number | null {
+  const weights = history
+    .filter((workout) => workout.id !== currentWorkoutId)
+    .flatMap((workout) =>
+      workout.exercises.filter((exercise) => exercise.exerciseId === exerciseId),
+    )
+    .map(exerciseTopWeight)
+    .filter((weight) => weight > 0);
+
+  return weights.length ? Math.max(...weights) : null;
 }

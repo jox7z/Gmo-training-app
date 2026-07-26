@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { View, ScrollView } from 'react-native';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { useWorkoutsStore } from '@/store/workouts';
@@ -172,7 +172,7 @@ export function Heatmap() {
                     style={{
                       width: CELL,
                       height: CELL,
-                      borderRadius: 2,
+                      borderRadius: radius.sm,
                       marginBottom: d < 6 ? GAP : 0,
                       backgroundColor: cell.isFuture ? 'transparent' : HEAT_COLORS[cell.level],
                     }}
@@ -196,7 +196,7 @@ export function Heatmap() {
             {HEAT_COLORS.map((color, i) => (
               <View
                 key={i}
-                style={{ width: CELL, height: CELL, borderRadius: 2, backgroundColor: color }}
+                style={{ width: CELL, height: CELL, borderRadius: radius.sm, backgroundColor: color }}
               />
             ))}
             <Text style={{ fontSize: 9, color: colors.text.muted, marginLeft: 3 }}>Más</Text>

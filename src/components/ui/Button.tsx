@@ -157,10 +157,9 @@ const variantStyles: Record<
     container: {
       backgroundColor: colors.bg.elevated,
       borderWidth: 1,
-      borderColor: colors.border,
+      borderColor: colors.accent.DEFAULT,
     },
     textColor: colors.text.primary,
-    edgeColor: colors.bg.cardEdge,
   },
   ghost: {
     container: { backgroundColor: 'transparent' },

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Pressable, FlatList, TextInput, ActivityIndicator, ScrollView } from 'react-native';
+import { View, FlatList, TextInput, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -7,24 +7,29 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { Chip } from '@/components/ui/Chip';
+import { IconButton } from '@/components/ui/IconButton';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
-import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
+import { colors, fontSize, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import { useSearchUsers, type SearchUserResult } from '@/lib/queries/search';
 import { useGlobalLeaderboard, type GlobalRankEntry } from '@/lib/queries/social';
 import { useEvents, type EventFilter } from '@/lib/queries/events';
 import { type CommunityEvent } from '@/lib/repos/events';
 import { EventCard } from '@/components/EventCard';
 import { CommunitiesExplorer } from '@/components/communities/CommunitiesExplorer';
+import { SocialErrorState } from '@/components/social/SocialErrorState';
 
 type HubTab = 'search' | 'events' | 'ranking' | 'communities';
 
-const TABS: { key: HubTab; label: string; icon: IconName }[] = [
-  { key: 'search',      label: 'Buscar',      icon: 'search'  },
-  { key: 'events',      label: 'Eventos',     icon: 'calendar' },
-  { key: 'communities', label: 'Comunidades', icon: 'users'   },
-  { key: 'ranking',     label: 'Ranking',     icon: 'trophy'  },
+const TABS: { value: HubTab; label: string; icon: IconName }[] = [
+  { value: 'search',      label: 'Buscar',      icon: 'search'  },
+  { value: 'events',      label: 'Eventos',     icon: 'calendar' },
+  { value: 'communities', label: 'Comunidades', icon: 'users'   },
+  { value: 'ranking',     label: 'Ranking',     icon: 'trophy'  },
 ];
 
 function rankInfo(id: RankId) {
@@ -51,61 +56,24 @@ export default function DiscoverScreen() {
         }}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Icon name="chevron-left" size={18} color={colors.text.primary} />
-            </View>
-          </Pressable>
+          <IconButton
+            name="chevron-left"
+            accessibilityLabel="Volver"
+            accessibilityHint="Vuelve a la pantalla anterior"
+            onPress={() => router.back()}
+            variant="surface"
+            size="sm"
+            haptic={false}
+          />
           <Text variant="heading" style={{ flex: 1 }}>Comunidad</Text>
         </View>
 
-        {/* Segmented control */}
-        <View
-          style={{
-            flexDirection: 'row',
-            backgroundColor: colors.bg.elevated,
-            borderRadius: radius.lg,
-            padding: 4,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          {TABS.map((t) => {
-            const active = tab === t.key;
-            return (
-              <Pressable
-                key={t.key}
-                onPress={() => setTab(t.key)}
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  gap: 6,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: radius.md,
-                  backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-                }}
-              >
-                <Icon name={t.icon} size={15} color={active ? '#fff' : colors.text.muted} />
-                <Text weight="bold" style={{ fontSize: 13, color: active ? '#fff' : colors.text.secondary }}>
-                  {t.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <SegmentedControl<HubTab>
+          options={TABS}
+          value={tab}
+          onValueChange={setTab}
+          accessibilityLabel="Secciones de comunidad"
+        />
       </View>
 
       {tab === 'search'      && <SearchTab />}
@@ -142,9 +110,16 @@ function SearchTab() {
   }, [input]);
 
   const searchQuery = useSearchUsers(query);
-  const results = searchQuery.data ?? [];
+  const results = useMemo(() => searchQuery.data ?? [], [searchQuery.data]);
   const showEmptyShortQuery = query.length < 2;
-  const showNoResults = !showEmptyShortQuery && !searchQuery.isLoading && results.length === 0;
+  const hasResults = results.length > 0;
+  const showBlockingError = !showEmptyShortQuery && searchQuery.isError && !hasResults;
+  const showStaleError = !showEmptyShortQuery && searchQuery.isError && hasResults;
+  const showNoResults =
+    !showEmptyShortQuery &&
+    !searchQuery.isLoading &&
+    !searchQuery.isError &&
+    !hasResults;
   const isSearching = !showEmptyShortQuery && (searchQuery.isLoading || searchQuery.isFetching);
 
   // Agrupar en "Siguiendo" / "Descubrir".
@@ -179,7 +154,7 @@ function SearchTab() {
             paddingHorizontal: spacing.md,
           }}
         >
-          <Icon name="search" size={16} color={colors.text.muted} />
+          <Icon name="search" size={spacing.lg} color={colors.text.muted} />
           <TextInput
             ref={inputRef}
             value={input}
@@ -189,12 +164,25 @@ function SearchTab() {
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
-            style={{ flex: 1, color: colors.text.primary, fontSize: 15, paddingVertical: 12 }}
+            accessibilityLabel="Buscar atletas"
+            accessibilityHint="Busca por nombre o nombre de usuario"
+            accessibilityState={{ busy: isSearching }}
+            style={{
+              flex: 1,
+              color: colors.text.primary,
+              fontSize: fontSize.base,
+              paddingVertical: spacing.md,
+            }}
           />
           {input.length > 0 && (
-            <Pressable onPress={() => setInput('')} hitSlop={6}>
-              <Icon name="close" size={14} color={colors.text.muted} />
-            </Pressable>
+            <IconButton
+              name="close"
+              accessibilityLabel="Borrar búsqueda"
+              accessibilityHint="Limpia el texto de búsqueda"
+              onPress={() => setInput('')}
+              size="sm"
+              haptic={false}
+            />
           )}
           {isSearching && <ActivityIndicator size="small" color={colors.primary.DEFAULT} />}
         </View>
@@ -222,12 +210,30 @@ function SearchTab() {
           flexGrow: 1,
         }}
         keyboardShouldPersistTaps="handled"
+        ListHeaderComponent={
+          showStaleError ? (
+            <SocialErrorState
+              compact
+              title="No pudimos actualizar la búsqueda"
+              subtitle="Estos resultados pueden no estar al día. Puedes seguir explorándolos o intentar cargarlos de nuevo."
+              onRetry={() => void searchQuery.refetch()}
+              isRetrying={searchQuery.isFetching}
+            />
+          ) : null
+        }
         ListEmptyComponent={
           showEmptyShortQuery ? (
             <EmptyState
               icon="search"
               title="Encuentra atletas"
               subtitle="Escribe al menos 2 caracteres para buscar por nombre o username."
+            />
+          ) : showBlockingError ? (
+            <SocialErrorState
+              title="No pudimos buscar atletas"
+              subtitle="Revisa tu conexión e inténtalo de nuevo. Tu búsqueda seguirá aquí."
+              onRetry={() => void searchQuery.refetch()}
+              isRetrying={searchQuery.isFetching}
             />
           ) : showNoResults ? (
             <EmptyState
@@ -251,7 +257,7 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
         alignItems: 'center',
         gap: spacing.sm,
         marginTop: spacing.xs,
-        marginBottom: 2,
+        marginBottom: spacing.xs,
       }}
     >
       <Text variant="label" tone="secondary">{title}</Text>
@@ -263,7 +269,14 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
 function ResultRow({ user, onOpen }: { user: SearchUserResult; onOpen: () => void }) {
   const info = rankInfo(user.currentRank);
   return (
-    <Pressable onPress={onOpen} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir perfil de ${user.displayName}`}
+      accessibilityHint={`@${user.username}, ${user.followersCount.toLocaleString()} seguidores`}
+      onPress={onOpen}
+      pressScale={0.98}
+      haptic={false}
+    >
       <Card padding="md" style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <Avatar name={user.displayName} size={48} borderColor={info.color} />
         <View style={{ flex: 1 }}>
@@ -279,7 +292,7 @@ function ResultRow({ user, onOpen }: { user: SearchUserResult; onOpen: () => voi
         </View>
         <FollowButton userId={user.id} isFollowing={user.isFollowing} size="sm" />
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -301,19 +314,33 @@ function EventsTab() {
   const [filter, setFilter] = useState<EventFilter>('all');
   const eventsQuery = useEvents(filter);
   const events = eventsQuery.data ?? [];
+  const hasEvents = events.length > 0;
+  const showBlockingError = eventsQuery.isError && !hasEvents;
+  const showStaleError = eventsQuery.isError && hasEvents;
 
   return (
     <FlatList<CommunityEvent>
       data={events}
       keyExtractor={(e) => e.id}
       renderItem={({ item }) => (
-        <EventCard event={item} onPress={() => router.push({ pathname: '/events/[id]', params: { id: item.id } })} />
+        <EventCard
+          event={item}
+          layout="stream"
+          onPress={() => router.push({ pathname: '/events/[id]', params: { id: item.id } })}
+        />
       )}
       ListHeaderComponent={
-        <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
+        <View
+          style={{
+            gap: spacing.md,
+            paddingHorizontal: spacing.lg,
+            paddingTop: spacing.lg,
+            marginBottom: spacing.sm,
+          }}
+        >
           <Button
             title="Crear evento"
-            leftIcon={<Icon name="plus" size={18} color={colors.text.primary} />}
+            leftIcon={<Icon name="plus" size={spacing.lg} color={colors.text.primary} />}
             onPress={() => router.push('/events/new')}
             fullWidth
           />
@@ -321,52 +348,60 @@ function EventsTab() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               {EVENT_FILTERS.map((f) => {
-                const active = filter === f.key;
                 return (
-                  <Pressable
+                  <Chip
                     key={f.key}
+                    label={f.label}
+                    selected={filter === f.key}
                     onPress={() => setFilter(f.key)}
-                    style={{
-                      paddingHorizontal: spacing.md,
-                      paddingVertical: 8,
-                      borderRadius: radius.full,
-                      borderWidth: 1,
-                      borderColor: active ? colors.primary.DEFAULT : colors.border,
-                      backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
-                    }}
-                  >
-                    <Text
-                      variant="caption"
-                      weight="bold"
-                      style={{ color: active ? colors.primary.DEFAULT : colors.text.secondary }}
-                    >
-                      {f.label}
-                    </Text>
-                  </Pressable>
+                    accessibilityLabel={`Filtrar eventos: ${f.label}`}
+                    accessibilityHint="Actualiza la lista de eventos"
+                  />
                 );
               })}
             </View>
           </ScrollView>
+
+          {showStaleError && (
+            <SocialErrorState
+              compact
+              title="No pudimos actualizar los eventos"
+              subtitle="Mostramos la última información disponible mientras recuperas la conexión."
+              onRetry={() => void eventsQuery.refetch()}
+              isRetrying={eventsQuery.isFetching}
+            />
+          )}
         </View>
       }
       contentContainerStyle={{
-        padding: spacing.lg,
         paddingBottom: insets.bottom + spacing.lg,
+        width: '100%',
+        maxWidth: 600,
+        alignSelf: 'center',
         gap: spacing.sm,
         flexGrow: 1,
       }}
       ListEmptyComponent={
-        eventsQuery.isLoading ? (
-          <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.primary.DEFAULT} />
-          </View>
-        ) : (
-          <EmptyState
-            icon="calendar"
-            title="Sin eventos por aquí"
-            subtitle="Aún no hay eventos en esta categoría. ¡Crea el primero y reúne a la comunidad!"
-          />
-        )
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          {eventsQuery.isLoading ? (
+            <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
+              <ActivityIndicator color={colors.primary.DEFAULT} />
+            </View>
+          ) : showBlockingError ? (
+            <SocialErrorState
+              title="No pudimos cargar los eventos"
+              subtitle="Revisa tu conexión y vuelve a intentarlo. También puedes crear un evento cuando estés en línea."
+              onRetry={() => void eventsQuery.refetch()}
+              isRetrying={eventsQuery.isFetching}
+            />
+          ) : (
+            <EmptyState
+              icon="calendar"
+              title="Sin eventos por aquí"
+              subtitle="Aún no hay eventos en esta categoría. ¡Crea el primero y reúne a la comunidad!"
+            />
+          )}
+        </View>
       }
       showsVerticalScrollIndicator={false}
     />
@@ -382,6 +417,9 @@ function RankingTab() {
   const insets = useSafeAreaInsets();
   const leaderboardQuery = useGlobalLeaderboard(50);
   const entries = leaderboardQuery.data ?? [];
+  const hasEntries = entries.length > 0;
+  const showBlockingError = leaderboardQuery.isError && !hasEntries;
+  const showStaleError = leaderboardQuery.isError && hasEntries;
 
   return (
     <FlatList<GlobalRankEntry>
@@ -397,10 +435,23 @@ function RankingTab() {
         />
       )}
       ListHeaderComponent={
-        entries.length > 0 ? (
-          <Text variant="label" tone="secondary" style={{ marginBottom: spacing.sm }}>
-            TOP ATLETAS · POR PUNTOS
-          </Text>
+        hasEntries || showStaleError ? (
+          <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
+            {hasEntries && (
+              <Text variant="label" tone="secondary">
+                TOP ATLETAS · POR PUNTOS
+              </Text>
+            )}
+            {showStaleError && (
+              <SocialErrorState
+                compact
+                title="No pudimos actualizar el ranking"
+                subtitle="Las posiciones mostradas son las últimas que guardamos."
+                onRetry={() => void leaderboardQuery.refetch()}
+                isRetrying={leaderboardQuery.isFetching}
+              />
+            )}
+          </View>
         ) : null
       }
       contentContainerStyle={{
@@ -414,6 +465,13 @@ function RankingTab() {
           <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
             <ActivityIndicator color={colors.primary.DEFAULT} />
           </View>
+        ) : showBlockingError ? (
+          <SocialErrorState
+            title="No pudimos cargar el ranking"
+            subtitle="Parece que hay un problema de conexión. Inténtalo de nuevo para ver las posiciones."
+            onRetry={() => void leaderboardQuery.refetch()}
+            isRetrying={leaderboardQuery.isFetching}
+          />
         ) : (
           <EmptyState
             icon="trophy"
@@ -438,13 +496,21 @@ function RankingRow({
 }) {
   const info = rankInfo(entry.currentRank);
   const posColor =
-    position === 1 ? '#FFD700'
-    : position === 2 ? '#C0C0C0'
-    : position === 3 ? '#CD7F32'
+    position === 1 ? colors.metal.gold.DEFAULT
+    : position === 2 ? colors.metal.silver.DEFAULT
+    : position === 3 ? colors.metal.bronze.DEFAULT
     : colors.text.muted;
 
   return (
-    <Pressable onPress={onOpen} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`Posición ${position}: ${entry.displayName}`}
+      accessibilityHint={`${entry.rankPoints.toLocaleString()} puntos. Abre su perfil`}
+      accessibilityState={{ selected: entry.isMe }}
+      onPress={onOpen}
+      pressScale={0.98}
+      haptic={false}
+    >
       <Card
         padding="md"
         style={{
@@ -454,7 +520,11 @@ function RankingRow({
           backgroundColor: entry.isMe ? colors.primary.muted : undefined,
         }}
       >
-        <Text weight="black" numeric style={{ width: 30, textAlign: 'center', color: posColor }}>
+        <Text
+          weight="black"
+          numeric
+          style={{ width: fontSize['2xl'], textAlign: 'center', color: posColor }}
+        >
           {position}
         </Text>
         <Avatar uri={entry.avatarUrl} name={entry.displayName} size={42} borderColor={info.color} />
@@ -468,10 +538,12 @@ function RankingRow({
           <Text weight="bold" numeric style={{ color: info.color }}>
             {entry.rankPoints.toLocaleString()}
           </Text>
-          <Text variant="label" tone="muted" style={{ fontSize: 9 }}>{info.label}</Text>
+          <Text variant="label" tone="muted" style={{ fontSize: fontSize.xs }}>
+            {info.label}
+          </Text>
         </View>
       </Card>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -492,9 +564,9 @@ function EmptyState({
     <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.xl }}>
       <View
         style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
+          width: spacing['4xl'],
+          height: spacing['4xl'],
+          borderRadius: radius.sm,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: colors.bg.elevated,
@@ -503,7 +575,7 @@ function EmptyState({
           marginBottom: spacing.md,
         }}
       >
-        <Icon name={icon} size={28} color={colors.text.secondary} />
+        <Icon name={icon} size={radius['2xl']} color={colors.text.secondary} />
       </View>
       <Text variant="heading" style={{ textAlign: 'center' }}>{title}</Text>
       <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>

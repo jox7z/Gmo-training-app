@@ -26,7 +26,9 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 // the app comes back to foreground (replaces the web window-focus event).
 focusManager.setEventListener((handleFocus) => {
   const sub = AppState.addEventListener('change', (state) => {
-    handleFocus(state === 'active');
+    const isActive = state === 'active';
+    if (isActive) useAppStore.getState().refreshWeeklyProgress();
+    handleFocus(isActive);
   });
   return () => sub.remove();
 });
@@ -90,6 +92,7 @@ export default function RootLayout() {
     const achievementsHydrate = useAchievementsStore.getState().hydrate;
     Promise.all([hydrate(), routinesHydrate(), workoutsHydrate(), achievementsHydrate()])
       .then(() => {
+        useAppStore.getState().refreshWeeklyProgress();
         // Backfill silencioso una sola vez: registra los logros que ya
         // correspondían al historial existente sin celebrarlos. A partir de
         // aquí, cada workout nuevo sí dispara la celebración (incluido el
@@ -98,7 +101,7 @@ export default function RootLayout() {
         if (!ach.seeded) {
           ach.sync({
             history: useWorkoutsStore.getState().history,
-            streakWeeks: useAppStore.getState().streakWeeks,
+            weeklyGoalDays: useAppStore.getState().profile?.weeklyGoalDays,
           });
         }
       })
@@ -129,7 +132,10 @@ export default function RootLayout() {
           // Fire-and-forget: la descarga del historial NO debe bloquear el gate
           // de navegación (sin timeout, un cuelgue aquí congelaba el arranque).
           getWorkouts(session.user.id)
-            .then((ws) => useWorkoutsStore.getState().mergeHistory(ws))
+            .then((ws) => {
+              useWorkoutsStore.getState().mergeHistory(ws);
+              useAppStore.getState().refreshWeeklyProgress();
+            })
             .catch(() => {});
 
           // El servidor es la única verdad: si no hay fila de profile, la sesión
@@ -264,7 +270,10 @@ export default function RootLayout() {
       }
       queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
       getWorkouts(session.user.id)
-        .then((ws) => useWorkoutsStore.getState().mergeHistory(ws))
+        .then((ws) => {
+          useWorkoutsStore.getState().mergeHistory(ws);
+          useAppStore.getState().refreshWeeklyProgress();
+        })
         .catch(() => {});
     });
     return () => subscription.unsubscribe();
@@ -287,6 +296,7 @@ export default function RootLayout() {
     // bounced back to /(tabs) by the catch-all below.
     const inAllowedAuthedRoute =
       first === 'workout' ||
+      first === 'exercise' ||
       first === 'routine' ||
       first === 'profile' ||
       first === 'publish' ||
@@ -399,6 +409,7 @@ export default function RootLayout() {
               name="routine/[id]"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
             />
+            <Stack.Screen name="exercise/[id]" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen
               name="routine/templates"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}

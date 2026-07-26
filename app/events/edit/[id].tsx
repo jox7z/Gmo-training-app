@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   View,
-  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +15,11 @@ import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
+import { IconButton } from '@/components/ui/IconButton';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Icon } from '@/components/Icon';
+import { SocialErrorState } from '@/components/social/SocialErrorState';
 import { useToast } from '@/components/ui/Toast';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useEvent, useUpdateEvent } from '@/lib/queries/events';
@@ -27,7 +30,6 @@ import {
   TIME_OPTIONS,
   buildDate,
   parseDateToChips,
-  Chip,
 } from '@/components/events/eventDateHelpers';
 
 export default function EditEventScreen() {
@@ -53,6 +55,7 @@ export default function EditEventScreen() {
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [dateTouched, setDateTouched] = useState(false);
 
   // Inicializa state con datos del evento cuando carga
   useEffect(() => {
@@ -66,11 +69,14 @@ export default function EditEventScreen() {
       const { dayOffset: d, time: t } = parseDateToChips(event.startsAt);
       setDayOffset(d);
       setTime(t);
+      setDateTouched(false);
       setInitialized(true);
     }
   }, [event, initialized]);
 
   const startsAt = useMemo(() => buildDate(dayOffset, time), [dayOffset, time]);
+  const displayedStartsAt =
+    !dateTouched && event ? new Date(event.startsAt) : startsAt;
   const canSubmit = title.trim().length >= 1 && !updateEvent.isPending && !uploadingCover;
 
   const pickCover = async () => {
@@ -110,6 +116,7 @@ export default function EditEventScreen() {
         coverUrl: finalCoverUrl ?? undefined,
         metric: isChallenge ? metric.trim() || undefined : undefined,
         location: !isChallenge ? location.trim() || undefined : undefined,
+        startsAt: dateTouched ? startsAt.toISOString() : undefined,
       },
       {
         onSuccess: () => {
@@ -122,10 +129,54 @@ export default function EditEventScreen() {
     );
   };
 
-  if (eventQuery.isLoading || !event) {
+  if (eventQuery.isLoading) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base, alignItems: 'center', justifyContent: 'center' }} edges={['top']}>
         <ActivityIndicator color={colors.primary.DEFAULT} />
+      </SafeAreaView>
+    );
+  }
+
+  if (eventQuery.isError || !event) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
+        <StatusBar style="light" />
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.md,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+            borderBottomWidth: 1,
+            borderBottomColor: colors.border,
+          }}
+        >
+          <IconButton
+            name="chevron-left"
+            accessibilityLabel="Volver"
+            accessibilityHint="Vuelve a la pantalla anterior"
+            onPress={() => router.back()}
+            variant="surface"
+            size="sm"
+            haptic={false}
+          />
+          <Text variant="heading">Editar evento</Text>
+        </View>
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <SocialErrorState
+            title={eventQuery.isError ? 'No pudimos cargar el evento' : 'Evento no encontrado'}
+            subtitle={
+              eventQuery.isError
+                ? 'Revisa tu conexión e inténtalo de nuevo.'
+                : 'Puede que el evento se haya eliminado o que el enlace ya no sea válido.'
+            }
+            onRetry={() => {
+              void eventQuery.refetch();
+            }}
+            isRetrying={eventQuery.isFetching}
+          />
+        </View>
       </SafeAreaView>
     );
   }
@@ -149,22 +200,15 @@ export default function EditEventScreen() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="close" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
+        <IconButton
+          name="close"
+          accessibilityLabel="Cerrar edición del evento"
+          accessibilityHint="Vuelve a la pantalla anterior sin guardar cambios"
+          onPress={() => router.back()}
+          variant="surface"
+          size="sm"
+          haptic={false}
+        />
         <Text variant="heading" style={{ flex: 1 }}>Editar evento</Text>
       </View>
 
@@ -173,13 +217,24 @@ export default function EditEventScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + 40, gap: spacing.lg }}
+          contentContainerStyle={{
+            padding: spacing.lg,
+            paddingBottom: insets.bottom + spacing['3xl'],
+            gap: spacing.lg,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           {/* Cover picker */}
           <View style={{ gap: spacing.sm }}>
             <Text variant="label" tone="secondary">PORTADA (OPCIONAL)</Text>
-            <Pressable onPress={pickCover}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={previewCover ? 'Cambiar portada del evento' : 'Elegir portada del evento'}
+              accessibilityHint="Abre la galería de imágenes"
+              accessibilityState={{ selected: previewCover !== null }}
+              onPress={pickCover}
+              pressScale={0.98}
+            >
               <Card variant="raised" padding={0} style={{ overflow: 'hidden', borderRadius: radius.lg }}>
                 {previewCover ? (
                   <Image
@@ -198,7 +253,7 @@ export default function EditEventScreen() {
                       backgroundColor: colors.bg.elevated,
                     }}
                   >
-                    <Icon name="image" size={32} color={colors.text.muted} />
+                    <Icon name="image" size={spacing['2xl']} color={colors.text.muted} />
                     <Text variant="caption" tone="muted">Toca para elegir portada</Text>
                   </View>
                 )}
@@ -206,18 +261,18 @@ export default function EditEventScreen() {
                   <View
                     style={{
                       position: 'absolute',
-                      bottom: 8,
-                      right: 8,
-                      backgroundColor: 'rgba(0,0,0,0.6)',
+                      bottom: spacing.sm,
+                      right: spacing.sm,
+                      backgroundColor: colors.bg.overlay,
                       borderRadius: radius.full,
-                      padding: 6,
+                      padding: radius.sm,
                     }}
                   >
-                    <Icon name="edit" size={14} color="#fff" />
+                    <Icon name="edit" size={spacing.lg} color={colors.text.primary} />
                   </View>
                 )}
               </Card>
-            </Pressable>
+            </PressableScale>
           </View>
 
           <Input
@@ -226,6 +281,7 @@ export default function EditEventScreen() {
             onChangeText={setTitle}
             placeholder="Título del evento"
             maxLength={120}
+            accessibilityLabel="Título del evento"
           />
 
           <Input
@@ -236,7 +292,8 @@ export default function EditEventScreen() {
             multiline
             numberOfLines={3}
             maxLength={1000}
-            style={{ minHeight: 72, textAlignVertical: 'top' }}
+            style={{ minHeight: spacing['4xl'] + spacing.sm, textAlignVertical: 'top' }}
+            accessibilityLabel="Descripción del evento"
           />
 
           {isChallenge ? (
@@ -246,6 +303,7 @@ export default function EditEventScreen() {
               onChangeText={setMetric}
               placeholder="Ej. Total de repeticiones"
               maxLength={80}
+              accessibilityLabel="Métrica del reto"
             />
           ) : (
             <Input
@@ -254,6 +312,7 @@ export default function EditEventScreen() {
               onChangeText={setLocation}
               placeholder="Ej. Parque Central, entrada norte"
               maxLength={120}
+              accessibilityLabel="Lugar de la quedada"
             />
           )}
 
@@ -262,7 +321,17 @@ export default function EditEventScreen() {
             <Text variant="label" tone="secondary">NUEVA FECHA DE INICIO (OPCIONAL)</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {DAY_OPTIONS.map((d) => (
-                <Chip key={d.offset} label={d.label} active={dayOffset === d.offset} onPress={() => setDayOffset(d.offset)} />
+                <Chip
+                  key={d.offset}
+                  label={d.label}
+                  selected={dayOffset === d.offset}
+                  onPress={() => {
+                    setDayOffset(d.offset);
+                    setDateTouched(true);
+                  }}
+                  accessibilityLabel={`Cambiar fecha a ${d.label}`}
+                  accessibilityHint="Selecciona el día de inicio"
+                />
               ))}
             </View>
           </View>
@@ -271,7 +340,17 @@ export default function EditEventScreen() {
             <Text variant="label" tone="secondary">HORA</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {TIME_OPTIONS.map((t) => (
-                <Chip key={t} label={t} active={time === t} onPress={() => setTime(t)} />
+                <Chip
+                  key={t}
+                  label={t}
+                  selected={time === t}
+                  onPress={() => {
+                    setTime(t);
+                    setDateTouched(true);
+                  }}
+                  accessibilityLabel={`Cambiar hora a las ${t}`}
+                  accessibilityHint="Selecciona la hora de inicio"
+                />
               ))}
             </View>
           </View>
@@ -287,10 +366,28 @@ export default function EditEventScreen() {
               borderWidth: 1,
               borderColor: colors.border,
             }}
+            accessible
+            accessibilityLabel={`Fecha seleccionada: ${displayedStartsAt.toLocaleDateString('es-ES', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}, ${displayedStartsAt.toLocaleTimeString('es-ES', {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}`}
           >
-            <Icon name="calendar" size={16} color={colors.primary.DEFAULT} />
+            <Icon name="calendar" size={spacing.lg} color={colors.primary.DEFAULT} />
             <Text variant="caption" tone="secondary">
-              {startsAt.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} · {time}
+              {displayedStartsAt.toLocaleDateString('es-ES', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}{' '}
+              ·{' '}
+              {displayedStartsAt.toLocaleTimeString('es-ES', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
             </Text>
           </View>
 

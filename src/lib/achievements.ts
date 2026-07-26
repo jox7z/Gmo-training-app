@@ -12,6 +12,7 @@
 
 import { Workout } from '@/store/workouts';
 import { exerciseTopWeight } from '@/lib/workoutCompare';
+import { weeklyStreakFromHistory as calculateWeeklyStreak } from '@/lib/weeklyStreak';
 import type { IconName } from '@/components/Icon';
 import { colors } from '@/theme/tokens';
 
@@ -51,7 +52,13 @@ export interface AchievementDef {
 
 export interface AchievementContext {
   history: Workout[];
-  streakWeeks: number;
+  /**
+   * Objetivo semanal vigente. Temporalmente opcional para mantener compatibles
+   * callers antiguos; omitirlo equivale a 1 día hasta completar su cableado.
+   */
+  weeklyGoalDays?: number;
+  /** @deprecated La racha nunca se lee de este contador persistido. */
+  streakWeeks?: number;
 }
 
 export interface AchievementProgress {
@@ -93,36 +100,16 @@ function totalRepsLifted(history: Workout[]): number {
   return history.reduce((acc, w) => acc + (w.totalReps ?? 0), 0);
 }
 
-/** Índice de semana (lunes como inicio) desde la época, para agrupar fechas.
- *  Usa la fecha LOCAL para que el corte de semana respete la zona horaria del
- *  usuario (un entreno el lunes por la noche no debe contar como la semana
- *  siguiente por la deriva UTC). */
-function weekIndex(d: Date): number {
-  const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const day = Math.floor(localMidnight.getTime() / 86_400_000); // 1970-01-01 fue jueves
-  return Math.floor((day + 3) / 7); // +3 alinea el corte de semana al lunes
-}
-
 /**
- * Racha de semanas consecutivas con al menos un entrenamiento, derivada del
- * historial. La semana en curso tiene "gracia": si aún no entrenas en ella, la
- * racha se cuenta desde la semana anterior en vez de romperse.
+ * Alias compatible del motor semanal. Nuevos callers deben importar desde
+ * `weeklyStreak.ts` para obtener también `daysThisWeek`.
  */
-export function weekStreakFromHistory(history: Workout[]): number {
-  if (!history.length) return 0;
-  const weeks = new Set<number>();
-  for (const w of history) {
-    const t = new Date(w.startedAt).getTime();
-    if (Number.isFinite(t)) weeks.add(weekIndex(new Date(t)));
-  }
-  const current = weekIndex(new Date());
-  let cursor = weeks.has(current) ? current : current - 1;
-  let streak = 0;
-  while (weeks.has(cursor)) {
-    streak++;
-    cursor--;
-  }
-  return streak;
+export function weekStreakFromHistory(
+  history: Workout[],
+  weeklyGoalDays: number | undefined = 1,
+  now: Date = new Date(),
+): number {
+  return calculateWeeklyStreak(history, weeklyGoalDays, now);
 }
 
 /** Ejercicios distintos entrenados (con al menos una serie completada). */
@@ -188,10 +175,8 @@ export const ACHIEVEMENTS: AchievementDef[] = [
       { id: 'streak-26', threshold: 26, label: '6 meses' },
       { id: 'streak-52', threshold: 52, label: '1 año' },
     ],
-    // La racha se deriva del historial (el contador local `streakWeeks` hoy es
-    // estático: solo se fija a 1 en el onboarding). El Math.max lo deja a prueba
-    // de futuro por si algún día se sincroniza una racha mayor desde el servidor.
-    measure: (ctx) => Math.max(weekStreakFromHistory(ctx.history), ctx.streakWeeks),
+    // Nunca usa el contador persistido: historial + objetivo son la fuente.
+    measure: (ctx) => weekStreakFromHistory(ctx.history, ctx.weeklyGoalDays),
   },
 
   // ── Volumen: constancia de entrenamientos y reps acumuladas ──

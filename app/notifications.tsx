@@ -94,7 +94,7 @@ function NotificationRow({
               right: 0,
               width: 10,
               height: 10,
-              borderRadius: 5,
+              borderRadius: radius.full,
               backgroundColor: colors.danger,
               borderWidth: 1.5,
               borderColor: colors.bg.base,

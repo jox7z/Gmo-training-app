@@ -124,7 +124,7 @@ export default function EventDetailScreen() {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.bg.elevated,
@@ -156,7 +156,7 @@ export default function EventDetailScreen() {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.bg.elevated,
@@ -212,7 +212,7 @@ export default function EventDetailScreen() {
                       gap: 4,
                       paddingHorizontal: spacing.sm,
                       paddingVertical: 4,
-                      borderRadius: radius.full,
+                      borderRadius: radius.sm,
                       backgroundColor: colors.primary.muted,
                       borderWidth: 1,
                       borderColor: colors.primary.DEFAULT,
@@ -238,7 +238,7 @@ export default function EventDetailScreen() {
               <Text tone="secondary">{event.description}</Text>
             ) : null}
 
-            <Card variant="raised" padding="lg" style={{ gap: spacing.md }}>
+            <Card variant="section" padding="lg" style={{ gap: spacing.md }}>
               <InfoRow icon="calendar" label="Inicio" value={fullDate(event.startsAt)} />
               {event.endsAt ? (
                 <InfoRow icon="clock" label="Fin" value={fullDate(event.endsAt)} />

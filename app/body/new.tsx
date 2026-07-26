@@ -134,7 +134,7 @@ export default function NewBodyMeasurement() {
               style={{
                 width: 36,
                 height: 36,
-                borderRadius: 18,
+                borderRadius: radius.full,
                 backgroundColor: colors.bg.elevated,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -161,7 +161,7 @@ export default function NewBodyMeasurement() {
               style={{
                 width: 56,
                 height: 56,
-                borderRadius: 28,
+                borderRadius: radius.sm,
                 backgroundColor: colors.primary.muted,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -208,7 +208,7 @@ export default function NewBodyMeasurement() {
               style={{
                 width: 22,
                 height: 22,
-                borderRadius: 6,
+                borderRadius: radius.sm,
                 borderWidth: 2,
                 borderColor: advanced ? colors.primary.DEFAULT : colors.border,
                 backgroundColor: advanced ? colors.primary.DEFAULT : 'transparent',

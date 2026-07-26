@@ -26,15 +26,15 @@ import {
 export default function AchievementsScreen() {
   const router = useRouter();
   const history = useWorkoutsStore((s) => s.history);
-  const streakWeeks = useAppStore((s) => s.streakWeeks);
+  const weeklyGoalDays = useAppStore((s) => s.profile?.weeklyGoalDays);
 
   const { groups, totalLevels, unlockedLevels } = useMemo(() => {
-    const progress = evaluateAchievements({ history, streakWeeks });
+    const progress = evaluateAchievements({ history, weeklyGoalDays });
     const groups = groupByCategory(progress);
     const totalLevels = progress.reduce((a, p) => a + p.maxLevel, 0);
     const unlockedLevels = progress.reduce((a, p) => a + p.level, 0);
     return { groups, totalLevels, unlockedLevels };
-  }, [history, streakWeeks]);
+  }, [history, weeklyGoalDays]);
 
   const pct = totalLevels > 0 ? Math.round((unlockedLevels / totalLevels) * 100) : 0;
 
@@ -67,13 +67,13 @@ export default function AchievementsScreen() {
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing['4xl'] }}>
         {/* Resumen global */}
-        <Card variant="raised" padding="lg">
+        <Card variant="section" padding="lg">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             <View
               style={{
                 width: 52,
                 height: 52,
-                borderRadius: 26,
+                borderRadius: radius.sm,
                 backgroundColor: colors.accent.soft,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -115,7 +115,7 @@ function TrackCard({ progress }: { progress: AchievementProgress }) {
   const completed = !nextTier;
 
   return (
-    <Card variant="raised" padding="lg">
+    <Card variant="section" padding="lg">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <AchievementMedal icon={def.icon} color={color} level={level} maxLevel={maxLevel} size={64} />
         <View style={{ flex: 1 }}>
@@ -128,7 +128,7 @@ function TrackCard({ progress }: { progress: AchievementProgress }) {
                 style={{
                   paddingHorizontal: spacing.sm,
                   paddingVertical: 2,
-                  borderRadius: radius.full,
+                  borderRadius: radius.sm,
                   backgroundColor: `${color}22`,
                   borderWidth: 1,
                   borderColor: `${color}66`,
@@ -176,7 +176,7 @@ function TrackCard({ progress }: { progress: AchievementProgress }) {
               style={{
                 paddingHorizontal: spacing.sm,
                 paddingVertical: 4,
-                borderRadius: radius.full,
+                borderRadius: radius.sm,
                 backgroundColor: unlocked ? `${color}22` : colors.bg.elevated,
                 borderWidth: 1,
                 borderColor: isCurrent ? color : unlocked ? `${color}55` : colors.border,
@@ -206,11 +206,11 @@ function ProgressBar({ value, color, style }: { value: number; color: string; st
   return (
     <View
       style={[
-        { height: 8, borderRadius: radius.full, backgroundColor: colors.bg.elevated, overflow: 'hidden' },
+        { height: 8, borderRadius: radius.sm, backgroundColor: colors.bg.elevated, overflow: 'hidden' },
         style,
       ]}
     >
-      <View style={{ width: `${pct}%`, height: '100%', backgroundColor: color, borderRadius: radius.full }} />
+      <View style={{ width: `${pct}%`, height: '100%', backgroundColor: color, borderRadius: radius.sm }} />
     </View>
   );
 }

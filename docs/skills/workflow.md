@@ -2,6 +2,13 @@
 
 Cómo orquestar a los 3 agentes + el revisor en cada sprint.
 
+## Modo permanente
+
+Todos los prompts empiezan con `CAVEMAN`. Todos los agentes leen
+`.claude/skills/caveman.md`. Acción primero, scope/ownership explícito, reporte
+corto. Una fuente compartida antes que copias. Una dependencia solo entra con
+beneficio medible.
+
 ## Orden duro por feature
 
 ```
@@ -32,7 +39,7 @@ Después de cada agente, antes de pasar al siguiente, verifica:
 Pega esto al inicio del mensaje al agente:
 
 ```
-Vas a aplicar el Prompt [ID, ej: SIMPL-1A] de docs/skills/prompts.md.
+CAVEMAN. Vas a aplicar el Prompt [ID, ej: SIMPL-1A] de docs/skills/prompts.md.
 
 Antes de tocar nada, lee:
 1. docs/skills/agents/[tu-rol].md  (tu identidad y reglas)
@@ -42,7 +49,7 @@ Antes de tocar nada, lee:
 Aplica EXACTAMENTE el prompt. No añadas features extra. Respeta tu scope.
 
 Al terminar:
-1. npm run typecheck debe estar limpio
+1. npm test + npm run typecheck deben estar limpios
 2. Lista los archivos creados/modificados
 3. Si encontraste algo que no estaba en el prompt y lo cambiaste, dilo
 4. Si encontraste un bug fuera de tu scope, NO lo arregles — solo repórtalo
@@ -71,9 +78,22 @@ Esta plantilla evita que el agente "mejore" cosas que no debería tocar
 
 ## Actualizar memoria al terminar sprint
 
-1. Marca el progreso en `docs/memory/checklist.md`
-2. Si cambiaste una decisión de producto o arquitectura, actualiza
-   `docs/memory/overview.md` o `docs/memory/architecture.md`
-3. **Borra los prompts aplicados de `docs/skills/prompts.md`** (no se
-   acumulan; el checklist guarda la traza de qué se hizo)
-4. Añade los prompts del siguiente sprint a `docs/skills/prompts.md`
+La documentación es parte de la definición de terminado, no una tarea opcional.
+
+1. Marca el progreso en `docs/memory/checklist.md` con fecha, estado,
+   archivos clave, verificación, riesgo restante y siguiente paso.
+2. Actualiza `docs/roadmap.md` y/o `docs/roadmap-ui.md` cuando cambie una
+   prioridad, dependencia, benchmark o estado de fase.
+3. Si cambiaste una decisión de producto o arquitectura, actualiza
+   `docs/memory/overview.md` o `docs/memory/architecture.md`.
+4. **Borra los prompts aplicados de `docs/skills/prompts.md`** y deja solo
+   el siguiente bloque ejecutable. El checklist conserva la traza histórica.
+5. Actualiza `AGENTS.md` y la skill operativa afectada cuando el cambio
+   introduzca una regla que los próximos agentes deban respetar.
+6. Ejecuta `npm test` + `npm run typecheck` + `npm run lint`. No uses “completado” si
+   los checks fallan; registra el bloqueo exacto.
+7. Antes de cerrar, busca claims obsoletos en todos los `.md` relacionados
+   (features retiradas, migraciones, versiones, siguientes sprints).
+8. Si entra una fuente externa, fija commit/release, audita licencia por tipo de
+   contenido y registra atribución. Metadata y media pueden tener licencias
+   distintas; una licencia del repo no autoriza automáticamente sus imágenes.

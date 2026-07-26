@@ -1,6 +1,5 @@
 import { View } from 'react-native';
 import { Text } from './Text';
-import { colors, spacing } from '@/theme/tokens';
 
 interface Props {
   label: string;

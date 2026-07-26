@@ -9,15 +9,23 @@ import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
 import { BicepIcon } from '@/components/BicepIcon';
+import { WorkoutShareCard } from '@/components/social/WorkoutShareCard';
+import type { SocialLayout } from '@/components/social/SocialStreamColumn';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import type { Post, ReactionKind } from '@/lib/repos/posts';
 import {
-  DEFAULT_REACTION,
+  parseWorkoutPostMetadata,
+  type WorkoutPostPrMetadata,
+} from '@/lib/workoutPostMetadata';
+import { formatWeight } from '@/lib/units';
+import { useAppStore } from '@/store/app';
+import {
   totalReactions,
 } from './reactions';
 
 interface Props {
   post: Post;
+  layout?: SocialLayout;
   isMine: boolean;
   onToggleReaction: (postId: string, reaction: ReactionKind) => void;
   onDelete: (post: Post) => void;
@@ -81,6 +89,7 @@ function ActionButton({
           alignItems: 'center',
           justifyContent: 'center',
           gap: 6,
+          minHeight: 44,
           paddingVertical: 10,
           borderRadius: radius.md,
         },
@@ -103,13 +112,13 @@ function ActionButton({
   );
 }
 
-function ManualBody({ post }: { post: Post }) {
+function ManualBody({ post, layout }: { post: Post; layout: SocialLayout }) {
   if (!post.photoUrl) return null;
   return (
     <View
       style={{
-        marginTop: spacing.md,
-        borderRadius: radius.lg,
+        marginTop: layout === 'stream' ? 0 : spacing.md,
+        borderRadius: layout === 'stream' ? 0 : radius.lg,
         overflow: 'hidden',
         backgroundColor: colors.bg.elevated,
       }}
@@ -123,7 +132,8 @@ function ManualBody({ post }: { post: Post }) {
   );
 }
 
-function PrChips({ prs }: { prs: Array<{ exercise_name: string; weight_kg: number; reps: number }> }) {
+function PrChips({ prs }: { prs: WorkoutPostPrMetadata[] }) {
+  const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
       {prs.map((pr, i) => (
@@ -135,14 +145,14 @@ function PrChips({ prs }: { prs: Array<{ exercise_name: string; weight_kg: numbe
             gap: 4,
             paddingHorizontal: spacing.sm,
             paddingVertical: 4,
-            borderRadius: radius.full,
+            borderRadius: radius.sm,
             backgroundColor: 'rgba(255,215,0,0.1)',
             borderWidth: 1,
             borderColor: 'rgba(255,215,0,0.4)',
           }}
         >
           <Text variant="caption" style={{ color: '#FFD700' }} weight="semibold">
-            {pr.exercise_name} · {pr.weight_kg > 0 ? `${pr.weight_kg}kg × ${pr.reps} reps` : `Peso corporal · ${pr.reps} reps`}
+            {pr.exerciseName} · {formatWeight(pr.weightKg, unit)} × {pr.reps} reps
           </Text>
         </View>
       ))}
@@ -152,7 +162,8 @@ function PrChips({ prs }: { prs: Array<{ exercise_name: string; weight_kg: numbe
 
 const PR_AUTOPLAY_MS = 3000;
 
-function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: number; reps: number }> }) {
+function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
+  const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
   // Medimos el ancho real del carril con onLayout en vez de calcularlo desde el
   // ancho de pantalla: así el slide cabe exacto sin depender del padding de la
   // lista ni del borde dorado del PrGoldenWrapper (antes el slide quedaba ~3px
@@ -221,10 +232,10 @@ function PrCarousel({ prs }: { prs: Array<{ exercise_name: string; weight_kg: nu
             }}
           >
             <Text variant="caption" style={{ color: '#FFD700' }} weight="bold" numberOfLines={1}>
-              {pr.exercise_name}
+              {pr.exerciseName}
             </Text>
             <Text variant="caption" style={{ color: '#FFD700', marginTop: 2 }} weight="semibold">
-              {pr.weight_kg > 0 ? `${pr.weight_kg}kg × ${pr.reps} reps` : `Peso corporal · ${pr.reps} reps`}
+              {formatWeight(pr.weightKg, unit)} × {pr.reps} reps
             </Text>
           </View>
         ))}
@@ -259,7 +270,7 @@ function PrDot({ active }: { active: boolean }) {
       style={{
         width: anim.interpolate({ inputRange: [0, 1], outputRange: [6, 16] }),
         height: 6,
-        borderRadius: 3,
+        borderRadius: radius.full,
         backgroundColor: anim.interpolate({
           inputRange: [0, 1],
           outputRange: ['rgba(255,215,0,0.3)', 'rgba(255,215,0,1)'],
@@ -269,43 +280,28 @@ function PrDot({ active }: { active: boolean }) {
   );
 }
 
-function WorkoutBody({ post }: { post: Post }) {
-  const chips: string[] = Array.isArray(post.metadata?.exercises)
-    ? (post.metadata.exercises as any[]).slice(0, 3).map((e) => String(e?.name ?? e))
-    : [];
-  const prs: Array<{ exercise_name: string; weight_kg: number; reps: number }> =
-    Array.isArray(post.metadata?.prs) ? post.metadata.prs : [];
+function WorkoutBody({ post, layout }: { post: Post; layout: SocialLayout }) {
+  const metadata = useMemo(
+    () => parseWorkoutPostMetadata(post.metadata),
+    [post.metadata],
+  );
+  const prs = metadata.prs;
 
   return (
     <View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
-        <Icon name="dumbbell" size={18} color={colors.primary.DEFAULT} />
-        <Text variant="heading" tone="brand" numberOfLines={2} style={{ flexShrink: 1 }}>{post.title}</Text>
-      </View>
-      {post.subtitle ? (
-        <Text variant="caption" tone="secondary">{post.subtitle}</Text>
-      ) : null}
-      {chips.length > 0 && (
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
-          {chips.map((c, i) => (
-            <View
-              key={`${c}-${i}`}
-              style={{
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 4,
-                borderRadius: radius.full,
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text variant="caption" tone="secondary">{c}</Text>
-            </View>
-          ))}
-        </View>
-      )}
+      <WorkoutShareCard
+        title={post.title ?? 'Entrenamiento'}
+        subtitle={post.subtitle}
+        metadata={metadata}
+        layout={layout}
+      />
       {prs.length > 0 && (
-        <View style={{ marginTop: spacing.sm, gap: 6 }}>
+        <View
+          style={[
+            { marginTop: spacing.sm, gap: 6 },
+            layout === 'stream' && { paddingHorizontal: spacing.lg },
+          ]}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Icon name="trophy" size={12} color="#FFD700" />
             <Text variant="caption" style={{ color: '#FFD700' }} weight="bold">
@@ -320,7 +316,13 @@ function WorkoutBody({ post }: { post: Post }) {
         </View>
       )}
       {post.photoUrl ? (
-        <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
+        <View
+          style={{
+            marginTop: spacing.md,
+            borderRadius: layout === 'stream' ? 0 : radius.lg,
+            overflow: 'hidden',
+          }}
+        >
           <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
         </View>
       ) : null}
@@ -330,7 +332,13 @@ function WorkoutBody({ post }: { post: Post }) {
 
 const GOLD = '#FFD700';
 
-export function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
+export function PrGoldenWrapper({
+  children,
+  layout = 'contained',
+}: {
+  children: React.ReactNode;
+  layout?: SocialLayout;
+}) {
   const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -353,14 +361,16 @@ export function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
   return (
     <Animated.View
       style={{
-        borderRadius: radius.xl,
-        borderWidth: 1.5,
+        borderRadius: layout === 'stream' ? 0 : radius.xl,
+        borderWidth: layout === 'stream' ? 0 : 1.5,
+        borderTopWidth: 1.5,
+        borderBottomWidth: 1.5,
         borderColor,
         shadowColor: GOLD,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity,
-        shadowRadius: 14,
-        elevation: 10,
+        shadowOpacity: layout === 'stream' ? 0 : shadowOpacity,
+        shadowRadius: layout === 'stream' ? 0 : 14,
+        elevation: layout === 'stream' ? 0 : 10,
       }}
     >
       {children}
@@ -368,17 +378,26 @@ export function PrGoldenWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function PrBody({ post }: { post: Post }) {
-  const weight = post.metadata?.weightKg ?? post.metadata?.weight_kg;
-  const reps = post.metadata?.reps;
+function PrBody({ post, layout }: { post: Post; layout: SocialLayout }) {
+  const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
+  const rawWeight = post.metadata?.weightKg ?? post.metadata?.weight_kg;
+  const weight =
+    typeof rawWeight === 'number' && Number.isFinite(rawWeight) && rawWeight >= 0
+      ? rawWeight
+      : undefined;
+  const reps =
+    typeof post.metadata?.reps === 'number' && Number.isFinite(post.metadata.reps)
+      ? post.metadata.reps
+      : undefined;
   return (
     <View>
+      <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <View
           style={{
             width: 36,
             height: 36,
-            borderRadius: 18,
+            borderRadius: radius.sm,
             alignItems: 'center',
             justifyContent: 'center',
             backgroundColor: 'rgba(255,215,0,0.15)',
@@ -393,18 +412,23 @@ function PrBody({ post }: { post: Post }) {
       <Text variant="title" numberOfLines={2} style={{ marginTop: spacing.sm, flexShrink: 1 }}>{post.title}</Text>
       {(weight !== undefined || reps) && (
         <Text variant="metric" style={{ color: GOLD, marginTop: spacing.xs }}>
-          {weight !== undefined && weight > 0
-            ? reps ? `${weight}kg × ${reps} reps` : `${weight}kg`
-            : weight !== undefined
-            ? reps ? `Peso corporal · ${reps} reps` : 'Peso corporal'
+          {weight !== undefined
+            ? reps ? `${formatWeight(weight, unit)} × ${reps} reps` : formatWeight(weight, unit)
             : reps ? `${reps} reps` : ''}
         </Text>
       )}
       {post.subtitle ? (
         <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs }}>{post.subtitle}</Text>
       ) : null}
+      </View>
       {post.photoUrl ? (
-        <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
+        <View
+          style={{
+            marginTop: spacing.md,
+            borderRadius: layout === 'stream' ? 0 : radius.lg,
+            overflow: 'hidden',
+          }}
+        >
           <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
         </View>
       ) : null}
@@ -448,7 +472,7 @@ function StreakBody({ post }: { post: Post }) {
         style={{
           width: 44,
           height: 44,
-          borderRadius: 22,
+          borderRadius: radius.sm,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: colors.accent.soft,
@@ -475,7 +499,7 @@ function AchievementBody({ post }: { post: Post }) {
         style={{
           width: 44,
           height: 44,
-          borderRadius: 22,
+          borderRadius: radius.sm,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: colors.info.soft,
@@ -496,21 +520,33 @@ function AchievementBody({ post }: { post: Post }) {
   );
 }
 
-function Body({ post }: { post: Post }) {
+function Body({ post, layout }: { post: Post; layout: SocialLayout }) {
   switch (post.type) {
     case 'pr':
-      return <PrBody post={post} />;
+      return <PrBody post={post} layout={layout} />;
     case 'rank_up':
-      return <RankUpBody post={post} />;
+      return (
+        <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
+          <RankUpBody post={post} />
+        </View>
+      );
     case 'streak':
-      return <StreakBody post={post} />;
+      return (
+        <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
+          <StreakBody post={post} />
+        </View>
+      );
     case 'achievement':
-      return <AchievementBody post={post} />;
+      return (
+        <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
+          <AchievementBody post={post} />
+        </View>
+      );
     case 'manual':
-      return <ManualBody post={post} />;
+      return <ManualBody post={post} layout={layout} />;
     case 'workout':
     default:
-      return <WorkoutBody post={post} />;
+      return <WorkoutBody post={post} layout={layout} />;
   }
 }
 
@@ -539,6 +575,7 @@ function ReactionSummary({ post }: { post: Post }) {
 
 export function FeedItem({
   post,
+  layout = 'contained',
   isMine,
   onToggleReaction,
   onDelete,
@@ -576,7 +613,15 @@ export function FeedItem({
   const cardInner = (
     <>
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <View
+        style={[
+          { flexDirection: 'row', alignItems: 'center' },
+          layout === 'stream' && {
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.lg,
+          },
+        ]}
+      >
         <Pressable
           onPress={() => onOpenProfile(post)}
           hitSlop={6}
@@ -605,9 +650,9 @@ export function FeedItem({
           <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
             <View
               style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
+                width: 44,
+                height: 44,
+                borderRadius: radius.full,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
@@ -622,18 +667,22 @@ export function FeedItem({
 
       {/* Body */}
       <View style={{ marginTop: spacing.md }}>
-        <Body post={post} />
+        <Body post={post} layout={layout} />
       </View>
 
       {/* Caption */}
       {post.caption ? (
-        <Text variant="body" style={{ marginTop: spacing.md }}>
-          {post.caption}
-        </Text>
+        <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
+          <Text variant="body" style={{ marginTop: spacing.md }}>
+            {post.caption}
+          </Text>
+        </View>
       ) : null}
 
       {/* Reactions summary */}
-      <ReactionSummary post={post} />
+      <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
+        <ReactionSummary post={post} />
+      </View>
 
       {/* Action bar */}
       <View
@@ -644,6 +693,7 @@ export function FeedItem({
           paddingTop: spacing.sm,
           borderTopWidth: 1,
           borderTopColor: colors.border,
+          paddingHorizontal: layout === 'stream' ? spacing.lg : 0,
         }}
       >
         <Pressable
@@ -656,6 +706,7 @@ export function FeedItem({
               alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
+              minHeight: 44,
               paddingVertical: 10,
               borderRadius: radius.md,
             },
@@ -690,14 +741,34 @@ export function FeedItem({
         askDelete();
       }}
       delayLongPress={350}
-      style={{ marginBottom: spacing.md }}
+      style={[
+        {
+          marginBottom: layout === 'stream' ? spacing.sm : spacing.md,
+        },
+        layout === 'stream' && {
+          width: '100%',
+          maxWidth: 600,
+          alignSelf: 'center',
+        },
+      ]}
     >
       {post.type === 'pr' ? (
-        <PrGoldenWrapper>
-          <Card padding="lg">{cardInner}</Card>
+        <PrGoldenWrapper layout={layout}>
+          <Card
+            variant={layout === 'stream' ? 'stream' : 'default'}
+            padding={layout === 'stream' ? 0 : 'lg'}
+            style={layout === 'stream' ? { borderTopWidth: 0, borderBottomWidth: 0 } : undefined}
+          >
+            {cardInner}
+          </Card>
         </PrGoldenWrapper>
       ) : (
-        <Card variant="raised" padding="lg">{cardInner}</Card>
+        <Card
+          variant={layout === 'stream' ? 'stream' : 'raised'}
+          padding={layout === 'stream' ? 0 : 'lg'}
+        >
+          {cardInner}
+        </Card>
       )}
 
       {/* Owner menu */}

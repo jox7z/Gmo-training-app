@@ -1,36 +1,22 @@
 import { useMemo, useState } from 'react';
-import { View, Pressable, ScrollView, RefreshControl, useWindowDimensions, Alert } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, ScrollView, RefreshControl, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Svg, { Rect, Line, Path, Circle, Text as SvgText } from 'react-native-svg';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton';
 import { WeightChart } from '@/components/WeightChart';
 import { WeightDetailModal } from '@/components/WeightDetailModal';
-import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/TimeSeriesChart';
-import { ExerciseProgressModal } from '@/components/ExerciseProgressModal';
-import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, type RankId } from '@/theme/tokens';
-import { RANK_IMAGES } from '@/theme/rankImages';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { useAppStore, type Unit } from '@/store/app';
-import { StreakRing } from '@/components/StreakRing';
 import { useWorkoutsStore } from '@/store/workouts';
-import { listTrainedExercises, buildExerciseTimeline, type ExercisePeriod } from '@/lib/exerciseProgress';
-import { exerciseImage } from '@/data/exerciseImages';
-import { Image } from 'expo-image';
-import { toDisplay } from '@/lib/units';
-import { useLeaderboard, type LeaderboardEntry } from '@/lib/queries/social';
-import { Avatar } from '@/components/Avatar';
-import { useProgressSummary, useProgressTimeline } from '@/lib/queries/progress';
 import {
-  formatDuration,
   formatWeight,
-  type ProgressPeriod,
-  type ProgressSummary,
 } from '@/lib/progress';
 import {
   useBodyMeasurements,
@@ -41,71 +27,27 @@ import {
   type BodyPeriod,
 } from '@/lib/queries/body';
 import { useToast } from '@/components/ui/Toast';
-
-const PERIODS: { value: ProgressPeriod; label: string }[] = [
-  { value: '7d', label: '7d' },
-  { value: '30d', label: '30d' },
-  { value: '90d', label: '90d' },
-  { value: 'all', label: 'Todo' },
-];
+import { ProgressInsightsSection } from '@/components/progress/ProgressInsightsSection';
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const profile = useAppStore((s) => s.profile);
-  const streakWeeks = useAppStore((s) => s.streakWeeks);
-  const daysThisWeek = useAppStore((s) => s.daysThisWeek);
 
-  const [period, setPeriod] = useState<ProgressPeriod>('30d');
   const [bodyPeriod, setBodyPeriod] = useState<BodyPeriod>('90d');
   const [showDetailModal, setShowDetailModal] = useState(false);
-  const [showExerciseModal, setShowExerciseModal] = useState(false);
-  const [exerciseMetric, setExerciseMetric] = useState<'weight' | 'reps'>('weight');
 
   const history = useWorkoutsStore((s) => s.history);
-  const pinnedExerciseId = useAppStore((s) => s.pinnedExerciseId);
-  const trainedExercises = useMemo(() => listTrainedExercises(history), [history]);
-  const effectivePinnedId = pinnedExerciseId ?? trainedExercises[0]?.exerciseId;
-  const pinnedName = trainedExercises.find((e) => e.exerciseId === effectivePinnedId)?.name ?? '';
 
-  const pinnedTimeline = useMemo(
-    () => (effectivePinnedId ? buildExerciseTimeline(history, effectivePinnedId, '90d') : []),
-    [history, effectivePinnedId],
-  );
-  const pinnedChartData = useMemo(
-    () =>
-      pinnedTimeline.map((p) => ({
-        ms: new Date(p.date).getTime(),
-        value:
-          exerciseMetric === 'weight'
-            ? toDisplay(p.topWeightKg, profile?.unit ?? 'kg')
-            : p.repsAtTop,
-      })),
-    [pinnedTimeline, exerciseMetric, profile?.unit],
-  );
-
-  const summaryQuery = useProgressSummary(period);
-  const timelineQuery = useProgressTimeline(period);
   const bodyMeasurementsQuery = useBodyMeasurements();
   const bodyTimelineQuery = useBodyTimeline(bodyPeriod);
 
-  const currentRank = rankFromPoints(profile?.rankPoints ?? 0);
-  const leaderboardQuery = useLeaderboard(currentRank.id);
-
-  const summary: ProgressSummary | undefined = summaryQuery.data;
-
   const refreshing =
-    summaryQuery.isRefetching ||
-    timelineQuery.isRefetching ||
     bodyMeasurementsQuery.isRefetching ||
-    bodyTimelineQuery.isRefetching ||
-    leaderboardQuery.isRefetching;
+    bodyTimelineQuery.isRefetching;
   const onRefresh = () => {
-    summaryQuery.refetch();
-    timelineQuery.refetch();
     bodyMeasurementsQuery.refetch();
     bodyTimelineQuery.refetch();
-    leaderboardQuery.refetch();
   };
 
   return (
@@ -124,40 +66,9 @@ export default function ProgressScreen() {
         }}
       >
         <Text variant="title">Progreso</Text>
-        <View
-          style={{
-            flexDirection: 'row',
-            marginTop: spacing.md,
-            backgroundColor: colors.bg.elevated,
-            borderRadius: radius.lg,
-            padding: 4,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          {PERIODS.map((p) => {
-            const active = period === p.value;
-            return (
-              <PressableScale
-                key={p.value}
-                onPress={() => setPeriod(p.value)}
-                pressScale={0.95}
-                haptic={false}
-                style={{
-                  flex: 1,
-                  paddingVertical: 8,
-                  alignItems: 'center',
-                  borderRadius: radius.md,
-                  backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-                }}
-              >
-                <Text weight="bold" tone={active ? 'primary' : 'secondary'} style={{ fontSize: 13 }}>
-                  {p.label}
-                </Text>
-              </PressableScale>
-            );
-          })}
-        </View>
+        <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs }}>
+          Rendimiento real y peso corporal
+        </Text>
       </View>
 
       <ScrollView
@@ -170,43 +81,20 @@ export default function ProgressScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary.DEFAULT} />
         }
       >
-        {!summary ? (
-          <ProgressSkeleton />
-        ) : summary.totalWorkouts === 0 ? (
-          <EmptyState />
-        ) : (
-          <>
-            <AveragesCard summary={summary} />
-            <Card variant="raised" padding="lg" style={{ alignItems: 'center' }}>
-              <StreakRing
-                weeks={streakWeeks}
-                daysThisWeek={daysThisWeek}
-                weeklyGoal={profile?.weeklyGoalDays ?? 4}
-              />
-            </Card>
-            <TimelineCard
-              data={timelineQuery.data ?? []}
-              loading={timelineQuery.isLoading && !timelineQuery.data}
-            />
-          </>
-        )}
-
-        {/* Exercise progress card — only when there is history */}
-        {trainedExercises.length > 0 && effectivePinnedId ? (
-          <ExerciseProgressCard
-            exerciseId={effectivePinnedId}
-            name={pinnedName}
-            chartData={pinnedChartData}
-            metric={exerciseMetric}
-            unit={profile?.unit ?? 'kg'}
-            onMetricChange={setExerciseMetric}
-            onOpen={() => setShowExerciseModal(true)}
-          />
-        ) : null}
+        <ProgressInsightsSection
+          history={history}
+          unit={profile?.unit ?? 'kg'}
+        />
 
         <BodySection
           measurements={bodyMeasurementsQuery.data ?? []}
           timeline={bodyTimelineQuery.data ?? []}
+          measurementsLoading={
+            bodyMeasurementsQuery.isLoading && bodyMeasurementsQuery.data === undefined
+          }
+          timelineLoading={
+            bodyTimelineQuery.isLoading && bodyTimelineQuery.data === undefined
+          }
           unit={profile?.unit ?? 'kg'}
           bodyPeriod={bodyPeriod}
           onBodyPeriodChange={setBodyPeriod}
@@ -221,173 +109,8 @@ export default function ProgressScreen() {
           initialPeriod={bodyPeriod}
         />
 
-        <ExerciseProgressModal
-          visible={showExerciseModal}
-          onClose={() => setShowExerciseModal(false)}
-          unit={profile?.unit ?? 'kg'}
-          initialExerciseId={effectivePinnedId}
-        />
-
-        <RanksSection currentPoints={profile?.rankPoints ?? 0} />
-
-        <LeaderboardSection
-          rankId={currentRank.id}
-          entries={leaderboardQuery.data ?? []}
-          loading={leaderboardQuery.isLoading}
-          isError={leaderboardQuery.isError}
-          currentUserId={profile?.id}
-        />
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function AveragesCard({ summary }: { summary: ProgressSummary }) {
-  return (
-    <Card variant="raised" padding="lg">
-      <Text variant="label" tone="secondary">PROMEDIOS POR SERIE</Text>
-      <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md }}>
-        <View style={{ flex: 1 }}>
-          <Text variant="caption" tone="muted">Duración serie</Text>
-          <Text variant="metric" numeric numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 2 }}>
-            {formatDuration(summary.avgSetDuration)}
-          </Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text variant="caption" tone="muted">Descanso entre series</Text>
-          <Text variant="metric" numeric numberOfLines={1} adjustsFontSizeToFit style={{ marginTop: 2 }}>
-            {formatDuration(summary.avgRestAfter)}
-          </Text>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
-function TimelineCard({
-  data,
-  loading,
-}: {
-  data: { day: string; activeSeconds: number }[];
-  loading: boolean;
-}) {
-  const { width } = useWindowDimensions();
-  // 2x spacing.lg de padding externo del scroll + 2x spacing.lg padding interno de la Card
-  const chartWidth = width - spacing.lg * 4;
-  const chartHeight = 160;
-  const axisPad = 24;
-  const innerW = chartWidth - axisPad;
-  const innerH = chartHeight - 20;
-
-  const maxMinutes = useMemo(() => {
-    const max = data.reduce((m, p) => Math.max(m, p.activeSeconds / 60), 0);
-    return max > 0 ? Math.ceil(max / 5) * 5 : 5;
-  }, [data]);
-
-  const barW = data.length > 0 ? innerW / data.length : 0;
-
-  return (
-    <Card variant="raised" padding="lg">
-      <Text variant="label" tone="secondary">EVOLUCIÓN · TIEMPO ACTIVO POR DÍA (min)</Text>
-      <View style={{ marginTop: spacing.md }}>
-        {loading && data.length === 0 ? (
-          <View style={{ height: chartHeight, justifyContent: 'center', alignItems: 'center' }}>
-            <Text variant="caption" tone="muted">Cargando timeline…</Text>
-          </View>
-        ) : data.length === 0 ? (
-          <View style={{ height: chartHeight, justifyContent: 'center', alignItems: 'center' }}>
-            <Text variant="caption" tone="muted">Sin datos para este período</Text>
-          </View>
-        ) : (
-          <Svg width={chartWidth} height={chartHeight}>
-            {/* Y axis label top */}
-            <SvgText x={0} y={12} fontSize={10} fill={colors.text.muted}>
-              {maxMinutes}m
-            </SvgText>
-            {/* Baseline */}
-            <Line
-              x1={axisPad}
-              x2={chartWidth}
-              y1={chartHeight - 16}
-              y2={chartHeight - 16}
-              stroke={colors.border}
-              strokeWidth={1}
-            />
-            {/* Bars */}
-            {data.map((p, i) => {
-              const minutes = p.activeSeconds / 60;
-              const h = maxMinutes > 0 ? (minutes / maxMinutes) * innerH : 0;
-              const x = axisPad + i * barW + barW * 0.15;
-              const y = chartHeight - 16 - h;
-              const w = barW * 0.7;
-              return (
-                <Rect
-                  key={p.day}
-                  x={x}
-                  y={y}
-                  width={w}
-                  height={Math.max(0, h)}
-                  rx={2}
-                  fill={h > 0 ? colors.primary.DEFAULT : colors.bg.elevated}
-                />
-              );
-            })}
-          </Svg>
-        )}
-      </View>
-      {data.length > 0 && (
-        <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-          {data[0]?.day} → {data[data.length - 1]?.day}
-        </Text>
-      )}
-    </Card>
-  );
-}
-
-function EmptyState() {
-  return (
-    <Card variant="raised" padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
-      <View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.primary.muted,
-          borderWidth: 1,
-          borderColor: colors.primary.DEFAULT,
-          marginBottom: spacing.md,
-        }}
-      >
-        <Icon name="chart" size={28} color={colors.primary.DEFAULT} />
-      </View>
-      <Text variant="heading" style={{ textAlign: 'center' }}>
-        Aún no tienes entrenamientos
-      </Text>
-      <Text
-        variant="caption"
-        tone="secondary"
-        style={{ textAlign: 'center', marginTop: spacing.xs }}
-      >
-        Empieza tu primer workout para ver tu progreso aquí.
-      </Text>
-    </Card>
-  );
-}
-
-function ProgressSkeleton() {
-  return (
-    <View style={{ gap: spacing.md }}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-        {[0, 1, 2, 3].map((i) => (
-          <Card key={i} padding="lg" style={{ width: '47%', flexGrow: 1, height: 110 }} />
-        ))}
-      </View>
-      <Card padding="lg" style={{ height: 100 }} />
-      <Card padding="lg" style={{ height: 130 }} />
-      <Card padding="lg" style={{ height: 220 }} />
-    </View>
   );
 }
 
@@ -395,16 +118,18 @@ function ProgressSkeleton() {
 // COMPOSICIÓN CORPORAL
 // =====================================================
 
-const BODY_PERIODS: { value: BodyPeriod; label: string }[] = [
+const BODY_PERIODS = [
   { value: '7d', label: '7d' },
   { value: '30d', label: '30d' },
   { value: '90d', label: '90d' },
   { value: 'all', label: 'Todo' },
-];
+] as const satisfies readonly { value: BodyPeriod; label: string }[];
 
 function BodySection({
   measurements,
   timeline,
+  measurementsLoading,
+  timelineLoading,
   unit,
   bodyPeriod,
   onBodyPeriodChange,
@@ -413,6 +138,8 @@ function BodySection({
 }: {
   measurements: BodyMeasurement[];
   timeline: BodyTimelinePoint[];
+  measurementsLoading: boolean;
+  timelineLoading: boolean;
   unit: Unit;
   bodyPeriod: BodyPeriod;
   onBodyPeriodChange: (p: BodyPeriod) => void;
@@ -431,13 +158,26 @@ function BodySection({
           justifyContent: 'space-between',
         }}
       >
-        <Text variant="heading">Peso y progreso</Text>
-        <PressableScale onPress={onOpenDetail} hitSlop={8} pressScale={0.9} haptic={false}>
+        <View>
+          <Text variant="heading">Peso corporal</Text>
+          <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs }}>
+            Seguimiento de tus mediciones
+          </Text>
+        </View>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Abrir detalle del peso corporal"
+          accessibilityHint="Muestra todas tus mediciones y su evolución"
+          onPress={onOpenDetail}
+          hitSlop={8}
+          pressScale={0.9}
+          haptic={false}
+        >
           <View
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: radius.sm,
               backgroundColor: colors.bg.elevated,
               alignItems: 'center',
               justifyContent: 'center',
@@ -450,44 +190,13 @@ function BodySection({
         </PressableScale>
       </View>
 
-      {/* Filtro de período para el chart de peso */}
-      <View
-        style={{
-          flexDirection: 'row',
-          backgroundColor: colors.bg.elevated,
-          borderRadius: radius.lg,
-          padding: 4,
-          borderWidth: 1,
-          borderColor: colors.border,
-        }}
-      >
-        {BODY_PERIODS.map((p) => {
-          const active = bodyPeriod === p.value;
-          return (
-            <PressableScale
-              key={p.value}
-              onPress={() => onBodyPeriodChange(p.value)}
-              pressScale={0.95}
-              haptic={false}
-              style={{
-                flex: 1,
-                paddingVertical: 6,
-                alignItems: 'center',
-                borderRadius: radius.md,
-                backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-              }}
-            >
-              <Text
-                weight="bold"
-                tone={active ? 'primary' : 'secondary'}
-                style={{ fontSize: 12 }}
-              >
-                {p.label}
-              </Text>
-            </PressableScale>
-          );
-        })}
-      </View>
+      <SegmentedControl
+        options={BODY_PERIODS}
+        value={bodyPeriod}
+        onValueChange={onBodyPeriodChange}
+        accessibilityLabel="Rango del peso corporal"
+        haptic={false}
+      />
 
       <Button
         title="Registrar peso de hoy"
@@ -496,8 +205,20 @@ function BodySection({
         fullWidth
       />
 
-      {latest && (
-        <Card variant="raised" padding="lg">
+      {measurementsLoading ? (
+        <SkeletonGroup
+          accessibilityLabel="Cargando mediciones de peso corporal"
+        >
+          <Card variant="section" padding="lg" style={{ gap: spacing.md }}>
+            <Skeleton width="38%" height={12} />
+            <Skeleton width="56%" height={38} />
+            <Skeleton width="30%" height={12} />
+          </Card>
+        </SkeletonGroup>
+      ) : null}
+
+      {!measurementsLoading && latest && (
+        <Card variant="section" padding="lg">
           <View
             style={{
               flexDirection: 'row',
@@ -518,7 +239,7 @@ function BodySection({
               style={{
                 width: 48,
                 height: 48,
-                borderRadius: 24,
+                borderRadius: radius.sm,
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: colors.primary.muted,
@@ -554,9 +275,18 @@ function BodySection({
         </Card>
       )}
 
-      <WeightTimelineCard data={timeline} unit={unit} />
+      {timelineLoading ? (
+        <SkeletonGroup accessibilityLabel="Cargando evolución del peso corporal">
+          <Card variant="section" padding="lg" style={{ gap: spacing.md }}>
+            <Skeleton width="52%" height={12} />
+            <Skeleton height={176} />
+          </Card>
+        </SkeletonGroup>
+      ) : (
+        <WeightTimelineCard data={timeline} unit={unit} />
+      )}
 
-      {recent.length > 0 && (
+      {!measurementsLoading && recent.length > 0 && (
         <Card padding="lg">
           <Text variant="label" tone="secondary" style={{ marginBottom: spacing.md }}>
             ÚLTIMAS MEDICIONES
@@ -594,6 +324,18 @@ function MeasurementRow({
 }) {
   const toast = useToast();
   const remove = useDeleteMeasurement();
+  const accessibleDetails = [
+    formatWeight(measurement.weightKg, unit),
+    formatDate(measurement.recordedAt),
+    measurement.bodyFatPct !== undefined
+      ? `${measurement.bodyFatPct.toFixed(1)} por ciento de grasa`
+      : null,
+    measurement.musclePct !== undefined
+      ? `${measurement.musclePct.toFixed(1)} por ciento de músculo`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
 
   const handleLongPress = () => {
     Alert.alert(
@@ -620,17 +362,18 @@ function MeasurementRow({
   };
 
   return (
-    <Pressable
-      onLongPress={handleLongPress}
-      delayLongPress={350}
-      style={({ pressed }) => [
-        {
-          paddingVertical: spacing.sm,
-          borderBottomWidth: showDivider ? 1 : 0,
-          borderBottomColor: colors.border,
-        },
-        pressed && { opacity: 0.7 },
-      ]}
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={accessibleDetails}
+      accessibilityHint="Abre opciones para borrar esta medición"
+      onPress={handleLongPress}
+      pressScale={0.99}
+      haptic={false}
+      style={{
+        paddingVertical: spacing.sm,
+        borderBottomWidth: showDivider ? 1 : 0,
+        borderBottomColor: colors.border,
+      }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View>
@@ -654,7 +397,7 @@ function MeasurementRow({
           </View>
         )}
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -675,7 +418,7 @@ function WeightTimelineCard({ data, unit }: { data: BodyTimelinePoint[]; unit: U
   );
 
   return (
-    <Card variant="raised" padding="lg">
+    <Card variant="section" padding="lg">
       <Text variant="label" tone="secondary">EVOLUCIÓN DEL PESO ({unit})</Text>
       <View style={{ marginTop: spacing.md }}>
         <WeightChart data={data} unit={unit} />
@@ -692,376 +435,4 @@ function WeightTimelineCard({ data, unit }: { data: BodyTimelinePoint[]; unit: U
 function formatDate(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-// =====================================================
-// PROGRESO POR EJERCICIO
-// =====================================================
-
-function ExerciseProgressCard({
-  exerciseId,
-  name,
-  chartData,
-  metric,
-  unit,
-  onMetricChange,
-  onOpen,
-}: {
-  exerciseId?: string;
-  name: string;
-  chartData: TimeSeriesPoint[];
-  metric: 'weight' | 'reps';
-  unit: Unit;
-  onMetricChange: (m: 'weight' | 'reps') => void;
-  onOpen: () => void;
-}) {
-  const img = exerciseId ? exerciseImage(exerciseId) : undefined;
-  const { width } = useWindowDimensions();
-  const chartWidth = width - spacing.lg * 4;
-
-  return (
-    <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text variant="heading">Progreso por ejercicio</Text>
-        <PressableScale onPress={onOpen} hitSlop={8} pressScale={0.9} haptic={false}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              backgroundColor: colors.bg.elevated,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="chart" size={18} color={colors.primary.DEFAULT} />
-          </View>
-        </PressableScale>
-      </View>
-
-      <PressableScale onPress={onOpen} pressScale={0.98} haptic={false}>
-        <Card variant="raised" padding="lg">
-          {/* Exercise name + metric toggle */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
-            {img !== undefined && (
-              <Image
-                source={img}
-                style={{ width: 40, height: 40, borderRadius: radius.md, backgroundColor: colors.bg.elevated }}
-                contentFit="cover"
-              />
-            )}
-            <Text weight="bold" style={{ flex: 1 }} numberOfLines={1}>
-              {name}
-            </Text>
-            <View
-              style={{
-                flexDirection: 'row',
-                backgroundColor: colors.bg.elevated,
-                borderRadius: radius.lg,
-                padding: 3,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              {(['weight', 'reps'] as ('weight' | 'reps')[]).map((m) => {
-                const active = metric === m;
-                return (
-                  <PressableScale
-                    key={m}
-                    onPress={() => onMetricChange(m)}
-                    pressScale={0.94}
-                    haptic={false}
-                    style={{
-                      paddingHorizontal: spacing.sm,
-                      paddingVertical: 4,
-                      borderRadius: radius.md,
-                      backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
-                    }}
-                  >
-                    <Text
-                      weight="bold"
-                      style={{ fontSize: 11, color: active ? colors.text.primary : colors.text.secondary }}
-                    >
-                      {m === 'weight' ? 'Peso' : 'Reps'}
-                    </Text>
-                  </PressableScale>
-                );
-              })}
-            </View>
-          </View>
-
-          <TimeSeriesChart
-            data={chartData}
-            chartWidth={chartWidth}
-            chartHeight={130}
-            formatLabel={
-              metric === 'weight'
-                ? (v) => `${v.toFixed(1)}${unit}`
-                : (v) => `${Math.round(v)}r`
-            }
-            emptyMessage="Registra 2 o más sesiones con este ejercicio."
-          />
-        </Card>
-      </PressableScale>
-    </View>
-  );
-}
-
-// =====================================================
-// RANGOS Y LEADERBOARD
-// =====================================================
-
-function RanksSection({ currentPoints }: { currentPoints: number }) {
-  const current = rankFromPoints(currentPoints);
-  const next = nextRank(currentPoints);
-  const progressToNext = next
-    ? Math.min(1, (currentPoints - current.min) / (next.min - current.min))
-    : 1;
-
-  return (
-    <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text variant="heading">Rangos</Text>
-        <Text variant="caption" tone="muted" numeric>{currentPoints.toLocaleString()} pts</Text>
-      </View>
-
-      {/* Current rank progress card */}
-      <Card variant="raised" padding="lg">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-          <View style={{ width: 48, height: 48, borderRadius: 24, overflow: 'hidden' }}>
-            <LinearGradient
-              colors={current.gradient}
-              style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text weight="black" style={{ color: colors.bg.base, fontSize: 18 }}>
-                {current.label.charAt(0)}
-              </Text>
-            </LinearGradient>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text weight="bold" style={{ fontSize: 17 }}>{current.label}</Text>
-            {next ? (
-              <Text variant="caption" tone="muted">
-                {currentPoints}/{next.min} pts → {next.label}
-              </Text>
-            ) : (
-              <Text variant="caption" tone="accent">Rango máximo alcanzado</Text>
-            )}
-          </View>
-        </View>
-        {next && (
-          <View
-            style={{
-              height: 6,
-              backgroundColor: colors.bg.elevated,
-              borderRadius: radius.full,
-              marginTop: spacing.md,
-              overflow: 'hidden',
-            }}
-          >
-            <LinearGradient
-              colors={current.gradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={{
-                height: '100%',
-                width: `${progressToNext * 100}%`,
-                borderRadius: radius.full,
-              }}
-            />
-          </View>
-        )}
-      </Card>
-
-      {/* All ranks timeline — horizontal scroll */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={{ flexDirection: 'row', gap: spacing.sm, paddingBottom: spacing.xs, paddingRight: spacing.sm }}>
-          {RANKS.map((rank) => {
-            const isCurrent = rank.id === current.id;
-            const isAchieved = currentPoints >= rank.min;
-            return (
-              <View
-                key={rank.id}
-                style={{
-                  width: 72,
-                  alignItems: 'center',
-                  opacity: isAchieved ? 1 : 0.4,
-                }}
-              >
-                <View
-                  style={{
-                    width: 56,
-                    height: 56,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    shadowColor: isCurrent ? rank.color : 'transparent',
-                    shadowOpacity: isCurrent ? 0.6 : 0,
-                    shadowRadius: 10,
-                    shadowOffset: { width: 0, height: 0 },
-                    elevation: isCurrent ? 8 : 0,
-                  }}
-                >
-                  <Image
-                    source={RANK_IMAGES[rank.id]}
-                    style={{ width: 52, height: 52 }}
-                    contentFit="contain"
-                    accessibilityLabel={`Rango ${rank.label}`}
-                  />
-                  {!isAchieved && (
-                    <View
-                      style={{
-                        position: 'absolute',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Icon name="lock" size={16} color={colors.text.primary} />
-                    </View>
-                  )}
-                </View>
-                <Text
-                  variant="caption"
-                  weight={isCurrent ? 'bold' : 'regular'}
-                  style={{ marginTop: spacing.xs, textAlign: 'center', fontSize: 11 }}
-                >
-                  {rank.label}
-                </Text>
-                <Text
-                  variant="caption"
-                  tone={isCurrent ? 'accent' : 'muted'}
-                  style={{ fontSize: 9, textAlign: 'center' }}
-                >
-                  {isCurrent ? 'ACTUAL' : isAchieved ? '✓' : `${rank.min >= 1000 ? `${rank.min / 1000}k` : rank.min}pts`}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
-function LeaderboardSection({
-  rankId,
-  entries,
-  loading,
-  isError,
-  currentUserId,
-}: {
-  rankId: RankId;
-  entries: LeaderboardEntry[];
-  loading: boolean;
-  isError: boolean;
-  currentUserId?: string;
-}) {
-  const rankInfo = RANKS.find((r) => r.id === rankId) ?? RANKS[0];
-
-  return (
-    <View style={{ marginTop: spacing.xl, gap: spacing.md, marginBottom: spacing.md }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text variant="heading">Leaderboard</Text>
-        <View
-          style={{
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 4,
-            borderRadius: radius.full,
-            backgroundColor: `${rankInfo.color}22`,
-            borderWidth: 1,
-            borderColor: `${rankInfo.color}44`,
-          }}
-        >
-          <Text variant="caption" weight="bold" style={{ color: rankInfo.color }}>
-            {rankInfo.label}
-          </Text>
-        </View>
-      </View>
-
-      <Card variant="raised" padding="md">
-        {loading ? (
-          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-            <Text variant="caption" tone="muted">Cargando leaderboard…</Text>
-          </View>
-        ) : isError || entries.length === 0 ? (
-          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-            <Icon name="trophy" size={28} color={colors.text.muted} />
-            <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm, textAlign: 'center' }}>
-              Sin datos para este rango
-            </Text>
-          </View>
-        ) : (
-          <View>
-            {entries.map((entry, i) => (
-              <LeaderboardRow
-                key={entry.id}
-                entry={entry}
-                position={i + 1}
-                isMe={entry.id === currentUserId}
-                showDivider={i < entries.length - 1}
-              />
-            ))}
-          </View>
-        )}
-      </Card>
-    </View>
-  );
-}
-
-function LeaderboardRow({
-  entry,
-  position,
-  isMe,
-  showDivider,
-}: {
-  entry: LeaderboardEntry;
-  position: number;
-  isMe: boolean;
-  showDivider: boolean;
-}) {
-  const entryRankColor = RANKS.find((r) => r.id === entry.currentRank)?.color ?? colors.text.muted;
-  const posColor =
-    position === 1 ? '#FFD700'
-    : position === 2 ? '#C0C0C0'
-    : position === 3 ? '#CD7F32'
-    : colors.text.muted;
-
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.xs,
-        borderBottomWidth: showDivider ? 1 : 0,
-        borderBottomColor: colors.border,
-        backgroundColor: isMe ? colors.primary.muted : 'transparent',
-        borderRadius: isMe ? radius.md : 0,
-      }}
-    >
-      <Text
-        weight="bold"
-        numeric
-        style={{ width: 28, color: posColor, textAlign: 'center', fontSize: 13 }}
-      >
-        {position}
-      </Text>
-      <Avatar
-        uri={entry.avatarUrl}
-        name={entry.displayName}
-        size={36}
-        borderColor={entryRankColor}
-      />
-      <View style={{ flex: 1, marginLeft: spacing.sm }}>
-        <Text weight="semibold" numberOfLines={1}>
-          {entry.displayName}{isMe ? ' (tú)' : ''}
-        </Text>
-        <Text variant="caption" tone="muted">@{entry.username}</Text>
-      </View>
-      <Text variant="caption" weight="bold" numeric style={{ color: entryRankColor }}>
-        {entry.rankPoints.toLocaleString()}
-      </Text>
-    </View>
-  );
 }

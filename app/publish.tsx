@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   TextInput,
@@ -17,8 +17,9 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Stat } from '@/components/ui/Stat';
 import { Avatar } from '@/components/Avatar';
+import { WorkoutShareCard } from '@/components/social/WorkoutShareCard';
+import type { SocialLayout } from '@/components/social/SocialStreamColumn';
 import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { useAppStore } from '@/store/app';
@@ -33,9 +34,19 @@ import { uploadPostPhoto } from '@/lib/storage/photos';
 import { ensureWorkoutSynced } from '@/lib/repos/workouts';
 import { EXERCISES } from '@/data/exercises';
 import { useToast } from '@/components/ui/Toast';
+import { buildWorkoutPostMetadata } from '@/lib/workoutPostMetadata';
+import { fromDisplay } from '@/lib/units';
 
 type Mode = 'manual' | 'workout' | 'pr' | 'streak';
 const MAX_CAPTION = 500;
+const STREAM_SCROLL_CONTENT = {
+  width: '100%' as const,
+  maxWidth: 600,
+  alignSelf: 'center' as const,
+  paddingHorizontal: spacing.lg,
+  paddingBottom: spacing['3xl'],
+};
+const STREAM_FULL_BLEED = { marginHorizontal: -spacing.lg };
 
 const THIRTY_DAYS_MS = 30 * 24 * 3600 * 1000;
 
@@ -67,7 +78,10 @@ export default function PublishModal() {
   const streakWeeks = useAppStore((s) => s.streakWeeks);
   const history = useWorkoutsStore((s) => s.history);
 
-  const recentWorkouts = useMemo(() => last30Days(history), [history]);
+  const recentWorkouts = useMemo(
+    () => last30Days(history).filter((workout) => !workout.isPublished),
+    [history],
+  );
 
   const close = () => {
     if (router.canGoBack()) router.back();
@@ -151,7 +165,7 @@ function Header({ title, onClose }: { title: string; onClose: () => void }) {
           style={{
             width: 36,
             height: 36,
-            borderRadius: 18,
+            borderRadius: radius.full,
             backgroundColor: colors.bg.elevated,
             alignItems: 'center',
             justifyContent: 'center',
@@ -231,7 +245,7 @@ function ManualComposer({
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
+    <ScrollView contentContainerStyle={STREAM_SCROLL_CONTENT}>
       {/* Author preview */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.lg }}>
         <Avatar uri={avatarUrl} name={profileDisplayName} size={44} />
@@ -274,7 +288,8 @@ function ManualComposer({
         <View
           style={{
             marginTop: spacing.lg,
-            borderRadius: radius.lg,
+            marginHorizontal: -spacing.lg,
+            borderRadius: 0,
             overflow: 'hidden',
             position: 'relative',
           }}
@@ -293,7 +308,10 @@ function ManualComposer({
               backgroundColor: 'rgba(0,0,0,0.7)',
               paddingHorizontal: spacing.md,
               paddingVertical: 6,
-              borderRadius: radius.full,
+              minWidth: 44,
+              minHeight: 44,
+              justifyContent: 'center',
+              borderRadius: radius.sm,
               flexDirection: 'row',
               alignItems: 'center',
               gap: 4,
@@ -342,93 +360,39 @@ function ManualComposer({
 // =====================================================
 // WORKOUT SUMMARY CARD (shared mini-component)
 // =====================================================
-function WorkoutCard({ workout }: { workout: Workout }) {
-  const sets = workout.exercises.reduce(
-    (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
-    0,
+function WorkoutCard({
+  workout,
+  title,
+  layout = 'contained',
+}: {
+  workout: Workout;
+  title?: string;
+  layout?: SocialLayout;
+}) {
+  const metadata = useMemo(
+    () => buildWorkoutPostMetadata(workout),
+    [workout],
   );
-  const durationMin = Math.round((workout.durationSeconds ?? 0) / 60);
+  const date = new Date(workout.startedAt).toLocaleString('es-ES', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
-    <Card padding="lg">
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <View
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 22,
-            backgroundColor: colors.primary.muted,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon name="dumbbell" size={20} color={colors.primary.DEFAULT} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text weight="bold" numberOfLines={1}>
-            {workout.routineName ?? 'Entrenamiento libre'}
-          </Text>
-          <Text variant="caption" tone="muted">
-            {new Date(workout.startedAt).toLocaleString([], {
-              weekday: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </Text>
-        </View>
-      </View>
-
-      <View
-        style={{
-          flexDirection: 'row',
-          gap: spacing.md,
-          marginTop: spacing.lg,
-          paddingTop: spacing.md,
-          borderTopWidth: 1,
-          borderTopColor: colors.border,
-        }}
-      >
-        <View style={{ flex: 1 }}>
-          <Stat label="Tiempo" value={durationMin} unit="min" tone="brand" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Stat label="Sets" value={sets} unit="" tone="info" />
-        </View>
-      </View>
-
-      <View style={{ marginTop: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {workout.exercises.slice(0, 4).map((e) => (
-          <View
-            key={e.id}
-            style={{
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 4,
-              borderRadius: radius.full,
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text variant="caption" tone="secondary">{e.exerciseName}</Text>
-          </View>
-        ))}
-        {workout.exercises.length > 4 && (
-          <View
-            style={{
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 4,
-              borderRadius: radius.full,
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text variant="caption" tone="muted">
-              +{workout.exercises.length - 4} más
-            </Text>
-          </View>
-        )}
-      </View>
+    <Card
+      variant={layout === 'stream' ? 'stream' : 'default'}
+      padding={layout === 'stream' ? 0 : 'lg'}
+      style={layout === 'stream' ? STREAM_FULL_BLEED : undefined}
+    >
+      <WorkoutShareCard
+        title={title ?? workout.routineName ?? 'Entrenamiento libre'}
+        subtitle={date}
+        metadata={metadata}
+        layout={layout}
+      />
     </Card>
   );
 }
@@ -451,15 +415,28 @@ function WorkoutComposer({
   onError: (msg: string) => void;
   onClose: () => void;
 }) {
-  const [selectedId, setSelectedId] = useState<string | null>(
-    defaultWorkoutId ?? recentWorkouts[0]?.id ?? null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(() => {
+    const requestedWorkout = recentWorkouts.find((candidate) => candidate.id === defaultWorkoutId);
+    return requestedWorkout?.id ?? recentWorkouts[0]?.id ?? null;
+  });
   const [showSelector, setShowSelector] = useState(false);
   const [title, setTitle] = useState('');
   const [caption, setCaption] = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const publish = usePublishWorkout();
+  const markWorkoutPublished = useWorkoutsStore((state) => state.markWorkoutPublished);
+
+  useEffect(() => {
+    if (recentWorkouts.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+    if (!recentWorkouts.some((candidate) => candidate.id === selectedId)) {
+      setSelectedId(recentWorkouts[0].id);
+    }
+  }, [recentWorkouts, selectedId]);
 
   const workout = recentWorkouts.find((w) => w.id === selectedId) ?? null;
 
@@ -482,7 +459,13 @@ function WorkoutComposer({
 
   const remaining = MAX_CAPTION - caption.length;
   const overLimit = remaining < 0;
-  const canPublish = !!workout && title.trim().length > 0 && !overLimit && !publish.isPending && !uploading;
+  const canPublish =
+    !!workout &&
+    title.trim().length > 0 &&
+    !overLimit &&
+    !submitting &&
+    !publish.isPending &&
+    !uploading;
 
   const pickPhoto = async () => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -494,40 +477,42 @@ function WorkoutComposer({
 
   const submit = async () => {
     if (!canPublish || !workout) return;
-    // Ensure the workout is synced to Supabase before publishing
-    if (userId) {
-      try {
+
+    setSubmitting(true);
+    try {
+      if (userId) {
         await ensureWorkoutSynced(userId, workout);
-      } catch (e) {
-        onError((e as Error)?.message ?? 'No se pudo sincronizar el entreno.');
-        return;
       }
-    }
-    let photoUrl: string | undefined;
-    if (photoUri && userId) {
-      try {
+
+      let photoUrl: string | undefined;
+      if (photoUri && userId) {
         setUploading(true);
         photoUrl = await uploadPostPhoto(userId, photoUri);
-      } catch (e) {
-        onError((e as Error)?.message ?? 'No se pudo subir la foto.');
-        return;
-      } finally {
         setUploading(false);
       }
+
+      await publish.mutateAsync({
+        workoutId: workout.id,
+        title: title.trim(),
+        caption: caption.trim() || undefined,
+        photoUrl,
+      });
+      markWorkoutPublished(workout.id);
+      onSuccess('Entreno compartido');
+    } catch (error) {
+      onError(error instanceof Error ? error.message : 'No se pudo publicar');
+    } finally {
+      setUploading(false);
+      setSubmitting(false);
     }
-    publish.mutate(
-      { workoutId: workout.id, title: title.trim(), caption: caption.trim() || undefined, photoUrl },
-      {
-        onSuccess: () => onSuccess('Entreno compartido'),
-        onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
-      },
-    );
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
+    <ScrollView contentContainerStyle={STREAM_SCROLL_CONTENT}>
       {/* Selected workout card */}
-      {workout && <WorkoutCard workout={workout} />}
+      {workout && (
+        <WorkoutCard workout={workout} title={title.trim() || undefined} layout="stream" />
+      )}
 
       {/* Change workout button */}
       {recentWorkouts.length > 1 && (
@@ -627,11 +612,19 @@ function WorkoutComposer({
       </View>
 
       {photoUri ? (
-        <View style={{ marginTop: spacing.lg, borderRadius: radius.lg, overflow: 'hidden', position: 'relative' }}>
+        <View
+          style={{
+            marginTop: spacing.lg,
+            marginHorizontal: -spacing.lg,
+            borderRadius: 0,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
           <Image source={{ uri: photoUri }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
           <Pressable
             onPress={() => setPhotoUri(null)}
-            style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, minWidth: 44, minHeight: 44, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.sm, flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
             <Icon name="close" size={14} color="#fff" />
             <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
@@ -650,7 +643,7 @@ function WorkoutComposer({
       <Button
         title={uploading ? 'Subiendo foto…' : 'Publicar entreno'}
         onPress={submit}
-        loading={publish.isPending || uploading}
+        loading={publish.isPending || uploading || submitting}
         disabled={!canPublish}
         fullWidth
         style={{ marginTop: spacing.xl }}
@@ -679,15 +672,19 @@ function PrComposer({
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const publish = usePublishPR();
+  const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
 
-  const weightNum = parseFloat(weight);
-  const repsNum = parseInt(reps, 10);
+  const weightNum = Number(weight.trim().replace(',', '.'));
+  const weightKg = Number.isFinite(weightNum) ? fromDisplay(weightNum, unit) : Number.NaN;
+  const repsNum = Number(reps.trim());
   const valid =
     !!exerciseId &&
     !Number.isNaN(weightNum) &&
     weightNum > 0 &&
-    !Number.isNaN(repsNum) &&
-    repsNum > 0;
+    weightKg <= 1_000 &&
+    Number.isInteger(repsNum) &&
+    repsNum > 0 &&
+    repsNum <= 999;
   const canPublish = valid && title.trim().length > 0 && !publish.isPending && !uploading;
 
   const pickPhoto = async () => {
@@ -714,7 +711,7 @@ function PrComposer({
       }
     }
     publish.mutate(
-      { exerciseId, title: title.trim(), weightKg: weightNum, reps: repsNum, caption: caption.trim() || undefined, photoUrl },
+      { exerciseId, title: title.trim(), weightKg, reps: repsNum, caption: caption.trim() || undefined, photoUrl },
       {
         onSuccess: () => onSuccess('PR publicado'),
         onError: (err) => onError(err?.message ?? 'No se pudo publicar'),
@@ -723,8 +720,16 @@ function PrComposer({
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
-      <Card variant="glow" padding="lg" style={{ marginBottom: spacing.lg }}>
+    <ScrollView contentContainerStyle={STREAM_SCROLL_CONTENT}>
+      <Card
+        variant="stream"
+        padding="lg"
+        style={{
+          ...STREAM_FULL_BLEED,
+          marginBottom: spacing.lg,
+          borderColor: colors.accent.DEFAULT,
+        }}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Icon name="trophy" size={20} color={colors.accent.DEFAULT} />
           <Text variant="heading" tone="accent">Tu nuevo PR</Text>
@@ -762,7 +767,7 @@ function PrComposer({
                 style={{
                   width: 18,
                   height: 18,
-                  borderRadius: 9,
+                  borderRadius: radius.full,
                   borderWidth: 2,
                   borderColor: selected ? colors.primary.DEFAULT : colors.border,
                   backgroundColor: selected ? colors.primary.DEFAULT : 'transparent',
@@ -794,7 +799,7 @@ function PrComposer({
           value={weight}
           onChangeText={setWeight}
           containerStyle={{ flex: 1 }}
-          rightAdornment={<Text tone="muted">kg</Text>}
+          rightAdornment={<Text tone="muted">{unit}</Text>}
         />
         <Input
           label="Reps"
@@ -834,11 +839,19 @@ function PrComposer({
       </View>
 
       {photoUri ? (
-        <View style={{ marginTop: spacing.lg, borderRadius: radius.lg, overflow: 'hidden', position: 'relative' }}>
+        <View
+          style={{
+            marginTop: spacing.lg,
+            marginHorizontal: -spacing.lg,
+            borderRadius: 0,
+            overflow: 'hidden',
+            position: 'relative',
+          }}
+        >
           <Image source={{ uri: photoUri }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
           <Pressable
             onPress={() => setPhotoUri(null)}
-            style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+            style={{ position: 'absolute', top: spacing.sm, right: spacing.sm, minWidth: 44, minHeight: 44, justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.sm, flexDirection: 'row', alignItems: 'center', gap: 4 }}
           >
             <Icon name="close" size={14} color="#fff" />
             <Text variant="caption" weight="bold" style={{ color: '#fff' }}>Quitar</Text>
@@ -910,15 +923,19 @@ function StreakComposer({
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}>
+    <ScrollView contentContainerStyle={STREAM_SCROLL_CONTENT}>
       {/* Streak preview card */}
-      <Card variant="raised" padding="lg" style={{ marginBottom: spacing.lg }}>
+      <Card
+        variant="stream"
+        padding="lg"
+        style={{ ...STREAM_FULL_BLEED, marginBottom: spacing.lg }}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View
             style={{
               width: 52,
               height: 52,
-              borderRadius: 26,
+              borderRadius: radius.sm,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.accent.soft,

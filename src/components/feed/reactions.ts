@@ -1,4 +1,3 @@
-import { colors } from '@/theme/tokens';
 import type { IconName } from '@/components/Icon';
 import type { ReactionKind } from '@/lib/repos/posts';
 

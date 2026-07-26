@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { uuidv4 } from '@/lib/ids';
+import { parseWorkoutSnapshot } from '@/lib/workoutPersistence';
 import { exerciseById } from '@/data/exercises';
 
 export interface SetEntry {
@@ -11,6 +12,8 @@ export interface SetEntry {
   isWarmup?: boolean;
   isCompleted: boolean;
   durationSeconds?: number;
+  /** Timestamp ISO local mientras el descanso posterior sigue abierto. */
+  restStartedAt?: string;
   restAfterSeconds?: number;
 }
 
@@ -45,6 +48,7 @@ interface State {
   active: Workout | null;
   hydrate: () => Promise<void>;
   mergeHistory: (remote: Workout[]) => void;
+  markWorkoutPublished: (workoutId: string) => void;
   startWorkout: (init: { routineDayId?: string; routineName?: string; exercises: WorkoutExercise[] }) => void;
   cancelWorkout: () => void;
   finishWorkout: (extras: { feeling?: Workout['feeling']; photoUri?: string; published?: boolean }) => Workout | null;
@@ -61,6 +65,16 @@ interface State {
 }
 
 const KEY = 'gmo:workouts:v1';
+let persistQueue: Promise<void> = Promise.resolve();
+
+function persistSnapshot(history: Workout[], active: Workout | null) {
+  const snapshot = JSON.stringify({ history, active });
+  persistQueue = persistQueue
+    .then(() => AsyncStorage.setItem(KEY, snapshot))
+    .catch((error) => {
+      console.warn('[Workouts] No se pudo persistir el historial.', error);
+    });
+}
 
 function nid() {
   return uuidv4();
@@ -109,19 +123,47 @@ export const useWorkoutsStore = create<State>((set, get) => ({
   active: null,
 
   hydrate: async () => {
-    const raw = await AsyncStorage.getItem(KEY);
-    if (raw) set(JSON.parse(raw));
+    try {
+      const raw = await AsyncStorage.getItem(KEY);
+      if (!raw) return;
+      const snapshot = parseWorkoutSnapshot(raw);
+      if (snapshot.recoveredEntries > 0) {
+        console.warn(`[Workouts] Se ignoraron ${snapshot.recoveredEntries} registros locales corruptos.`);
+      }
+      set({ active: snapshot.active, history: snapshot.history });
+    } catch (error) {
+      console.warn('[Workouts] No se pudo hidratar el historial local.', error);
+    }
   },
 
   mergeHistory: (remote) => {
     const current = get().history;
+    const remoteById = new Map(remote.map((workout) => [workout.id, workout]));
+    const reconciled = current.map((workout) => {
+      const remoteWorkout = remoteById.get(workout.id);
+      return remoteWorkout?.isPublished && !workout.isPublished
+        ? { ...workout, isPublished: true }
+        : workout;
+    });
     const ids = new Set(current.map((w) => w.id));
     const toAdd = remote.filter((w) => !ids.has(w.id));
-    if (!toAdd.length) return;
-    const merged = [...toAdd, ...current].sort(
+    const publicationChanged = reconciled.some(
+      (workout, index) => workout !== current[index],
+    );
+    if (!toAdd.length && !publicationChanged) return;
+    const merged = [...toAdd, ...reconciled].sort(
       (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
     );
     set({ history: merged });
+    persistSnapshot(merged, get().active);
+  },
+
+  markWorkoutPublished: (workoutId) => {
+    const history = get().history.map((workout) =>
+      workout.id === workoutId ? { ...workout, isPublished: true } : workout,
+    );
+    set({ history });
+    persistSnapshot(history, get().active);
   },
 
   startWorkout: ({ routineDayId, routineName, exercises }) => {
@@ -137,9 +179,13 @@ export const useWorkoutsStore = create<State>((set, get) => ({
         exercises: exercises.map((e) => ({ ...e, id: nid() })),
       },
     });
+    persistSnapshot(get().history, get().active);
   },
 
-  cancelWorkout: () => set({ active: null }),
+  cancelWorkout: () => {
+    set({ active: null });
+    persistSnapshot(get().history, null);
+  },
 
   finishWorkout: ({ feeling, photoUri, published }) => {
     const a = get().active;
@@ -160,7 +206,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     };
     const history = [finished, ...get().history];
     set({ active: null, history });
-    AsyncStorage.setItem(KEY, JSON.stringify({ history })).catch(() => {});
+    persistSnapshot(history, null);
     return finished;
   },
 
@@ -172,6 +218,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     sets[setIdx] = { ...sets[setIdx], ...patch };
     exercises[exIdx] = { ...exercises[exIdx], sets };
     set({ active: { ...a, exercises } });
+    persistSnapshot(get().history, get().active);
   },
 
   toggleSetComplete: (exIdx, setIdx) => {
@@ -182,6 +229,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     sets[setIdx] = { ...sets[setIdx], isCompleted: !sets[setIdx].isCompleted };
     exercises[exIdx] = { ...exercises[exIdx], sets };
     set({ active: { ...a, exercises } });
+    persistSnapshot(get().history, get().active);
   },
 
   addSet: (exIdx) => {
@@ -201,6 +249,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     });
     exercises[exIdx] = { ...ex, sets };
     set({ active: { ...a, exercises } });
+    persistSnapshot(get().history, get().active);
   },
 
   removeSet: (exIdx, setIdx) => {
@@ -210,6 +259,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     const sets = exercises[exIdx].sets.filter((_, i) => i !== setIdx);
     exercises[exIdx] = { ...exercises[exIdx], sets };
     set({ active: { ...a, exercises } });
+    persistSnapshot(get().history, get().active);
   },
 
   swapExercise: (exIdx, newExerciseId) => {
@@ -246,6 +296,7 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       newIndex = exIdx + 1;
     }
     set({ active: { ...a, exercises } });
+    persistSnapshot(get().history, get().active);
     return newIndex;
   },
 }));

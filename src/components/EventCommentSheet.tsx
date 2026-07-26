@@ -194,7 +194,7 @@ export function EventCommentSheet({
               style={{
                 width: 40,
                 height: 4,
-                borderRadius: 2,
+                borderRadius: radius.sm,
                 backgroundColor: colors.borderStrong,
               }}
             />
@@ -301,7 +301,7 @@ export function EventCommentSheet({
                 {
                   width: 44,
                   height: 44,
-                  borderRadius: 22,
+                  borderRadius: radius.full,
                   backgroundColor:
                     !body.trim() || overLimit ? colors.bg.elevated : colors.primary.DEFAULT,
                   alignItems: 'center',

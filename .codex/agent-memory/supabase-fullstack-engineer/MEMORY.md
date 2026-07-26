@@ -1,0 +1,2 @@
+- [Progress metrics](feedback-progress-metrics.md) — Use real session data and factual trends; no estimated-strength formulas or automatic verdicts.
+- [Live backend deployment](project-backend-deployment.md) — Supabase live migrations deployed through 0046; workout publishing ACL locked down.

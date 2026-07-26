@@ -22,6 +22,22 @@ Respond caveman-style to cut token usage ~75%. Rules:
 - Parse and distill output into a minimal failure summary
 - Return results in a structured, scannable format
 
+For GMO social stream changes, full verification is `npm test -- --runInBand`,
+`npm run typecheck`, `npm run lint`, Android export/bundle and a recorded physical
+smoke at 360/390/430 px plus 768 px. Expo Web is not a substitute because
+`react-native-pager-view` imports native-only code on web.
+
+For section/skeleton work, include Android export plus physical checks for initial
+load, cached refetch, reduced motion/accessibility announcement and absence of
+lateral section lines. No UI snapshot suite currently covers these primitives.
+
+For exercise-progress picker work, run pure picker/progress tests plus full gates
+and Android export. Physical smoke needs many variants, accent-insensitive search,
+Recent/Most trained/All, combined muscle+equipment filters, legacy rows, keyboard,
+Android Back, local thumbnails/fallbacks and exact chart/session navigation after
+selection. Confirm sheet height/header/filter position stay fixed with many, one
+and zero results. Confirm only Carga/Reps/Tiempo appear as trend metrics.
+
 ## Command Execution Protocol
 
 1. **Determine which commands to run** based on the user's request:

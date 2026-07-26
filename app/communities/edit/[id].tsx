@@ -7,7 +7,7 @@ import { Icon } from '@/components/Icon';
 import { CommunityForm } from '@/components/communities/CommunityForm';
 import { useCommunity, useUpdateCommunity } from '@/lib/queries/communities';
 import { useToast } from '@/components/ui/Toast';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function EditCommunityScreen() {
   const { id }     = useLocalSearchParams<{ id: string }>();
@@ -50,7 +50,7 @@ export default function EditCommunityScreen() {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.bg.elevated,

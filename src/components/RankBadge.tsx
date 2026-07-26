@@ -49,7 +49,7 @@ export function RankBadge({ points, size = 'md', showProgress = false }: Props) 
                 style={{
                   height: 6,
                   backgroundColor: colors.bg.card,
-                  borderRadius: radius.full,
+                  borderRadius: radius.sm,
                   marginTop: 6,
                   overflow: 'hidden',
                 }}

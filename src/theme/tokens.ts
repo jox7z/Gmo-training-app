@@ -1,6 +1,6 @@
 export const colors = {
   bg: {
-    base: '#0B0B0B',
+    base: '#000000',
     elevated: '#161616',
     card: '#1C1C1E',
     cardEdge: '#111113',
@@ -22,6 +22,21 @@ export const colors = {
   info: {
     DEFAULT: '#1E90FF',
     soft: 'rgba(30,144,255,0.18)',
+  },
+  metal: {
+    bronze: {
+      DEFAULT: '#CD7F32',
+      dark: '#A05A23',
+    },
+    silver: {
+      DEFAULT: '#C0C0C0',
+      dark: '#8E8E93',
+      light: '#D1D1D6',
+    },
+    gold: {
+      DEFAULT: '#FFD700',
+      dark: '#B8860B',
+    },
   },
   text: {
     primary: '#FFFFFF',
@@ -49,12 +64,14 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
-  '2xl': 28,
-  '3xl': 32,
+  // Superficies deliberadamente rectas. `full` queda reservado para
+  // avatares, estados, anillos y controles que sí son círculos reales.
+  sm: 2,
+  md: 3,
+  lg: 4,
+  xl: 4,
+  '2xl': 4,
+  '3xl': 4,
   full: 9999,
 } as const;
 
@@ -79,8 +96,111 @@ export const fontWeight = {
   medium: '500' as const,
   semibold: '600' as const,
   bold: '700' as const,
+  extrabold: '800' as const,
   black: '900' as const,
 };
+
+export const typography = {
+  display: {
+    fontSize: fontSize['4xl'],
+    lineHeight: 54,
+    letterSpacing: -1.2,
+    fontWeight: fontWeight.black,
+    textTransform: 'none',
+  },
+  title: {
+    fontSize: fontSize['2xl'],
+    lineHeight: 36,
+    letterSpacing: -0.75,
+    fontWeight: fontWeight.bold,
+    textTransform: 'none',
+  },
+  headline: {
+    fontSize: fontSize.xl,
+    lineHeight: 30,
+    letterSpacing: -0.3,
+    fontWeight: fontWeight.extrabold,
+    textTransform: 'none',
+  },
+  heading: {
+    fontSize: fontSize.lg,
+    lineHeight: 26,
+    letterSpacing: -0.2,
+    fontWeight: fontWeight.semibold,
+    textTransform: 'none',
+  },
+  subheading: {
+    fontSize: fontSize.md,
+    lineHeight: 24,
+    letterSpacing: 0.3,
+    fontWeight: fontWeight.semibold,
+    textTransform: 'none',
+  },
+  body: {
+    fontSize: fontSize.base,
+    lineHeight: 22,
+    letterSpacing: 0,
+    fontWeight: fontWeight.regular,
+    textTransform: 'none',
+  },
+  caption: {
+    fontSize: fontSize.sm,
+    lineHeight: 18,
+    letterSpacing: 0.1,
+    fontWeight: fontWeight.regular,
+    textTransform: 'none',
+  },
+  label: {
+    fontSize: fontSize.xs,
+    lineHeight: 14,
+    letterSpacing: 1.2,
+    fontWeight: fontWeight.semibold,
+    textTransform: 'uppercase',
+  },
+  eyebrow: {
+    fontSize: fontSize.sm,
+    lineHeight: 18,
+    letterSpacing: 4,
+    fontWeight: fontWeight.bold,
+    textTransform: 'uppercase',
+  },
+  metric: {
+    fontSize: fontSize['3xl'],
+    lineHeight: 44,
+    letterSpacing: -0.5,
+    fontWeight: fontWeight.black,
+    textTransform: 'none',
+  },
+  timer: {
+    fontSize: 64,
+    lineHeight: 68,
+    letterSpacing: -2,
+    fontWeight: fontWeight.black,
+    textTransform: 'none',
+  },
+  metricLg: {
+    fontSize: fontSize['6xl'],
+    lineHeight: 78,
+    letterSpacing: -2,
+    fontWeight: fontWeight.black,
+    textTransform: 'none',
+  },
+} as const;
+
+export type TypographyVariant = keyof typeof typography;
+
+export const gradients = {
+  brand: [colors.primary.DEFAULT, colors.accent.DEFAULT] as const,
+  rookie: ['#6B7280', '#9CA3AF'] as const,
+  bronze: [colors.metal.bronze.dark, colors.metal.bronze.DEFAULT] as const,
+  silver: [colors.metal.silver.dark, colors.metal.silver.light] as const,
+  gold: [colors.metal.gold.dark, colors.metal.gold.DEFAULT] as const,
+  platinum: ['#9CA3AF', '#E5E4E2'] as const,
+  diamond: ['#0066FF', '#00D4FF'] as const,
+  elite: [colors.dangerDark, colors.primary.DEFAULT] as const,
+  titan: ['#6D28D9', '#8B5CF6'] as const,
+  olympus: [colors.primary.DEFAULT, colors.accent.DEFAULT] as const,
+} as const;
 
 export const shadow = {
   glowPrimary: {
@@ -107,15 +227,15 @@ export const shadow = {
 };
 
 export const RANKS = [
-  { id: 'rookie',   label: 'Rookie',   min: 0,     color: '#9CA3AF', gradient: ['#6B7280', '#9CA3AF'] as [string, string] },
-  { id: 'bronze',   label: 'Bronze',   min: 200,   color: '#CD7F32', gradient: ['#A05A23', '#CD7F32'] as [string, string] },
-  { id: 'silver',   label: 'Silver',   min: 500,   color: '#C0C0C0', gradient: ['#8E8E93', '#D1D1D6'] as [string, string] },
-  { id: 'gold',     label: 'Gold',     min: 1000,  color: '#FFD700', gradient: ['#B8860B', '#FFD700'] as [string, string] },
-  { id: 'platinum', label: 'Platinum', min: 2000,  color: '#E5E4E2', gradient: ['#9CA3AF', '#E5E4E2'] as [string, string] },
-  { id: 'diamond',  label: 'Diamond',  min: 4000,  color: '#00D4FF', gradient: ['#0066FF', '#00D4FF'] as [string, string] },
-  { id: 'elite',    label: 'Elite',    min: 7000,  color: '#FF3B3B', gradient: ['#B91C1C', '#FF3B3B'] as [string, string] },
-  { id: 'titan',    label: 'Titan',    min: 12000, color: '#8B5CF6', gradient: ['#6D28D9', '#8B5CF6'] as [string, string] },
-  { id: 'olympus',  label: 'Olympus',  min: 20000, color: '#FF7A00', gradient: ['#FF3B3B', '#FF7A00'] as [string, string] },
+  { id: 'rookie',   label: 'Rookie',   min: 0,     color: gradients.rookie[1], gradient: gradients.rookie },
+  { id: 'bronze',   label: 'Bronze',   min: 200,   color: colors.metal.bronze.DEFAULT, gradient: gradients.bronze },
+  { id: 'silver',   label: 'Silver',   min: 500,   color: colors.metal.silver.DEFAULT, gradient: gradients.silver },
+  { id: 'gold',     label: 'Gold',     min: 1000,  color: colors.metal.gold.DEFAULT, gradient: gradients.gold },
+  { id: 'platinum', label: 'Platinum', min: 2000,  color: gradients.platinum[1], gradient: gradients.platinum },
+  { id: 'diamond',  label: 'Diamond',  min: 4000,  color: gradients.diamond[1], gradient: gradients.diamond },
+  { id: 'elite',    label: 'Elite',    min: 7000,  color: colors.primary.DEFAULT, gradient: gradients.elite },
+  { id: 'titan',    label: 'Titan',    min: 12000, color: gradients.titan[1], gradient: gradients.titan },
+  { id: 'olympus',  label: 'Olympus',  min: 20000, color: colors.accent.DEFAULT, gradient: gradients.olympus },
 ] as const;
 
 export type RankInfo = (typeof RANKS)[number];

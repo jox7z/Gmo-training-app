@@ -12,11 +12,17 @@ import { Icon, IconName } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FeedItem } from '@/components/feed/FeedItem';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
+import {
+  SocialStreamColumn,
+  type SocialLayout,
+} from '@/components/social/SocialStreamColumn';
 import { FeedEmptyState, FeedErrorState } from '@/components/feed/FeedEmptyState';
 import { CommentSheet } from '@/components/feed/CommentSheet';
+import { WorkoutLaunchCTA } from '@/components/feed/WorkoutLaunchCTA';
 import { useToast } from '@/components/ui/Toast';
 import { useAppStore } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
+import { useRoutinesStore } from '@/store/routines';
 import {
   useFeed,
   useToggleReaction,
@@ -27,6 +33,8 @@ import {
 } from '@/lib/queries/feed';
 import { useFeedRealtime } from '@/lib/queries/useFeedRealtime';
 import { useUnreadCount } from '@/lib/queries/notifications';
+import { nextRoutineDay } from '@/lib/routineSchedule';
+import { formatPostShareMessage } from '@/lib/postSharing';
 
 function ComposerAction({
   icon,
@@ -54,7 +62,7 @@ function ComposerAction({
           justifyContent: 'center',
           gap: 6,
           paddingVertical: spacing.sm,
-          borderRadius: radius.md,
+          borderRadius: radius.sm,
           backgroundColor: 'transparent',
         },
         disabled && { opacity: 0.5 },
@@ -75,6 +83,7 @@ function Composer({
   onShareWorkout,
   onShareWorkoutDisabled,
   onSharePR,
+  layout = 'contained',
 }: {
   displayName: string;
   avatarUrl?: string;
@@ -82,9 +91,14 @@ function Composer({
   onShareWorkout: () => void;
   onShareWorkoutDisabled: boolean;
   onSharePR: () => void;
+  layout?: SocialLayout;
 }) {
   return (
-    <Card variant="raised" padding="lg" style={{ marginBottom: spacing.md }}>
+    <SocialStreamColumn
+      layout={layout}
+      style={{ marginBottom: layout === 'stream' ? spacing.sm : spacing.md }}
+    >
+      <Card variant={layout === 'stream' ? 'stream' : 'raised'} padding="lg">
       <PressableScale
         onPress={onOpenManual}
         pressScale={0.98}
@@ -101,7 +115,7 @@ function Composer({
             flex: 1,
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.md,
-            borderRadius: radius.full,
+            borderRadius: radius.sm,
             borderWidth: 1,
             borderColor: colors.border,
             backgroundColor: colors.bg.elevated,
@@ -130,7 +144,8 @@ function Composer({
         />
         <ComposerAction icon="trophy" label="PR" onPress={onSharePR} />
       </View>
-    </Card>
+      </Card>
+    </SocialStreamColumn>
   );
 }
 
@@ -140,6 +155,9 @@ export default function FeedHome() {
   const toast = useToast();
   const profile = useAppStore((s) => s.profile);
   const history = useWorkoutsStore((s) => s.history);
+  const activeWorkout = useWorkoutsStore((s) => s.active);
+  const routines = useRoutinesStore((s) => s.routines);
+  const activeRoutineId = useRoutinesStore((s) => s.activeRoutineId);
 
   const feedQuery = useFeed();
   const toggleReaction = useToggleReaction();
@@ -164,10 +182,58 @@ export default function FeedHome() {
     const candidate = history.find((w) => {
       const end = w.endedAt ?? w.startedAt;
       const age = Date.now() - new Date(end).getTime();
-      return age >= 0 && age < 7 * 24 * 3600 * 1000;
+      return !w.isPublished && age >= 0 && age < 7 * 24 * 3600 * 1000;
     });
     return candidate ?? null;
   }, [history]);
+
+  const workoutLaunch = useMemo(() => {
+    const selectedRoutine =
+      routines.find((routine) => routine.id === activeRoutineId) ?? routines[0] ?? null;
+
+    if (activeWorkout) {
+      const workoutRoutine =
+        routines.find((routine) =>
+          routine.days.some((day) => day.id === activeWorkout.routineDayId),
+        ) ?? null;
+      const workoutDay =
+        workoutRoutine?.days.find((day) => day.id === activeWorkout.routineDayId) ??
+        workoutRoutine?.days[0] ??
+        null;
+      const completedSets = activeWorkout.exercises.reduce(
+        (total, exercise) =>
+          total + exercise.sets.filter((set) => set.isCompleted).length,
+        0,
+      );
+      const totalSets = activeWorkout.exercises.reduce(
+        (total, exercise) => total + exercise.sets.length,
+        0,
+      );
+
+      return {
+        active: true,
+        title: 'Continuar entrenamiento',
+        detail:
+          totalSets > 0
+            ? `${activeWorkout.routineName ?? workoutRoutine?.name ?? 'Sesión activa'} · ${completedSets}/${totalSets} series`
+            : activeWorkout.routineName ?? workoutRoutine?.name ?? 'Sesión activa',
+        routineId: workoutRoutine?.id ?? null,
+        dayId: workoutDay?.id ?? null,
+      };
+    }
+
+    const nextDay = nextRoutineDay(selectedRoutine, history);
+
+    return {
+      active: false,
+      title: nextDay ? `Empezar ${nextDay.name}` : 'Empezar entrenamiento',
+      detail: selectedRoutine
+        ? selectedRoutine.name
+        : 'Elige una rutina para comenzar',
+      routineId: selectedRoutine?.id ?? null,
+      dayId: nextDay?.id ?? null,
+    };
+  }, [activeRoutineId, activeWorkout, history, routines]);
 
   const { refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = feedQuery;
 
@@ -212,10 +278,8 @@ export default function FeedHome() {
 
   const handleShare = useCallback(
     async (post: Post) => {
-      const title = post.title ?? 'Mira esto en Gmo';
-      const message = post.caption
-        ? `${title} — ${post.caption}\n\nCompartido desde Gmo Training App`
-        : `${title}\n\nCompartido desde Gmo Training App`;
+      const title = post.title ?? 'Mira esto en GMO';
+      const message = formatPostShareMessage(post, profile?.unit ?? 'kg');
       try {
         const result = await Share.share({ message, title });
         if (result.action !== Share.dismissedAction) {
@@ -232,7 +296,7 @@ export default function FeedHome() {
         });
       }
     },
-    [incrementShare, toast],
+    [incrementShare, profile?.unit, toast],
   );
 
   const handleOpenProfile = useCallback(
@@ -260,6 +324,33 @@ export default function FeedHome() {
 
   const goDiscover = useCallback(() => router.push('/discover'), [router]);
   const goNotifications = useCallback(() => router.push('/notifications'), [router]);
+  const goWorkout = useCallback(() => {
+    if (workoutLaunch.active) {
+      if (workoutLaunch.routineId && workoutLaunch.dayId) {
+        router.push({
+          pathname: '/workout/active',
+          params: {
+            routineId: workoutLaunch.routineId,
+            dayId: workoutLaunch.dayId,
+          },
+        });
+      } else {
+        router.push('/workout/active');
+      }
+      return;
+    }
+    if (workoutLaunch.routineId && workoutLaunch.dayId) {
+      router.push({
+        pathname: '/workout/active',
+        params: {
+          routineId: workoutLaunch.routineId,
+          dayId: workoutLaunch.dayId,
+        },
+      });
+      return;
+    }
+    router.push('/routine/templates');
+  }, [router, workoutLaunch.active, workoutLaunch.dayId, workoutLaunch.routineId]);
 
   const { data: unreadCount = 0 } = useUnreadCount();
 
@@ -297,7 +388,7 @@ export default function FeedHome() {
             style={{
               width: 40,
               height: 40,
-              borderRadius: 20,
+              borderRadius: radius.full,
               backgroundColor: colors.bg.elevated,
               alignItems: 'center',
               justifyContent: 'center',
@@ -314,7 +405,7 @@ export default function FeedHome() {
                   right: 4,
                   minWidth: 16,
                   height: 16,
-                  borderRadius: 8,
+                  borderRadius: radius.sm,
                   backgroundColor: colors.danger,
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -337,7 +428,7 @@ export default function FeedHome() {
             style={{
               width: 40,
               height: 40,
-              borderRadius: 20,
+              borderRadius: radius.full,
               backgroundColor: colors.bg.elevated,
               alignItems: 'center',
               justifyContent: 'center',
@@ -354,9 +445,8 @@ export default function FeedHome() {
         <View
           style={{
             flex: 1,
-            paddingHorizontal: spacing.lg,
             paddingTop: spacing.lg,
-            paddingBottom: insets.bottom + 100,
+            paddingBottom: insets.bottom + 200,
           }}
         >
           <Composer
@@ -366,15 +456,18 @@ export default function FeedHome() {
             onShareWorkout={goShareWorkout}
             onShareWorkoutDisabled={!recentWorkout}
             onSharePR={goSharePR}
+            layout="stream"
           />
-          <FeedSkeleton count={3} />
+          <FeedSkeleton count={3} layout="stream" />
         </View>
       ) : hasError ? (
-        <View style={{ flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
-          <FeedErrorState
-            message={feedQuery.error?.message}
-            onRetry={onRefresh}
-          />
+        <View style={{ flex: 1, paddingTop: spacing.lg }}>
+          <SocialStreamColumn style={{ paddingHorizontal: spacing.lg }}>
+            <FeedErrorState
+              message={feedQuery.error?.message}
+              onRetry={onRefresh}
+            />
+          </SocialStreamColumn>
         </View>
       ) : (
         <FlashList<Post>
@@ -383,6 +476,7 @@ export default function FeedHome() {
           renderItem={({ item }) => (
             <FeedItem
               post={item}
+              layout="stream"
               isMine={item.userId === profile?.id}
               onToggleReaction={handleToggleReaction}
               onDelete={handleDelete}
@@ -392,9 +486,8 @@ export default function FeedHome() {
             />
           )}
           contentContainerStyle={{
-            paddingHorizontal: spacing.lg,
             paddingTop: spacing.lg,
-            paddingBottom: insets.bottom + 100,
+            paddingBottom: insets.bottom + 200,
           }}
           ListHeaderComponent={
             <Composer
@@ -404,14 +497,23 @@ export default function FeedHome() {
               onShareWorkout={goShareWorkout}
               onShareWorkoutDisabled={!recentWorkout}
               onSharePR={goSharePR}
+              layout="stream"
             />
           }
-          ListEmptyComponent={isEmpty ? <FeedEmptyState onDiscover={goDiscover} /> : null}
+          ListEmptyComponent={
+            isEmpty ? (
+              <SocialStreamColumn style={{ paddingHorizontal: spacing.lg }}>
+                <FeedEmptyState onDiscover={goDiscover} />
+              </SocialStreamColumn>
+            ) : null
+          }
           ListFooterComponent={
             isFetchingNextPage ? (
-              <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
-                <ActivityIndicator color={colors.primary.DEFAULT} />
-              </View>
+              <SocialStreamColumn>
+                <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+                  <ActivityIndicator color={colors.primary.DEFAULT} />
+                </View>
+              </SocialStreamColumn>
             ) : null
           }
           refreshControl={
@@ -426,6 +528,14 @@ export default function FeedHome() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <WorkoutLaunchCTA
+        active={workoutLaunch.active}
+        title={workoutLaunch.title}
+        detail={workoutLaunch.detail}
+        bottom={insets.bottom + 82}
+        onPress={goWorkout}
+      />
 
       <CommentSheet
         visible={!!commentsPost}

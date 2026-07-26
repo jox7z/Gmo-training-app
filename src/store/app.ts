@@ -2,24 +2,13 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RankId } from '@/theme/tokens';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { weeklyTrainingProgress } from '@/lib/weeklyStreak';
+import { useWorkoutsStore } from '@/store/workouts';
 
 export type Unit = 'kg' | 'lb';
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 export type Goal = 'strength' | 'hypertrophy' | 'fat_loss' | 'general';
 export type Sex = 'male' | 'female';
-
-export interface PrivacySettings {
-  profilePublic: boolean;
-  showActivity: boolean;
-  showStats: boolean;
-}
-
-export interface NotificationSettings {
-  workoutReminders: boolean;
-  socialUpdates: boolean;
-  achievements: boolean;
-  weeklyReport: boolean;
-}
 
 export interface UserProfile {
   id: string;
@@ -44,8 +33,6 @@ export interface UserProfile {
   weeklyGoalDays: number;
   rankPoints: number;
   currentRank: RankId;
-  privacy: PrivacySettings;
-  notifications: NotificationSettings;
 }
 
 interface AppState {
@@ -55,21 +42,31 @@ interface AppState {
   // Estado de sesión: si el perfil remoto está completo. null = aún no consultado.
   // NO se persiste en AsyncStorage; solo es estado de sesión (se recalcula en cada login).
   profileComplete: boolean | null;
+  /** Snapshot derivado; nunca es fuente de verdad ni se persiste. */
   streakWeeks: number;
+  /** Snapshot derivado; nunca es fuente de verdad ni se persiste. */
   daysThisWeek: number;
-  pinnedExerciseId?: string;
   hydrate: () => Promise<void>;
   setProfile: (p: UserProfile) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   markOnboarded: () => Promise<void>;
   setProfileComplete: (v: boolean | null) => void;
   addWorkoutDay: () => void;
+  refreshWeeklyProgress: (now?: Date) => void;
   addPoints: (n: number) => void;
-  setPinnedExercise: (id: string) => void;
   signOut: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'gmo:app:v1';
+
+function progressFromCurrentHistory(profile: UserProfile | null, now?: Date) {
+  const { streakWeeks, daysThisWeek } = weeklyTrainingProgress(
+    useWorkoutsStore.getState().history,
+    profile?.weeklyGoalDays,
+    now,
+  );
+  return { streakWeeks, daysThisWeek };
+}
 
 /**
  * Sentinel id used when the app runs without Supabase (dev / offline). Code
@@ -98,8 +95,6 @@ const defaultProfile = (id = LOCAL_USER_ID): UserProfile => ({
   weeklyGoalDays: 4,
   rankPoints: 0,
   currentRank: 'rookie',
-  privacy: { profilePublic: true, showActivity: true, showStats: true },
-  notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
 });
 
 async function getAuthUserId(): Promise<string> {
@@ -115,7 +110,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   profileComplete: null,
   streakWeeks: 0,
   daysThisWeek: 0,
-  pinnedExerciseId: undefined,
 
   hydrate: async () => {
     try {
@@ -126,9 +120,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({
           onboarded: data.onboarded ?? false,
           profile,
-          streakWeeks: data.streakWeeks ?? 0,
-          daysThisWeek: data.daysThisWeek ?? 0,
-          pinnedExerciseId: data.pinnedExerciseId ?? undefined,
+          ...progressFromCurrentHistory(profile),
         });
       }
       console.log('[Store] hydrate: AsyncStorage read OK', {
@@ -164,7 +156,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setProfile: async (profile) => {
-    set({ profile });
+    set({ profile, ...progressFromCurrentHistory(profile) });
     await persist(get());
   },
 
@@ -182,7 +174,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ profile: { ...existing, id: userId } });
     }
 
-    set({ onboarded: true, streakWeeks: 1, daysThisWeek: 0 });
+    const profile = get().profile;
+    set({ onboarded: true, ...progressFromCurrentHistory(profile) });
     await persist(get());
   },
 
@@ -193,20 +186,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   addWorkoutDay: () => {
-    const next = Math.min(7, get().daysThisWeek + 1);
-    set({ daysThisWeek: next });
-    persist(get());
+    // Compatibilidad con el flujo de finish actual. No incrementa: recalcula
+    // desde el historial ya cerrado para evitar dobles conteos y rollover.
+    get().refreshWeeklyProgress();
+  },
+
+  refreshWeeklyProgress: (now) => {
+    const progress = progressFromCurrentHistory(get().profile, now);
+    if (
+      progress.streakWeeks === get().streakWeeks &&
+      progress.daysThisWeek === get().daysThisWeek
+    ) return;
+    set(progress);
   },
 
   addPoints: (n) => {
     const profile = get().profile;
     if (!profile) return;
     set({ profile: { ...profile, rankPoints: profile.rankPoints + n } });
-    persist(get());
-  },
-
-  setPinnedExercise: (id) => {
-    set({ pinnedExerciseId: id });
     persist(get());
   },
 
@@ -221,7 +218,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       profileComplete: null,
       streakWeeks: 0,
       daysThisWeek: 0,
-      pinnedExerciseId: undefined,
       // keep hydrated=true; we don't want the splash loader to reappear
     });
     // 2. Now sign out from Supabase. The onAuthStateChange listener in
@@ -234,14 +230,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 }));
 
+// El historial se hidrata/mezcla en otro store. Mantiene los snapshots de UI
+// alineados sin convertirlos en contadores ni volver a persistirlos.
+useWorkoutsStore.subscribe((state, previousState) => {
+  if (state.history !== previousState.history) {
+    useAppStore.getState().refreshWeeklyProgress();
+  }
+});
+
 function migrateProfile(p: any): UserProfile {
   const def = defaultProfile(p?.id ?? LOCAL_USER_ID);
-  const profile = {
+  const profile: UserProfile & Record<string, unknown> = {
     ...def,
     ...p,
-    privacy: { ...def.privacy, ...(p?.privacy ?? {}) },
-    notifications: { ...def.notifications, ...(p?.notifications ?? {}) },
   };
+  delete profile.privacy;
+  delete profile.notifications;
   if ((profile.currentRank as string) === 'legend') profile.currentRank = 'olympus';
   return profile;
 }
@@ -252,9 +256,6 @@ async function persist(state: AppState) {
     JSON.stringify({
       onboarded: state.onboarded,
       profile: state.profile,
-      streakWeeks: state.streakWeeks,
-      daysThisWeek: state.daysThisWeek,
-      pinnedExerciseId: state.pinnedExerciseId,
     }),
   );
 }

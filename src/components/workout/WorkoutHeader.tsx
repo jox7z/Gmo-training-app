@@ -38,7 +38,7 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
           <View
             style={{
               backgroundColor: colors.bg.elevated,
-              borderRadius: radius.full,
+              borderRadius: radius.sm,
               paddingHorizontal: 10,
               paddingVertical: 4,
               minWidth: 48,
@@ -64,7 +64,7 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
                 style={{
                   flex: 1,
                   height: 6,
-                  borderRadius: radius.full,
+                  borderRadius: radius.sm,
                   backgroundColor: colors.bg.elevated,
                   overflow: 'hidden',
                 }}
@@ -73,7 +73,7 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
                   style={{
                     width: `${pct * 100}%`,
                     height: '100%',
-                    borderRadius: radius.full,
+                    borderRadius: radius.sm,
                     backgroundColor: colors.primary.DEFAULT,
                   }}
                 />

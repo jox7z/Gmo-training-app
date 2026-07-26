@@ -92,7 +92,7 @@ function scoreRecovery(history: Workout[]): number {
   if (recent.length < 3) return 100;
 
   // Aggregate muscle groups per day
-  const dayGroups: Array<{ day: string; groups: Set<string> }> = [];
+  const dayGroups: { day: string; groups: Set<string> }[] = [];
   for (const w of recent) {
     const day = dayKey(w.startedAt);
     let entry = dayGroups.find((d) => d.day === day);
@@ -344,7 +344,7 @@ export function computeRoutineScore(routine: Routine, profile: UserProfile): Rou
   const frequency = Math.max(0, Math.min(100, Math.round((routine.days.length / profile.weeklyGoalDays) * 100)));
 
   // separation: violations = major group present on two consecutive ordered days
-  const dayGroupSets: Array<Set<string>> = routine.days.map((day) => {
+  const dayGroupSets: Set<string>[] = routine.days.map((day) => {
     const groups = new Set<string>();
     for (const ex of day.exercises) {
       const exercise = exerciseById(ex.exerciseId);

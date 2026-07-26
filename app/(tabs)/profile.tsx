@@ -25,6 +25,7 @@ import { useUserPosts } from '@/lib/queries/social';
 import { useWorkoutsStore, type Workout } from '@/store/workouts';
 import { useToast } from '@/components/ui/Toast';
 import { CommentSheet } from '@/components/feed/CommentSheet';
+import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
 import type { Post, PostReactions } from '@/lib/repos/posts';
 import { topReactions, totalReactions } from '@/components/feed/reactions';
 
@@ -58,13 +59,16 @@ export default function Profile() {
   );
 
   const { achievements, earnedLevels, totalLevels } = useMemo(() => {
-    const achievements = evaluateAchievements({ history: workoutHistory, streakWeeks });
+    const achievements = evaluateAchievements({
+      history: workoutHistory,
+      weeklyGoalDays: profile?.weeklyGoalDays,
+    });
     return {
       achievements,
       earnedLevels: achievements.reduce((a, p) => a + p.level, 0),
       totalLevels: achievements.reduce((a, p) => a + p.maxLevel, 0),
     };
-  }, [workoutHistory, streakWeeks]);
+  }, [profile?.weeklyGoalDays, workoutHistory]);
 
   if (!profile) return <Loader />;
 
@@ -146,14 +150,15 @@ export default function Profile() {
 
       {/* ── CONTENIDO SCROLLABLE ── */}
       <ScrollView
+        style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}
         contentContainerStyle={{
-          padding: spacing.lg,
+          paddingTop: spacing.lg,
           paddingBottom: insets.bottom + 100,
           gap: spacing.md,
         }}
       >
         {/* Hero */}
-        <Card variant="raised" padding="xl" style={{ alignItems: 'center', overflow: 'hidden' }}>
+        <Card variant="section" padding="xl" style={{ alignItems: 'center', overflow: 'hidden', marginHorizontal: spacing.lg }}>
           <LinearGradient
             colors={rank.gradient}
             start={{ x: 0, y: 0 }}
@@ -169,7 +174,7 @@ export default function Profile() {
             accessibilityLabel={`Rango ${rank.label}`}
           />
           <Text variant="title" style={{ marginTop: spacing.xs }}>{profile.displayName}</Text>
-          <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.full, overflow: 'hidden' }}>
+          <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: 5, borderRadius: radius.sm, overflow: 'hidden' }}>
             <LinearGradient
               colors={rank.gradient}
               start={{ x: 0, y: 0 }}
@@ -191,7 +196,7 @@ export default function Profile() {
                 style={{
                   paddingHorizontal: spacing.sm,
                   paddingVertical: 3,
-                  borderRadius: radius.full,
+                  borderRadius: radius.sm,
                   backgroundColor: colors.accent.soft,
                   borderWidth: 1,
                   borderColor: colors.accent.DEFAULT,
@@ -218,7 +223,7 @@ export default function Profile() {
                 marginTop: spacing.sm,
                 paddingHorizontal: spacing.md,
                 paddingVertical: 5,
-                borderRadius: radius.full,
+                borderRadius: radius.sm,
                 backgroundColor: 'rgba(225,48,108,0.12)',
                 borderWidth: 1,
                 borderColor: 'rgba(225,48,108,0.4)',
@@ -233,7 +238,7 @@ export default function Profile() {
         </Card>
 
         {/* Stats */}
-        <Card variant="raised" padding="lg" style={{ flexDirection: 'row' }}>
+        <Card variant="raised" padding="lg" style={{ flexDirection: 'row', marginHorizontal: spacing.lg }}>
           <SocialStat
             label="Seguidores"
             value={followersCount}
@@ -250,7 +255,7 @@ export default function Profile() {
         </Card>
 
         {/* Edit / Share */}
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginHorizontal: spacing.lg }}>
           <Button
             title="Editar perfil"
             variant="secondary"
@@ -272,11 +277,13 @@ export default function Profile() {
         {/* ── TAB: PUBLICACIONES ── */}
         {activeTab === 'posts' && (
           userPostsQuery.isLoading && userPosts.length === 0 ? (
-            <TabEmpty icon="image" message="Cargando publicaciones…" loading />
+            <FeedSkeleton count={2} layout="stream" />
           ) : userPosts.length === 0 ? (
-            <TabEmpty icon="image" message="Aún no hay publicaciones." />
+            <View style={{ paddingHorizontal: spacing.lg }}>
+              <TabEmpty icon="image" message="Aún no hay publicaciones." />
+            </View>
           ) : (
-            <View style={{ gap: spacing.md }}>
+            <View style={{ gap: spacing.sm }}>
               {userPosts.map((post, i) => (
                 <Animated.View key={post.id} entering={FadeInDown.delay(Math.min(i, 8) * 50).springify().damping(18)}>
                   <PublicationCard post={post} onPress={() => setCommentsPost(post)} />
@@ -289,9 +296,11 @@ export default function Profile() {
         {/* ── TAB: ACTIVIDAD (workout history) ── */}
         {activeTab === 'activity' && (
           workoutHistory.length === 0 ? (
-            <TabEmpty icon="dumbbell" message="Aún no has registrado ningún entrenamiento." />
+            <View style={{ paddingHorizontal: spacing.lg }}>
+              <TabEmpty icon="dumbbell" message="Aún no has registrado ningún entrenamiento." />
+            </View>
           ) : (
-            <View style={{ gap: spacing.md }}>
+            <View style={{ gap: spacing.md, paddingHorizontal: spacing.lg }}>
               {workoutHistory.map((w) => (
                 <Pressable key={w.id} onPress={() => setSelectedWorkout(w)} style={({ pressed }) => pressed && { opacity: 0.7 }}>
                   <WorkoutHistoryCard workout={w} />
@@ -303,7 +312,7 @@ export default function Profile() {
 
         {/* ── TAB: LOGROS ── */}
         {activeTab === 'achievements' && (
-          <>
+          <View style={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.xs }}>
               <Text variant="heading">Mis logros</Text>
               <Text variant="caption" tone="secondary" weight="semibold" numeric>{earnedLevels}/{totalLevels}</Text>
@@ -312,7 +321,7 @@ export default function Profile() {
             <Pressable onPress={() => router.push('/achievements')} style={({ pressed }) => pressed && { opacity: 0.7 }}>
               <Card variant="raised" padding="lg">
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                  <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.accent.soft, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.accent.soft, alignItems: 'center', justifyContent: 'center' }}>
                     <Icon name="trophy" size={22} color={colors.accent.DEFAULT} />
                   </View>
                   <View style={{ flex: 1 }}>
@@ -344,7 +353,7 @@ export default function Profile() {
             <Text variant="caption" tone="muted" style={{ marginTop: spacing.xl, textAlign: 'center' }}>
               Gmo Training App · v0.1.0
             </Text>
-          </>
+          </View>
         )}
       </ScrollView>
 
@@ -391,7 +400,7 @@ function PostReactionsInline({ reactions }: { reactions: PostReactions }) {
             style={{
               width: 20,
               height: 20,
-              borderRadius: 10,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.bg.elevated,
@@ -413,32 +422,41 @@ function PublicationCard({ post, onPress }: { post: Post; onPress: () => void })
   const { icon, color, label } = POST_TYPE_MAP[post.type] ?? POST_TYPE_MAP.manual;
 
   return (
-    <Card variant="raised" padding="lg">
-      {/* Type row */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
-        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: `${color}22`, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={icon} size={15} color={color} />
+    <Card variant="stream" padding={0}>
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.md }}>
+        {/* Type row */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md }}>
+          <View style={{ width: 30, height: 30, borderRadius: radius.sm, backgroundColor: `${color}22`, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={icon} size={15} color={color} />
+          </View>
+          <Text variant="label" style={{ color, flex: 1 }}>{label.toUpperCase()}</Text>
+          <Text variant="caption" tone="muted">{relativeTime(post.createdAt)}</Text>
         </View>
-        <Text variant="label" style={{ color, flex: 1 }}>{label.toUpperCase()}</Text>
-        <Text variant="caption" tone="muted">{relativeTime(post.createdAt)}</Text>
+
+        {post.title ? <Text weight="bold" style={{ fontSize: 16 }}>{post.title}</Text> : null}
+        {post.subtitle ? <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>{post.subtitle}</Text> : null}
+        {post.caption ? (
+          <Text variant="body" style={{ marginTop: post.title ? spacing.sm : 0 }}>{post.caption}</Text>
+        ) : null}
       </View>
 
-      {post.title ? <Text weight="bold" style={{ fontSize: 16 }}>{post.title}</Text> : null}
-      {post.subtitle ? <Text variant="caption" tone="secondary" style={{ marginTop: 2 }}>{post.subtitle}</Text> : null}
-      {post.caption ? (
-        <Text variant="body" style={{ marginTop: post.title ? spacing.sm : 0 }}>{post.caption}</Text>
-      ) : null}
-
       {post.photoUrl ? (
-        <View style={{ marginTop: spacing.md, borderRadius: radius.lg, overflow: 'hidden' }}>
-          <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
-        </View>
+        <Image source={{ uri: post.photoUrl }} style={{ width: '100%', aspectRatio: 4 / 5 }} resizeMode="cover" />
       ) : null}
 
       <Pressable
         onPress={onPress}
         style={({ pressed }) => [
-          { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, gap: spacing.md },
+          {
+            minHeight: 44,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.sm,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            gap: spacing.md,
+          },
           pressed && { opacity: 0.7 },
         ]}
       >
@@ -471,7 +489,7 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
   return (
     <Card variant="raised" padding="lg">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primary.muted, alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.primary.muted, alignItems: 'center', justifyContent: 'center' }}>
           <Icon name="dumbbell" size={20} color={colors.primary.DEFAULT} />
         </View>
         <View style={{ flex: 1 }}>
@@ -489,12 +507,12 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
       {workout.exercises.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
           {workout.exercises.slice(0, 4).map((e) => (
-            <View key={e.id} style={{ paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.full, backgroundColor: colors.bg.elevated, borderWidth: 1, borderColor: colors.border }}>
+            <View key={e.id} style={{ paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm, backgroundColor: colors.bg.elevated, borderWidth: 1, borderColor: colors.border }}>
               <Text variant="caption" tone="secondary">{e.exerciseName}</Text>
             </View>
           ))}
           {workout.exercises.length > 4 && (
-            <View style={{ paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.full, backgroundColor: colors.bg.elevated, borderWidth: 1, borderColor: colors.border }}>
+            <View style={{ paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radius.sm, backgroundColor: colors.bg.elevated, borderWidth: 1, borderColor: colors.border }}>
               <Text variant="caption" tone="muted">+{workout.exercises.length - 4} más</Text>
             </View>
           )}
@@ -577,7 +595,7 @@ function RowButton({ icon, label, onPress, tone = 'default' }: { icon: IconName;
       pressScale={0.97}
       style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, backgroundColor: colors.bg.card, borderWidth: 1, borderColor: colors.border }}
     >
-      <View style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: iconBg }}>
+      <View style={{ width: 36, height: 36, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: iconBg }}>
         <Icon name={icon} size={16} color={fg} />
       </View>
       <Text weight="semibold" style={{ flex: 1, color: fg }}>{label}</Text>

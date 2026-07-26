@@ -113,7 +113,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 style={{
                   width: 28,
                   height: 28,
-                  borderRadius: 14,
+                  borderRadius: radius.sm,
                   alignItems: 'center',
                   justifyContent: 'center',
                   backgroundColor: 'rgba(255,255,255,0.04)',

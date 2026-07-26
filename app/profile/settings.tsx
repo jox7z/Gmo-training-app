@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Pressable, Alert, Switch } from 'react-native';
+import { View, Pressable, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -24,12 +24,6 @@ export default function SettingsScreen() {
 
   if (!profile) return <Loader />;
 
-  const togglePrivacy = (k: keyof typeof profile.privacy) => {
-    setProfile({ ...profile, privacy: { ...profile.privacy, [k]: !profile.privacy[k] } });
-  };
-  const toggleNotif = (k: keyof typeof profile.notifications) => {
-    setProfile({ ...profile, notifications: { ...profile.notifications, [k]: !profile.notifications[k] } });
-  };
   const toggleUnit = () => {
     const unit: Unit = profile.unit === 'kg' ? 'lb' : 'kg';
     setProfile({ ...profile, unit });
@@ -108,7 +102,7 @@ export default function SettingsScreen() {
                   right: -2,
                   width: 24,
                   height: 24,
-                  borderRadius: 12,
+                  borderRadius: radius.full,
                   backgroundColor: colors.primary.DEFAULT,
                   borderWidth: 2,
                   borderColor: colors.bg.elevated,
@@ -149,64 +143,6 @@ export default function SettingsScreen() {
           icon="lock"
           label="Cambiar contraseña"
           onPress={() => router.push('/auth/forgot-password')}
-          last
-        />
-      </Card>
-
-      {/* PRIVACIDAD */}
-      <SectionTitle>Privacidad</SectionTitle>
-      <Card padding={0}>
-        <ToggleRow
-          icon="globe"
-          label="Perfil público"
-          subtitle="Cualquiera puede ver tu perfil"
-          value={profile.privacy.profilePublic}
-          onChange={() => togglePrivacy('profilePublic')}
-        />
-        <ToggleRow
-          icon="eye"
-          label="Mostrar actividad"
-          subtitle="Tus entrenamientos en el feed"
-          value={profile.privacy.showActivity}
-          onChange={() => togglePrivacy('showActivity')}
-        />
-        <ToggleRow
-          icon="target"
-          label="Mostrar estadísticas"
-          subtitle="Volumen, racha y rango"
-          value={profile.privacy.showStats}
-          onChange={() => togglePrivacy('showStats')}
-          last
-        />
-      </Card>
-
-      {/* NOTIFICACIONES */}
-      <SectionTitle>Notificaciones</SectionTitle>
-      <Card padding={0}>
-        <ToggleRow
-          icon="bell"
-          label="Recordatorios de entrenamiento"
-          value={profile.notifications.workoutReminders}
-          onChange={() => toggleNotif('workoutReminders')}
-        />
-        <ToggleRow
-          icon="users"
-          label="Actividad social"
-          subtitle="Likes, comentarios y seguidores"
-          value={profile.notifications.socialUpdates}
-          onChange={() => toggleNotif('socialUpdates')}
-        />
-        <ToggleRow
-          icon="trophy"
-          label="Logros desbloqueados"
-          value={profile.notifications.achievements}
-          onChange={() => toggleNotif('achievements')}
-        />
-        <ToggleRow
-          icon="calendar"
-          label="Reporte semanal"
-          value={profile.notifications.weeklyReport}
-          onChange={() => toggleNotif('weeklyReport')}
           last
         />
       </Card>
@@ -271,7 +207,6 @@ export default function SettingsScreen() {
     </Screen>
   );
 }
-
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <Text
@@ -338,63 +273,5 @@ function Row({
         {onPress && <Icon name="chevron-right" size={16} color={colors.text.muted} />}
       </View>
     </Pressable>
-  );
-}
-
-function ToggleRow({
-  icon,
-  label,
-  subtitle,
-  value,
-  onChange,
-  last,
-}: {
-  icon?: IconName;
-  label: string;
-  subtitle?: string;
-  value: boolean;
-  onChange: () => void;
-  last?: boolean;
-}) {
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: spacing.lg,
-        borderBottomWidth: last ? 0 : 1,
-        borderBottomColor: colors.border,
-        gap: spacing.md,
-      }}
-    >
-      {icon && (
-        <View
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: radius.md,
-            backgroundColor: colors.bg.elevated,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Icon name={icon} size={16} color={colors.text.secondary} />
-        </View>
-      )}
-      <View style={{ flex: 1 }}>
-        <Text>{label}</Text>
-        {subtitle && (
-          <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>{subtitle}</Text>
-        )}
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onChange}
-        trackColor={{ false: colors.border, true: colors.primary.DEFAULT }}
-        thumbColor="#FFFFFF"
-        ios_backgroundColor={colors.border}
-      />
-    </View>
   );
 }

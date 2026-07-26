@@ -16,6 +16,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
+import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
 import { WeightChart } from '@/components/WeightChart';
@@ -158,12 +159,17 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
           <Text variant="heading" style={{ flex: 1 }}>
             Evolución del peso
           </Text>
-          <Pressable onPress={onClose} hitSlop={8}>
+          <Pressable
+            onPress={onClose}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Cerrar detalle del peso"
+          >
             <View
               style={{
                 width: 36,
                 height: 36,
-                borderRadius: 18,
+                borderRadius: radius.full,
                 backgroundColor: colors.bg.elevated,
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -195,10 +201,14 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
               <Pressable
                 key={p.value}
                 onPress={() => setPeriod(p.value)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
                 style={{
                   flex: 1,
+                  minHeight: 44,
                   paddingVertical: 8,
                   alignItems: 'center',
+                  justifyContent: 'center',
                   borderRadius: radius.md,
                   backgroundColor: active ? colors.primary.DEFAULT : 'transparent',
                 }}
@@ -225,9 +235,12 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
         >
           <Pressable
             onPress={() => setMetricOpen((o) => !o)}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: metricOpen }}
             style={({ pressed }) => ({
               flexDirection: 'row',
               alignItems: 'center',
+              minHeight: 44,
               gap: spacing.sm,
               paddingHorizontal: spacing.md,
               paddingVertical: 10,
@@ -266,9 +279,12 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
                       setMetric(opt.value);
                       setMetricOpen(false);
                     }}
+                    accessibilityRole="menuitem"
+                    accessibilityState={{ selected: active }}
                     style={({ pressed }) => ({
                       flexDirection: 'row',
                       alignItems: 'center',
+                      minHeight: 44,
                       gap: spacing.sm,
                       paddingHorizontal: spacing.md,
                       paddingVertical: 11,
@@ -309,9 +325,15 @@ export function WeightDetailModal({ visible, onClose, unit, initialPeriod = '90d
               {currentMetricOpt.label.toUpperCase()}
             </Text>
             {isLoading ? (
-              <View style={{ height: 220, alignItems: 'center', justifyContent: 'center' }}>
-                <Text variant="caption" tone="muted">Cargando…</Text>
-              </View>
+              <SkeletonGroup
+                accessibilityLabel="Cargando gráfico de peso"
+                style={{ height: 220, gap: spacing.lg, justifyContent: 'center' }}
+              >
+                <Skeleton height={1} />
+                <Skeleton height={1} />
+                <Skeleton height={1} />
+                <Skeleton height={64} style={{ marginTop: spacing.md }} />
+              </SkeletonGroup>
             ) : metric === 'weight' ? (
               <WeightChart
                 data={data}
@@ -462,4 +484,3 @@ function StatCard({
     </Card>
   );
 }
-

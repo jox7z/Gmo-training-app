@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, KeyboardAvoidingView, Platform, ScrollView, Pressable, TextInput } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Pressable, TextInput } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';

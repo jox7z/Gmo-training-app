@@ -16,15 +16,17 @@ const ROLE_LABEL: Record<CommunityRole, string> = {
 interface Props {
   community: Community;
   onPress: () => void;
+  layout?: 'contained' | 'stream';
 }
 
-export function CommunityCard({ community, onPress }: Props) {
+export function CommunityCard({ community, onPress, layout = 'contained' }: Props) {
   const accentColor = colorForName(community.name);
   const initial = community.name.trim()[0]?.toUpperCase() ?? '?';
+  const isStream = layout === 'stream';
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
-      <Card variant="raised" padding={0} style={{ overflow: 'hidden' }}>
+      <Card variant={isStream ? 'stream' : 'raised'} padding={0} style={{ overflow: 'hidden' }}>
         {/* Cover */}
         <View style={{ width: '100%', aspectRatio: 16 / 7 }}>
           {community.coverUrl ? (
@@ -74,7 +76,7 @@ export function CommunityCard({ community, onPress }: Props) {
                   gap: 4,
                   paddingHorizontal: spacing.sm,
                   paddingVertical: 4,
-                  borderRadius: radius.full,
+                  borderRadius: radius.sm,
                   backgroundColor: 'rgba(0,0,0,0.72)',
                   borderWidth: 1,
                   borderColor: colors.borderStrong,
@@ -91,7 +93,7 @@ export function CommunityCard({ community, onPress }: Props) {
                 style={{
                   paddingHorizontal: spacing.sm,
                   paddingVertical: 4,
-                  borderRadius: radius.full,
+                  borderRadius: radius.sm,
                   backgroundColor: accentColor + 'CC',
                 }}
               >
@@ -104,7 +106,7 @@ export function CommunityCard({ community, onPress }: Props) {
         </View>
 
         {/* Info */}
-        <View style={{ padding: spacing.md, gap: spacing.xs }}>
+        <View style={{ padding: isStream ? spacing.lg : spacing.md, gap: spacing.xs }}>
           <Text weight="bold" numberOfLines={1} style={{ fontSize: 16 }}>
             {community.name}
           </Text>

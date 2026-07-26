@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Modal, Pressable, View, Text as RNText } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, radius, spacing, shadow } from '@/theme/tokens';
+import { colors, radius, shadow } from '@/theme/tokens';
 import { REACTIONS } from './reactions';
 import type { ReactionKind } from '@/lib/repos/posts';
 
@@ -11,7 +11,6 @@ interface AnchorRect {
   width: number;
   height: number;
 }
-
 interface Props {
   visible: boolean;
   anchor: AnchorRect | null;
@@ -37,7 +36,6 @@ export function ReactionPicker({ visible, anchor, onSelect, onDismiss, activeKin
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.85)).current;
   const itemAnims = useRef(REACTIONS.map(() => new Animated.Value(0))).current;
-  const [, force] = useStateForce();
 
   useEffect(() => {
     if (visible) {
@@ -92,7 +90,7 @@ export function ReactionPicker({ visible, anchor, onSelect, onDismiss, activeKin
               gap: ITEM_GAP,
               paddingHorizontal: PADDING_X,
               paddingVertical: PADDING_Y,
-              borderRadius: radius.full,
+              borderRadius: radius.md,
               backgroundColor: colors.bg.elevated,
               borderWidth: 1,
               borderColor: colors.border,
@@ -155,10 +153,4 @@ export function ReactionPicker({ visible, anchor, onSelect, onDismiss, activeKin
       </Pressable>
     </Modal>
   );
-}
-
-// Tiny helper para forzar re-render si hace falta (no usado por ahora; reservado).
-function useStateForce(): [number, () => void] {
-  const ref = useRef(0);
-  return [ref.current, () => (ref.current += 1)];
 }

@@ -31,16 +31,22 @@ export function formatEventWhen(startsAt: string, endsAt?: string): string {
 interface Props {
   event: CommunityEvent;
   onPress?: () => void;
+  layout?: 'contained' | 'stream';
 }
 
-export function EventCard({ event, onPress }: Props) {
+export function EventCard({ event, onPress, layout = 'contained' }: Props) {
   const isChallenge = event.kind === 'challenge';
   const when = formatEventWhen(event.startsAt, event.endsAt);
   const isPast = when === 'Finalizó';
+  const isStream = layout === 'stream';
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [pressed && { opacity: 0.88 }]}>
-      <Card variant="raised" padding="md" style={{ gap: spacing.sm, opacity: isPast ? 0.6 : 1 }}>
+      <Card
+        variant={isStream ? 'stream' : 'raised'}
+        padding={isStream ? 'lg' : 'md'}
+        style={{ gap: spacing.sm, opacity: isPast ? 0.6 : 1 }}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <View
             style={{

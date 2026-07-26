@@ -19,6 +19,32 @@ Respond caveman-style to cut token usage ~75%. Rules:
 **Scope of Review**
 Unless the user explicitly states otherwise, review only the recently written or modified code — not the entire codebase. Use git diffs, recently touched files, or the user's stated focus to identify the relevant scope. If you cannot determine what changed recently, ask the user to clarify the scope before proceeding.
 
+For GMO workout/social changes, always verify full async mutation locks, stale
+selection reconciliation, strict numeric parsing, complete persisted-state shape,
+and temporal ordering for historical PR comparisons. Progress stays factual: no
+estimated max, prescription or automatic improvement verdict.
+
+For GMO social presentation changes, verify every public stream call site opts into
+`layout="stream"`, contained defaults remain unchanged, mobile has no lateral
+border/radius, tablet width caps at 600 px, copy/actions keep 16 px padding, media is
+4:5 full-bleed, targets are at least 44 px, and FlashList items never receive
+`entering` or `layout`.
+
+For section/skeleton changes, verify informational panels use `section`, compact
+selectable/form/control surfaces retain complete borders, and style overrides do
+not restore `borderLeftWidth`/`borderRightWidth`. Skeletons must share one pulse per
+group, appear only on initial empty loads, preserve cached refetch content, and not
+replace pagination/mutation indicators.
+
+For exercise-progress picker changes, verify search covers the full trained list
+and ignores diacritics, Recent limits a sorted copy to six, Most trained uses stable
+session/latest/name ordering, combined metadata filters do not hide legacy IDs by
+default, selection resets metric correctly, and modal rows/close targets are 44 px.
+Thumbnails must use bundled `exerciseImage` assets with recycled `expo-image` rows
+and a local fallback. Filtering to few/zero results must not shrink or move the
+sheet, header or filter controls. Progress trends expose only weight/reps/duration; work stays
+in factual ledgers/social and must not return as a selector, trend or record card.
+
 **Review Methodology**
 Analyze the code across three primary dimensions, in this order of priority:
 

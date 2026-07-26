@@ -9,6 +9,20 @@ Apply in order via the SQL Editor (or `supabase db push` if using the local CLI)
 | `migrations/0001_init.sql` | Full schema, RLS policies, `handle_new_user` trigger, `recompute_workout_volume` trigger |
 | `migrations/0002_rank_jobs.sql` | `recalc_weekly_ranks()` + `pg_cron` schedule (Mondays 06:00 UTC) |
 | `migrations/0003_signup_hardening.sql` | Refines `handle_new_user`, adds `username` format check, exposes `check_username_available` + `complete_signup` RPCs |
+| `migrations/0041_sync_workout_snapshot.sql` | Sincronización atómica del workout completo con ownership, validación JSONB y advisory lock por workout |
+| `migrations/0042_lock_down_sync_workout_snapshot.sql` | Revoca grants automáticos de `anon`/`service_role`; conserva `EXECUTE` solo para `authenticated` |
+| `migrations/0043_monotonic_workout_publication.sql` | Impide que un snapshot local stale cambie `is_published` de `true` a `false` |
+| `migrations/0044_enrich_workout_post_metadata.sql` | Enriquece `publish_workout` con duración, series, reps, `kg·rep`, músculos y ejercicios reales; conserva firma y ACL |
+| `migrations/0045_fix_workout_pr_history_cutoff.sql` | Limita el baseline de PR a workouts anteriores a la sesión publicada y estabiliza empates |
+| `migrations/0046_fix_workout_pr_total_order.sql` | Desempata workouts con igual `started_at` mediante `coalesce(created_at, started_at)` e `id` |
+
+Producción aplicada hasta `0046` (`20260722140530`, verificada 2026-07-22).
+
+> **Bloqueo de ledger:** producción registra migraciones nuevas con timestamps,
+> mientras este repo conserva nombres numéricos y el ledger hosted no contiene
+> `0001–0028`. No ejecutar `supabase db push --include-all` ni reparar solo `0044`/`0045`/`0046`:
+> podría reintentar migraciones antiguas. Primero link/autenticación CLI, auditoría
+> completa del schema live y reconciliación total con `supabase migration repair`.
 
 `0003` replaces (not duplicates) the `handle_new_user` function from `0001`. Re-running it is idempotent.
 
@@ -82,6 +96,17 @@ The local `config.toml` already declares `site_url = "gmo://"` and `additional_r
 1. Enable extensions: `uuid-ossp`, `pgcrypto`, `pg_cron`.
 2. Run `0001_init.sql`.
 3. Run `0002_rank_jobs.sql`.
-4. Run `0003_signup_hardening.sql`.
+4. Run `0003_signup_hardening.sql` and every later migration through `0046` in
+   numeric order.
 5. Flip the Dashboard settings above.
 6. Verify: create a test user via the Auth UI and confirm a `profiles` row appears automatically with `current_rank = 'bronze'`, `weekly_goal_days = 4`, and a `user_<...>` placeholder username.
+7. Verify `0041` with an authenticated client: sync the same workout twice and
+   confirm exactly one ordered exercise/set tree remains.
+8. Confirm `sync_workout_snapshot(uuid,jsonb)` has `EXECUTE` only for
+   `authenticated` (plus owner `postgres`).
+9. Sync a published workout with `is_published = false` and confirm it remains
+   published; use a transaction with `ROLLBACK` for production smoke.
+10. Confirm `publish_workout(uuid,text,text,text)` has `EXECUTE` only for
+    `authenticated`, then publish a disposable workout and inspect metadata keys
+    `duration_seconds`, `working_set_count`, `total_reps`, `volume_kg`,
+    `muscle_groups` and `exercises`.

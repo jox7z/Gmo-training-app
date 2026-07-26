@@ -167,7 +167,7 @@ export default function RoutineEditor() {
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 16,
-                    borderRadius: radius.full,
+                    borderRadius: radius.sm,
                     backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
                     borderWidth: 1,
                     borderColor: active ? colors.primary.DEFAULT : colors.border,
@@ -186,7 +186,7 @@ export default function RoutineEditor() {
               style={{
                 paddingVertical: 10,
                 paddingHorizontal: 16,
-                borderRadius: radius.full,
+                borderRadius: radius.sm,
                 borderWidth: 1,
                 borderStyle: 'dashed',
                 borderColor: colors.border,
@@ -203,7 +203,7 @@ export default function RoutineEditor() {
 
         <View style={{ marginTop: spacing.lg }}>
           {day.exercises.length === 0 && (
-            <Card variant="raised" padding="xl" style={{ alignItems: 'center' }}>
+            <Card variant="section" padding="xl" style={{ alignItems: 'center' }}>
               <Icon name="dumbbell" size={40} color={colors.text.muted} />
               <Text variant="heading" style={{ marginTop: spacing.sm }}>Día vacío</Text>
               <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
@@ -251,7 +251,7 @@ export default function RoutineEditor() {
                       style={{
                         width: 40,
                         height: 40,
-                        borderRadius: 20,
+                        borderRadius: radius.full,
                         alignItems: 'center' as const,
                         justifyContent: 'center' as const,
                         backgroundColor: 'rgba(239,68,68,0.12)',
@@ -327,7 +327,7 @@ function StepperField({
           style={{
             width: 40,
             height: 40,
-            borderRadius: 20,
+            borderRadius: radius.full,
             backgroundColor: colors.bg.elevated,
             borderWidth: 1,
             borderColor: colors.border,
@@ -348,7 +348,7 @@ function StepperField({
           style={{
             width: 40,
             height: 40,
-            borderRadius: 20,
+            borderRadius: radius.full,
             backgroundColor: colors.bg.elevated,
             borderWidth: 1,
             borderColor: colors.border,
@@ -423,7 +423,7 @@ function ExercisePicker({
                   style={{
                     paddingVertical: 8,
                     paddingHorizontal: 14,
-                    borderRadius: radius.full,
+                    borderRadius: radius.sm,
                     backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
                     borderWidth: 1,
                     borderColor: active ? colors.primary.DEFAULT : colors.border,

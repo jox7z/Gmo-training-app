@@ -188,7 +188,7 @@ export function CommunityForm({ initialValues, onSubmit, submitLabel }: Props) {
               style={{
                 width: 40,
                 height: 40,
-                borderRadius: 20,
+                borderRadius: radius.full,
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: isPrivate ? colors.primary.muted : colors.bg.elevated,

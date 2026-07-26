@@ -72,7 +72,7 @@ export function ActivityCard({ item, onPress, compact }: Props) {
             style={{
               width: 32,
               height: 32,
-              borderRadius: radius.full,
+              borderRadius: radius.sm,
               backgroundColor: colors.primary.muted,
               alignItems: 'center',
               justifyContent: 'center',
@@ -90,7 +90,7 @@ export function ActivityCard({ item, onPress, compact }: Props) {
                 style={{
                   width: 8,
                   height: 8,
-                  borderRadius: 4,
+                  borderRadius: radius.full,
                   backgroundColor: FEELING_DOT[item.feeling],
                 }}
               />

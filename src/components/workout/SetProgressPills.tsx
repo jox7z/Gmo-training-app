@@ -47,7 +47,7 @@ export function SetProgressPills({ total, current, completedCount }: Props) {
         const isCurrent = i === current && !isCompleted;
         const base = compact
           ? { width: 10, height: 10, borderRadius: radius.full }
-          : { flex: 1, height: 11, borderRadius: radius.full };
+          : { flex: 1, height: 11, borderRadius: radius.sm };
 
         if (isCurrent) {
           return (

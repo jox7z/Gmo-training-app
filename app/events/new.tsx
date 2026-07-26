@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Pressable, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
+import { View, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -8,6 +8,10 @@ import { Text } from '@/components/ui/Text';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Chip } from '@/components/ui/Chip';
+import { IconButton } from '@/components/ui/IconButton';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Icon } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -16,7 +20,22 @@ import { useCommunity } from '@/lib/queries/communities';
 import { uploadCover } from '@/lib/storage/photos';
 import { useAppStore } from '@/store/app';
 import type { EventKind } from '@/lib/repos/events';
-import { DAY_OPTIONS, TIME_OPTIONS, buildDate, Chip } from '@/components/events/eventDateHelpers';
+import { DAY_OPTIONS, TIME_OPTIONS, buildDate } from '@/components/events/eventDateHelpers';
+
+const KIND_OPTIONS = [
+  {
+    value: 'challenge',
+    label: 'Reto',
+    icon: 'trophy',
+    accessibilityHint: 'Competencia con ranking',
+  },
+  {
+    value: 'meetup',
+    label: 'Quedada',
+    icon: 'map-pin',
+    accessibilityHint: 'Encuentro presencial',
+  },
+] as const;
 
 export default function NewEventScreen() {
   const router = useRouter();
@@ -111,42 +130,35 @@ export default function NewEventScreen() {
           borderBottomColor: colors.border,
         }}
       >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 18,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="close" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
+        <IconButton
+          name="close"
+          accessibilityLabel="Cerrar creación de evento"
+          accessibilityHint="Vuelve a la pantalla anterior sin crear el evento"
+          onPress={() => router.back()}
+          variant="surface"
+          size="sm"
+          haptic={false}
+        />
         <Text variant="heading" style={{ flex: 1 }}>Crear evento</Text>
         {communityId && communityQuery.data && (
           <View
             style={{
               flexDirection: 'row',
               alignItems: 'center',
-              gap: 4,
+              gap: spacing.xs,
               paddingHorizontal: spacing.sm,
-              paddingVertical: 4,
-              borderRadius: radius.full,
+              paddingVertical: spacing.xs,
+              borderRadius: radius.sm,
               backgroundColor: colors.primary.muted,
               borderWidth: 1,
               borderColor: colors.primary.DEFAULT,
               maxWidth: 140,
             }}
           >
-            <Icon name="users" size={11} color={colors.primary.DEFAULT} />
+            <Icon name="users" size={spacing.md} color={colors.primary.DEFAULT} />
             <Text
               variant="label"
-              style={{ fontSize: 11, color: colors.primary.DEFAULT }}
+              tone="brand"
               numberOfLines={1}
             >
               {communityQuery.data.name}
@@ -160,13 +172,24 @@ export default function NewEventScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + 40, gap: spacing.lg }}
+          contentContainerStyle={{
+            padding: spacing.lg,
+            paddingBottom: insets.bottom + spacing['3xl'],
+            gap: spacing.lg,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           {/* Portada */}
           <View style={{ gap: spacing.sm }}>
             <Text variant="label" tone="secondary">PORTADA (OPCIONAL)</Text>
-            <Pressable onPress={pickCover}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={coverUri ? 'Cambiar portada del evento' : 'Elegir portada del evento'}
+              accessibilityHint="Abre la galería de imágenes"
+              accessibilityState={{ selected: coverUri !== null }}
+              onPress={pickCover}
+              pressScale={0.98}
+            >
               <Card variant="raised" padding={0} style={{ overflow: 'hidden', borderRadius: radius.lg }}>
                 {coverUri ? (
                   <Image
@@ -185,7 +208,7 @@ export default function NewEventScreen() {
                       backgroundColor: colors.bg.elevated,
                     }}
                   >
-                    <Icon name="image" size={32} color={colors.text.muted} />
+                    <Icon name="image" size={spacing['2xl']} color={colors.text.muted} />
                     <Text variant="caption" tone="muted">Toca para elegir portada</Text>
                   </View>
                 )}
@@ -193,39 +216,32 @@ export default function NewEventScreen() {
                   <View
                     style={{
                       position: 'absolute',
-                      bottom: 8,
-                      right: 8,
-                      backgroundColor: 'rgba(0,0,0,0.6)',
+                      bottom: spacing.sm,
+                      right: spacing.sm,
+                      backgroundColor: colors.bg.overlay,
                       borderRadius: radius.full,
-                      padding: 6,
+                      padding: radius.sm,
                     }}
                   >
-                    <Icon name="edit" size={14} color="#fff" />
+                    <Icon name="edit" size={spacing.lg} color={colors.text.primary} />
                   </View>
                 )}
               </Card>
-            </Pressable>
+            </PressableScale>
           </View>
 
           {/* Tipo */}
           <View style={{ gap: spacing.sm }}>
             <Text variant="label" tone="secondary">TIPO DE EVENTO</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <KindOption
-                active={isChallenge}
-                icon="trophy"
-                title="Reto"
-                subtitle="Competencia con ranking"
-                onPress={() => setKind('challenge')}
-              />
-              <KindOption
-                active={!isChallenge}
-                icon="map-pin"
-                title="Quedada"
-                subtitle="Encuentro presencial"
-                onPress={() => setKind('meetup')}
-              />
-            </View>
+            <SegmentedControl<EventKind>
+              options={KIND_OPTIONS}
+              value={kind}
+              onValueChange={setKind}
+              accessibilityLabel="Tipo de evento"
+            />
+            <Text variant="caption" tone="muted">
+              {isChallenge ? 'Competencia con ranking' : 'Encuentro presencial'}
+            </Text>
           </View>
 
           <Input
@@ -234,6 +250,8 @@ export default function NewEventScreen() {
             onChangeText={setTitle}
             placeholder={isChallenge ? 'Ej. Reto 30 días de sentadillas' : 'Ej. Entreno grupal en el parque'}
             maxLength={120}
+            accessibilityLabel="Título del evento"
+            accessibilityHint="Escribe al menos tres caracteres"
           />
 
           <Input
@@ -244,7 +262,8 @@ export default function NewEventScreen() {
             multiline
             numberOfLines={3}
             maxLength={1000}
-            style={{ minHeight: 72, textAlignVertical: 'top' }}
+            style={{ minHeight: spacing['4xl'] + spacing.sm, textAlignVertical: 'top' }}
+            accessibilityLabel="Descripción del evento"
           />
 
           {isChallenge ? (
@@ -254,6 +273,7 @@ export default function NewEventScreen() {
               onChangeText={setMetric}
               placeholder="Ej. Total de repeticiones"
               maxLength={80}
+              accessibilityLabel="Métrica del reto"
             />
           ) : (
             <Input
@@ -262,6 +282,7 @@ export default function NewEventScreen() {
               onChangeText={setLocation}
               placeholder="Ej. Parque Central, entrada norte"
               maxLength={120}
+              accessibilityLabel="Lugar de la quedada"
             />
           )}
 
@@ -270,7 +291,14 @@ export default function NewEventScreen() {
             <Text variant="label" tone="secondary">DÍA</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {DAY_OPTIONS.map((d) => (
-                <Chip key={d.offset} label={d.label} active={dayOffset === d.offset} onPress={() => setDayOffset(d.offset)} />
+                <Chip
+                  key={d.offset}
+                  label={d.label}
+                  selected={dayOffset === d.offset}
+                  onPress={() => setDayOffset(d.offset)}
+                  accessibilityLabel={`Programar para ${d.label}`}
+                  accessibilityHint="Selecciona el día del evento"
+                />
               ))}
             </View>
           </View>
@@ -280,7 +308,14 @@ export default function NewEventScreen() {
             <Text variant="label" tone="secondary">HORA</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {TIME_OPTIONS.map((t) => (
-                <Chip key={t} label={t} active={time === t} onPress={() => setTime(t)} />
+                <Chip
+                  key={t}
+                  label={t}
+                  selected={time === t}
+                  onPress={() => setTime(t)}
+                  accessibilityLabel={`Programar a las ${t}`}
+                  accessibilityHint="Selecciona la hora del evento"
+                />
               ))}
             </View>
           </View>
@@ -296,8 +331,14 @@ export default function NewEventScreen() {
               borderWidth: 1,
               borderColor: colors.border,
             }}
+            accessible
+            accessibilityLabel={`Fecha seleccionada: ${startsAt.toLocaleDateString('es-ES', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}, ${time}`}
           >
-            <Icon name="calendar" size={16} color={colors.primary.DEFAULT} />
+            <Icon name="calendar" size={spacing.lg} color={colors.primary.DEFAULT} />
             <Text variant="caption" tone="secondary">
               {startsAt.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} · {time}
             </Text>
@@ -315,42 +356,3 @@ export default function NewEventScreen() {
     </SafeAreaView>
   );
 }
-
-function KindOption({
-  active,
-  icon,
-  title,
-  subtitle,
-  onPress,
-}: {
-  active: boolean;
-  icon: 'trophy' | 'map-pin';
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        {
-          flex: 1,
-          gap: 6,
-          padding: spacing.md,
-          borderRadius: radius.lg,
-          borderWidth: 1.5,
-          borderColor: active ? colors.primary.DEFAULT : colors.border,
-          backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
-        },
-        pressed && { opacity: 0.85 },
-      ]}
-    >
-      <Icon name={icon} size={20} color={active ? colors.primary.DEFAULT : colors.text.secondary} />
-      <Text weight="bold" style={{ color: active ? colors.primary.DEFAULT : colors.text.primary }}>
-        {title}
-      </Text>
-      <Text variant="caption" tone="muted">{subtitle}</Text>
-    </Pressable>
-  );
-}
-

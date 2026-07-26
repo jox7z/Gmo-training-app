@@ -7,7 +7,7 @@ import { View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Icon, type IconName } from '@/components/Icon';
 import { Text } from '@/components/ui/Text';
-import { colors } from '@/theme/tokens';
+import { colors, radius } from '@/theme/tokens';
 
 interface Props {
   icon: IconName;
@@ -93,7 +93,7 @@ export function AchievementMedal({ icon, color, level, maxLevel, size = 72, hide
             marginTop: -size * 0.13,
             paddingHorizontal: 9,
             paddingVertical: 2,
-            borderRadius: 999,
+            borderRadius: radius.sm,
             backgroundColor: unlocked ? color : colors.bg.elevated,
             borderWidth: 1.5,
             borderColor: colors.bg.base,

@@ -6,9 +6,8 @@ import type { RankId } from './tokens';
  * React Native's static asset bundling requires literal `require()` calls — a
  * dynamic `require('./ranks/' + id)` won't resolve, so the map is spelled out.
  *
- * The files in `assets/ranks/<id>.png` ship as placeholders (a copy of the app
- * icon) until the final artwork is dropped in with the same names; replacing the
- * PNGs is enough — no code change needed.
+ * The files in `assets/ranks/<id>.png` contain the final progressive crest set.
+ * Replacing artwork later with the same filenames requires no code change.
  */
 export const RANK_IMAGES: Record<RankId, ImageSourcePropType> = {
   rookie: require('../../assets/ranks/rookie.png'),

@@ -3,7 +3,8 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
-import { colors, spacing } from '@/theme/tokens';
+import { MascotState } from '@/components/GmoMascot';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 interface Props {
   onDiscover: () => void;
@@ -12,32 +13,14 @@ interface Props {
 export function FeedEmptyState({ onDiscover }: Props) {
   return (
     <Card padding="xl" style={{ alignItems: 'center', marginTop: spacing.lg }}>
-      <View
-        style={{
-          width: 64,
-          height: 64,
-          borderRadius: 32,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.info.soft,
-          borderWidth: 1,
-          borderColor: colors.info.DEFAULT,
-          marginBottom: spacing.md,
-        }}
+      <MascotState
+        mascotSize={144}
+        title="Tu feed está listo"
+        description="Sigue a otros atletas y aquí verás sus entrenos, PRs y rachas."
+        style={{ alignSelf: 'stretch' }}
       >
-        <Icon name="users" size={28} color={colors.info.DEFAULT} />
-      </View>
-      <Text variant="heading" style={{ textAlign: 'center' }}>
-        Tu feed está vacío
-      </Text>
-      <Text
-        variant="caption"
-        tone="secondary"
-        style={{ textAlign: 'center', marginTop: spacing.xs, marginBottom: spacing.lg }}
-      >
-        Sigue a otros atletas y verás sus entrenos, PRs y rachas aquí.
-      </Text>
-      <Button title="Descubrir atletas →" onPress={onDiscover} fullWidth />
+        <Button title="Descubrir atletas →" onPress={onDiscover} fullWidth />
+      </MascotState>
     </Card>
   );
 }
@@ -49,7 +32,7 @@ export function FeedErrorState({ message, onRetry }: { message?: string; onRetry
         style={{
           width: 64,
           height: 64,
-          borderRadius: 32,
+          borderRadius: radius.sm,
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: 'rgba(239,68,68,0.15)',

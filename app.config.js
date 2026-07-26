@@ -9,7 +9,7 @@ module.exports = {
   scheme: 'gmo',
   userInterfaceStyle: 'dark',
   splash: {
-    image: './assets/splash.png',
+    image: './assets/icon.png',
     resizeMode: 'contain',
     backgroundColor: '#0B0B0B',
   },
@@ -19,7 +19,7 @@ module.exports = {
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: './assets/adaptive-icon.png',
+      foregroundImage: './assets/icon.png',
       backgroundColor: '#0B0B0B',
     },
     package: 'com.gmo.trainingapp',

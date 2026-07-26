@@ -2,7 +2,7 @@
  * Modal selector de rutinas famosas predefinidas.
  * Accesible desde el estado vacío de la pestaña Rutinas y desde el Alert "Cambiar rutina".
  */
-import { ScrollView, View } from 'react-native';
+import { Alert, ScrollView, View } from 'react-native';
 import { useMemo } from 'react';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
@@ -12,7 +12,7 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { famousRoutineOptions } from '@/data/routineTemplates';
 import { useRoutinesStore } from '@/store/routines';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -24,10 +24,9 @@ export default function TemplatesModal() {
   // Una sola generación con ids frescos; evita regenerar (y remontar) en cada render.
   const options = useMemo(() => famousRoutineOptions(), []);
 
-  const handleSelect = async (idx: number) => {
+  const applyTemplate = async (idx: number) => {
     const opt = options[idx];
     if (!opt) return;
-
     const { upsertRoutine, setActiveRoutine } = useRoutinesStore.getState();
     upsertRoutine(opt.routine);
     setActiveRoutine(opt.routine.id);
@@ -40,6 +39,29 @@ export default function TemplatesModal() {
     }
 
     router.back();
+  };
+
+  const handleSelect = (idx: number) => {
+    const opt = options[idx];
+    if (!opt) return;
+    const current = useRoutinesStore.getState().routines[0];
+    if (!current || current.id === opt.routine.id) {
+      void applyTemplate(idx);
+      return;
+    }
+
+    Alert.alert(
+      'Reemplazar rutina',
+      `“${opt.label}” reemplazará “${current.name}”. Tu historial no se borra y un entrenamiento en curso seguirá disponible.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Reemplazar',
+          style: 'destructive',
+          onPress: () => void applyTemplate(idx),
+        },
+      ],
+    );
   };
 
   return (
@@ -85,7 +107,7 @@ export default function TemplatesModal() {
                 <View
                   style={{
                     backgroundColor: colors.primary.muted,
-                    borderRadius: 6,
+                    borderRadius: radius.sm,
                     paddingHorizontal: 8,
                     paddingVertical: 2,
                   }}
@@ -116,7 +138,7 @@ export default function TemplatesModal() {
                       style={{
                         width: 6,
                         height: 6,
-                        borderRadius: 3,
+                        borderRadius: radius.full,
                         backgroundColor: colors.primary.DEFAULT,
                       }}
                     />

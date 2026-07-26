@@ -5,7 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Text } from '@/components/ui/Text';
 import { Icon } from '@/components/Icon';
 import { CommunitiesExplorer } from '@/components/communities/CommunitiesExplorer';
-import { colors, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function CommunitiesScreen() {
   const router = useRouter();
@@ -32,7 +32,7 @@ export default function CommunitiesScreen() {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.bg.elevated,

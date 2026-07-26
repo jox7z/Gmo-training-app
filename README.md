@@ -1,164 +1,131 @@
 # Gmo Training App
 
-App móvil de entrenamiento de gimnasio inspirada en Strava: workouts, rachas, sistema ranked, coach IA y feed social. Construida con **Expo + React Native + Supabase**.
+App móvil de entrenamiento de fuerza inspirada en Strava: tracking set-by-set,
+rutinas, progreso, 9 rangos, logros, comunidades, eventos y feed social.
 
-## Stack
+## Stack actual
 
-- **Frontend:** Expo SDK 51 (managed) · Expo Router · TypeScript · Reanimated 3 · React Query · Zustand
-- **Backend:** Supabase (PostgreSQL 15 + Auth + Storage + Edge Functions Deno)
-- **IA:** Gemini 2.0 Flash (primario) → Claude Haiku 4.5 → GPT-4o-mini (fallback)
-- **Compatible Expo Go ✅** (no requiere builds nativos para iterar)
+- Expo SDK 54 (managed) · React Native 0.81 · React 19
+- Expo Router 6 · TypeScript strict · Reanimated 4
+- Zustand para estado local persistido
+- TanStack React Query para estado de servidor
+- Supabase: PostgreSQL, Auth, Storage, Realtime y Edge Functions
+- Dark mode propio con tokens y componentes UI reutilizables
 
----
+La app funciona en Expo Go. Sin Supabase configurado, el workout, historial,
+rutinas, logros y generador heurístico siguen disponibles de forma local.
 
-## Cómo arrancar
+## Arranque
 
 ```bash
 npm install
 npm start
 ```
 
-Escanea el QR con la app **Expo Go** (Android/iOS). La app funciona sin backend gracias a stores locales (AsyncStorage) y un mock del Coach IA.
+Otros comandos:
 
-### Conectar a Supabase (opcional para MVP local)
-
-1. Crea un proyecto en [supabase.com](https://supabase.com).
-2. Ejecuta las migraciones en orden:
-   - `supabase/migrations/0001_init.sql` — schema + RLS
-   - `supabase/migrations/0002_rank_jobs.sql` — job semanal de rangos
-   - `supabase/seed/exercises.sql` — catálogo de ejercicios
-3. Copia `.env.example` a `.env` y rellena `EXPO_PUBLIC_SUPABASE_URL` y `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
-4. Despliega las edge functions:
-   ```bash
-   supabase functions deploy coach
-   supabase functions deploy generate_routine
-   supabase secrets set GEMINI_API_KEY=...  ANTHROPIC_API_KEY=... OPENAI_API_KEY=...
-   ```
-5. Programa el job semanal desde el SQL editor de Supabase:
-   ```sql
-   select cron.schedule('weekly-rank-update', '0 6 * * 1', $$ select public.recalc_weekly_ranks(); $$);
-   ```
-
----
-
-## Estructura
-
-```
-.
-├── app/                          # Expo Router (file-based)
-│   ├── _layout.tsx               # root + providers
-│   ├── index.tsx                 # redirect → onboarding o tabs
-│   ├── onboarding.tsx            # 6-step onboarding
-│   ├── (tabs)/                   # tab navigator
-│   │   ├── _layout.tsx
-│   │   ├── index.tsx             # Home (streak, rank, CTA)
-│   │   ├── routines.tsx          # listado + AI generator
-│   │   ├── train.tsx             # iniciar workout
-│   │   ├── feed.tsx              # social + leaderboard
-│   │   └── profile.tsx           # perfil + logros + settings
-│   ├── workout/active.tsx        # ejecución de workout (modal)
-│   ├── routine/[id].tsx          # editor de rutina (modal)
-│   └── coach.tsx                 # chat IA (modal)
-├── src/
-│   ├── theme/tokens.ts           # colors, spacing, radii, ranks
-│   ├── components/
-│   │   ├── ui/                   # Text, Button, Card, Input, Badge, Stat, Screen
-│   │   ├── StreakRing.tsx        # ring animado de racha
-│   │   ├── RankBadge.tsx         # badge con gradient + progreso
-│   │   └── TabIcon.tsx           # iconos SVG del tab bar
-│   ├── store/                    # Zustand stores
-│   │   ├── app.ts                # perfil, racha, onboarding
-│   │   ├── workouts.ts           # workout activo + historial
-│   │   └── routines.ts           # rutinas
-│   ├── lib/
-│   │   ├── supabase.ts           # cliente Supabase + edge invoker
-│   │   ├── coach.ts              # askCoach() con fallback a mock
-│   │   ├── routineGenerator.ts   # generador heurístico offline
-│   │   └── units.ts              # kg ↔ lb, formato duración
-│   └── data/
-│       ├── exercises.ts          # catálogo (24 ejercicios)
-│       └── mockSocial.ts         # mock feed/leaderboard
-└── supabase/
-    ├── config.toml
-    ├── migrations/
-    │   ├── 0001_init.sql         # tablas + RLS + triggers
-    │   └── 0002_rank_jobs.sql    # función weekly recalc
-    ├── seed/exercises.sql
-    └── functions/
-        ├── coach/                # IA con cache + multi-provider fallback
-        └── generate_routine/     # generador rutinas IA
+```bash
+npm run android
+npm run ios
+npm run web
+npm run tunnel
+npm test
+npm run typecheck
+npm run lint
+npm run exercises:audit
+# npm run exercises:sync  # actualiza solo matches conservadores
 ```
 
----
+Jest cubre 66 contratos puros. El gate automático es test + typecheck + lint;
+el smoke de UI/lifecycle sigue en Expo Go.
 
-## Features implementadas
+## Supabase
 
-### Core (MVP)
-- ✅ **Onboarding** 6 pasos (perfil, nivel, objetivo, frecuencia)
-- ✅ **Sistema de workouts**: ejecución con sets/reps/peso editable, cronómetro, swipe para borrar serie, haptics
-- ✅ **Conversión KG ↔ LB** persistente por usuario (DB siempre en kg)
-- ✅ **Rachas semanales** con ring SVG animado (gradient naranja → rojo)
-- ✅ **Sistema Ranked** con 6 rangos (Bronze → Legend) y progreso visual
-- ✅ **Editor de rutinas**: tabs por día, picker de ejercicios filtrable por músculo
-- ✅ **Generador IA de rutinas** (heurística local + edge function que añade el "por qué")
-- ✅ **Coach IA** chat con sugerencias rápidas y fallback local sin backend
+El backend real está desplegado hasta `0046`. `0041` instala
+`sync_workout_snapshot`; `0042` limita `EXECUTE` a `authenticated` porque los
+default privileges de Supabase también otorgan grants explícitos al crear RPCs.
+`0043` hace monotónica la publicación: un snapshot stale nunca revierte `true`.
+`0044` enriquece el post de workout con duración, series, reps, trabajo,
+músculos y ejercicios reales sin cambiar la firma ni abrir la ACL.
+`0045` evita que una sesión publicada tarde compare sus PR contra entrenos futuros.
+`0046` desempata sesiones con la misma hora mediante creación e ID estables.
+Las migraciones reproducibles viven en `supabase/migrations/`.
 
-### Social & Gamificación
-- ✅ Feed social (mock)
-- ✅ Leaderboard semanal con destacado del usuario
-- ✅ Badges/logros visuales en perfil
+```bash
+supabase functions deploy generate_routine
+supabase secrets set GEMINI_API_KEY=... ANTHROPIC_API_KEY=... OPENAI_API_KEY=...
+```
 
-### Backend
-- ✅ Schema PostgreSQL completo con **Row Level Security**
-- ✅ Triggers: auto-creación de perfil, recálculo de volumen
-- ✅ Job semanal `recalc_weekly_ranks()` para puntos/rangos/streaks
-- ✅ Edge function `coach` con:
-  - Cache de respuestas (hash SHA-256, TTL 7 días)
-  - Rate limit por usuario (30/h)
-  - Circuit breaker por proveedor (3 fallos → 5 min open)
-  - Fallback Gemini → Claude → OpenAI
-  - Logging completo a `ai_usage_log`
+`instagram_oauth` es legacy y no tiene entrada desde el cliente. El coach IA
+conversacional fue retirado por `0040_drop_ai_coach.sql`; no reintroducirlo.
 
----
+## Arquitectura
 
-## Pendientes / Roadmap
+```text
+app/                     rutas y pantallas Expo Router
+src/components/          UI reusable y features visuales
+src/store/               Zustand: perfil, workouts, rutinas, logros
+src/lib/repos/           único acceso directo a Supabase
+src/lib/queries/         hooks React Query
+src/data/                catálogo local de 220 ejercicios + metadata externa enlazada
+src/theme/tokens.ts      colores, tipografía, spacing, rangos y gradientes
+assets/exercises/        imágenes WebP disponibles offline
+assets/ranks/            9 emblemas originales de rango
+assets/brand/            masters, mascota WebP y atlas de rangos
+supabase/migrations/     evolución del schema y RLS
+supabase/functions/      generate_routine + instagram_oauth legacy
+```
 
-| Fase | Tarea | Estado |
-|------|-------|--------|
-| 1 | Auth real (Apple/Google con Supabase) | TODO |
-| 1 | Sync cliente ↔ Supabase (workouts/routines) | TODO |
-| 2 | Sustituir mocks de feed/leaderboard por queries reales | TODO |
-| 2 | Subida real de fotos a Supabase Storage | TODO |
-| 2 | Push notifications con Expo Notifications | TODO |
-| 3 | Análisis de volumen / detección sobreentrenamiento | TODO |
-| 3 | GIFs de ejercicios (CDN) | TODO |
-| 3 | Compartir a redes (deep link + OG image) | TODO |
-| 4 | Challenges semanales + heatmap anual | TODO |
-| 5 | Suscripción Premium con RevenueCat | TODO |
+`app/_layout.tsx` es la única fuente de verdad para auth/onboarding/navigation.
+La base de datos siempre almacena peso en kg; la unidad del usuario solo cambia
+la presentación.
 
----
+## Funcionalidad
 
-## Reglas del sistema de rangos
+- Tracking interactivo por serie con descanso persistente, duración y resumen
+- Serie anterior con autofill protegido y banner de PR en vivo
+- Validación defensiva antes de terminar y calculadora de discos para barra
+- Reanudación de workout activo en la primera serie pendiente
+- CTA persistente en Feed para empezar o continuar entrenando
+- Rutinas editables, templates y generación online/offline
+- Feed realtime edge-to-edge con fotos 4:5, comentarios, follow y reacción gym
+- Secciones sin bordes laterales y skeleton compartido para cargas iniciales
+- Tarjeta workout compartida entre compositor/Feed + share externo con métricas reales
+- Búsqueda, perfiles públicos, comunidades, eventos y leaderboards
+- Progreso real por ejercicio (carga, repeticiones y tiempo), selector buscable
+  con miniaturas locales por recientes/más entrenados/músculo/equipo, gráfica
+  táctil con acceso a la sesión exacta y seguimiento separado del peso corporal
+- Hub por ejercicio con Información, Historial y Récords
+- 9 rangos: Rookie, Bronze, Silver, Gold, Platinum, Diamond, Elite, Titan, Olympus
+- Logros por niveles, completamente client-side y offline
+- Racha semanal derivada de historial + meta; semana local lunes–domingo
+- Campo manual de Instagram; sin OAuth/verificación en UI
 
-- **Bronze** 0–99 · **Silver** 100–299 · **Gold** 300–699 · **Platinum** 700–1499 · **Elite** 1500–2999 · **Legend** 3000+
-- Cada lunes el job `recalc_weekly_ranks()` calcula:
-  - +30 por cumplir meta semanal
-  - +10 por cada día extra (máx +30)
-  - +15 por mantener racha ≥ 4 semanas
-  - −20 por semana sin entrenar
-- Workout válido: ≥ 3 ejercicios y ≥ 15 min (anti-abuso server-side).
+## Estado y roadmap
 
-## Diseño
+- [Checklist vivo](docs/memory/checklist.md)
+- [Roadmap de producto](docs/roadmap.md)
+- [Roadmap UI y benchmark](docs/roadmap-ui.md)
+- [Arquitectura](docs/memory/architecture.md)
+- [Stack visual](docs/memory/visual-stack.md)
+- [Workflow multi-agente](docs/skills/workflow.md)
 
-Paleta:
-- Base `#0B0B0B` / cards `#1C1C1E`
-- Primario rojo `#FF3B3B` (CTAs)
-- Acento naranja `#FF7A00` (rachas, gamificación)
-- Info azul `#1E90FF` (stats, IA)
-- Texto blanco con jerarquía por opacidad
+`icon.png` alimenta icono, splash y adaptive icon sin copias binarias. La mascota
+GMO reutilizable pesa 25 KB y los 9 emblemas son arte real. El catálogo conserva
+IDs e imágenes offline.
+La integración opcional con
+[hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset)
+solo usa instrucciones con match conservador: su media pertenece a Gym visual
+y no se redistribuye sin licencia. Ver
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) y
+[la auditoría](docs/memory/exercises-dataset-audit.md).
 
-Tokens centralizados en `src/theme/tokens.ts`. Componentes UI en `src/components/ui/`.
+## Reglas de contribución
 
-## Licencia
+Lee [AGENTS.md](AGENTS.md). Todo cambio debe:
 
-Privada · proyecto de portfolio.
+1. respetar las capas repo/query/store;
+2. usar tokens y primitivas UI existentes;
+3. ejecutar `npm test`, `npm run typecheck` y `npm run lint`;
+4. actualizar el checklist y los `.md` cuyo estado haya cambiado;
+5. pasar revisión de calidad antes de marcarse completado.

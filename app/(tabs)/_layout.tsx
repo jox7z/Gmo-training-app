@@ -1,12 +1,14 @@
-import { useCallback, useRef, useState } from 'react';
-import { View, Pressable, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet } from 'react-native';
 import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 import { TabIcon } from '@/components/TabIcon';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
+import { useMainTabsStore, type MainTabName } from '@/store/mainTabs';
 
 // Screens renderizadas directamente para habilitar PagerView swipe.
 // El deep-linking individual a /(tabs)/X se sustituye por el índice del PagerView.
@@ -15,9 +17,7 @@ import RoutinesScreen from './routines';
 import ProgressScreen from './progress';
 import ProfileScreen from './profile';
 
-type TabName = 'feed' | 'routines' | 'progress' | 'profile';
-
-const TABS: { key: TabName; label: string }[] = [
+const TABS: { key: MainTabName; label: string }[] = [
   { key: 'feed',     label: 'Feed'     },
   { key: 'routines', label: 'Rutinas'  },
   { key: 'progress', label: 'Progreso' },
@@ -25,74 +25,105 @@ const TABS: { key: TabName; label: string }[] = [
 ];
 
 export default function TabsLayout() {
-  console.log('[TabsLayout] render — usuario entró al grupo de tabs');
   const pagerRef = useRef<PagerView>(null);
+  const activeIndexRef = useRef(0);
+  const tabPressTargetRef = useRef<number | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const insets = useSafeAreaInsets();
+  const requestedTab = useMainTabsStore((state) => state.requestedTab);
+  const consumeTabRequest = useMainTabsStore((state) => state.consumeRequest);
 
   const handlePageSelected = useCallback((e: PagerViewOnPageSelectedEvent) => {
     const i = e.nativeEvent.position;
+    const selectedFromTabBar = tabPressTargetRef.current === i;
+    const changed = activeIndexRef.current !== i;
+
+    tabPressTargetRef.current = null;
+    activeIndexRef.current = i;
     setActiveIndex(i);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+    if (changed && !selectedFromTabBar) {
+      Haptics.selectionAsync().catch(() => {});
+    }
   }, []);
 
   const handleTabPress = useCallback((i: number) => {
-    if (i === activeIndex) return;
+    if (i === activeIndexRef.current) return;
+    tabPressTargetRef.current = i;
+    activeIndexRef.current = i;
     pagerRef.current?.setPage(i);
     setActiveIndex(i);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-  }, [activeIndex]);
+  }, []);
+
+  useEffect(() => {
+    if (!requestedTab) return;
+    const requestedIndex = TABS.findIndex((tab) => tab.key === requestedTab);
+    if (requestedIndex >= 0) {
+      handleTabPress(requestedIndex);
+    }
+    consumeTabRequest();
+  }, [consumeTabRequest, handleTabPress, requestedTab]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg.base }}>
+    <View style={styles.root}>
       <PagerView
         ref={pagerRef}
-        style={{ flex: 1 }}
+        style={styles.pager}
         initialPage={0}
         onPageSelected={handlePageSelected}
       >
-        <View key="0" style={{ flex: 1 }}><FeedScreen /></View>
-        <View key="1" style={{ flex: 1 }}><RoutinesScreen /></View>
-        <View key="2" style={{ flex: 1 }}><ProgressScreen /></View>
-        <View key="3" style={{ flex: 1 }}><ProfileScreen /></View>
+        <View key="0" style={styles.page}><FeedScreen /></View>
+        <View key="1" style={styles.page}><RoutinesScreen /></View>
+        <View key="2" style={styles.page}><ProgressScreen /></View>
+        <View key="3" style={styles.page}><ProfileScreen /></View>
       </PagerView>
 
-      {/* Tab bar fija — blur + íconos */}
       <View
         style={[
           styles.tabBar,
-          { height: 70 + insets.bottom, borderTopColor: colors.border },
+          { paddingBottom: insets.bottom },
         ]}
       >
         <BlurView
           tint="dark"
-          intensity={30}
-          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(11,11,11,0.7)' }]}
+          intensity={40}
+          pointerEvents="none"
+          style={StyleSheet.absoluteFill}
         />
-        <View style={[styles.tabRow, { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 }]}>
+        <View
+          accessibilityRole="tablist"
+          accessibilityLabel="Navegación principal"
+          style={styles.tabRow}
+        >
           {TABS.map((tab, i) => {
             const active = activeIndex === i;
             const color = active ? colors.primary.DEFAULT : colors.text.muted;
             return (
-              <Pressable
+              <PressableScale
                 key={tab.key}
                 onPress={() => handleTabPress(i)}
+                accessibilityRole="tab"
+                accessibilityLabel={tab.label}
+                accessibilityState={{ selected: active }}
+                haptic={active ? false : Haptics.ImpactFeedbackStyle.Light}
+                pressScale={0.92}
                 style={styles.tabItem}
               >
                 <View
-                  style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 2,
-                    borderRadius: radius.full,
-                    backgroundColor: active ? colors.primary.muted : 'transparent',
-                  }}
+                  pointerEvents="none"
+                  style={[styles.iconShell, active && styles.iconShellActive]}
                 >
                   <TabIcon name={tab.key} color={color} focused={active} />
                 </View>
-                <Text weight={active ? 'bold' : 'semibold'} style={{ color, fontSize: 11 }}>
+                <Text
+                  variant="caption"
+                  tone={active ? 'brand' : 'muted'}
+                  weight={active ? 'bold' : 'semibold'}
+                  numberOfLines={1}
+                >
                   {tab.label}
                 </Text>
-              </Pressable>
+              </PressableScale>
             );
           })}
         </View>
@@ -102,22 +133,51 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg.base,
+  },
+  pager: {
+    flex: 1,
+  },
+  page: {
+    flex: 1,
+  },
   tabBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+    backgroundColor: colors.bg.overlay,
     overflow: 'hidden',
   },
   tabRow: {
+    minHeight: spacing['4xl'] + spacing.md,
     flexDirection: 'row',
-    paddingTop: 8,
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  iconShell: {
+    minWidth: spacing['3xl'],
+    minHeight: spacing['2xl'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+  },
+  iconShellActive: {
+    backgroundColor: colors.primary.muted,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.primary.glow,
   },
 });

@@ -35,13 +35,16 @@ interface DbWorkoutSetRow {
   rest_after_seconds: number | null;
 }
 
-async function insertWorkoutRows(userId: string, w: Workout): Promise<void> {
-  const { data: wRow, error: wErr } = await supabase
-    .from('workouts')
-    .insert({
-      id: w.id,
-      user_id: userId,
-      routine_day_id: null,
+const syncQueues = new Map<string, Promise<void>>();
+
+/**
+ * Envía el snapshot completo a una sola transacción en Postgres. El RPC valida
+ * auth.uid(), serializa por workout y reconstruye todo el árbol hijo.
+ */
+async function reconcileWorkoutRows(w: Workout): Promise<void> {
+  const { error } = await supabase.rpc('sync_workout_snapshot', {
+    p_workout_id: w.id,
+    p_snapshot: {
       started_at: w.startedAt,
       ended_at: w.endedAt ?? null,
       duration_seconds: w.durationSeconds ?? null,
@@ -50,70 +53,52 @@ async function insertWorkoutRows(userId: string, w: Workout): Promise<void> {
       total_active_seconds: w.totalActiveSeconds,
       feeling: w.feeling ?? null,
       is_published: w.isPublished ?? false,
-    })
-    .select('id')
-    .single();
+      exercises: w.exercises.map((ex) => ({
+        exercise_id: ex.exerciseId,
+        sets: ex.sets.map((s) => ({
+          reps: s.reps,
+          weight_kg: s.weightKg,
+          rpe: s.rpe ?? null,
+          is_warmup: s.isWarmup ?? false,
+          is_completed: s.isCompleted,
+          duration_seconds: s.durationSeconds ?? null,
+          rest_after_seconds: s.restAfterSeconds ?? null,
+        })),
+      })),
+    },
+  });
 
-  if (wErr) throw wErr;
-
-  for (let i = 0; i < w.exercises.length; i++) {
-    const ex = w.exercises[i];
-
-    const { data: exRow, error: exErr } = await supabase
-      .from('workout_exercises')
-      .insert({ workout_id: wRow.id, exercise_id: ex.exerciseId, position: i })
-      .select('id')
-      .single();
-
-    if (exErr) throw exErr;
-
-    const sets = ex.sets.map((s, j) => ({
-      workout_exercise_id: exRow.id,
-      set_index: j,
-      reps: s.reps,
-      weight_kg: s.weightKg,
-      rpe: s.rpe ?? null,
-      is_warmup: s.isWarmup ?? false,
-      is_completed: s.isCompleted,
-      duration_seconds: s.durationSeconds ?? null,
-      rest_after_seconds: s.restAfterSeconds ?? null,
-    }));
-
-    if (sets.length > 0) {
-      const { error: sErr } = await supabase.from('workout_sets').insert(sets);
-      if (sErr) throw sErr;
-    }
-  }
+  if (error) throw error;
 }
 
-export async function saveWorkout(userId: string, w: Workout): Promise<void> {
-  try {
-    return await insertWorkoutRows(userId, w);
-  } catch (err: unknown) {
-    if ((err as { code?: string })?.code === '23505') return;
-    throw err;
-  }
+function queueWorkoutSync(_userId: string, w: Workout): Promise<void> {
+  const previous = syncQueues.get(w.id) ?? Promise.resolve();
+  const next = previous
+    .catch(() => {
+      // Un intento fallido no bloquea la reconciliación siguiente.
+    })
+    .then(() => reconcileWorkoutRows(w));
+
+  syncQueues.set(w.id, next);
+  void next
+    .finally(() => {
+      if (syncQueues.get(w.id) === next) syncQueues.delete(w.id);
+    })
+    .catch(() => {
+      // El caller recibe el rechazo de `next`; este catch solo cierra `finally`.
+    });
+  return next;
+}
+
+export function saveWorkout(userId: string, w: Workout): Promise<void> {
+  return queueWorkoutSync(userId, w);
 }
 
 /**
- * Idempotent: checks if the workout already exists in the DB before
- * inserting. Safe to call multiple times (e.g. before publishing).
+ * Reconciliación idempotente antes de publicar o reintentar una sesión.
  */
-export async function ensureWorkoutSynced(userId: string, w: Workout): Promise<void> {
-  const { data } = await supabase
-    .from('workouts')
-    .select('id')
-    .eq('id', w.id)
-    .maybeSingle();
-
-  if (data) return;
-
-  try {
-    return await insertWorkoutRows(userId, w);
-  } catch (err: unknown) {
-    if ((err as { code?: string })?.code === '23505') return;
-    throw err;
-  }
+export function ensureWorkoutSynced(userId: string, w: Workout): Promise<void> {
+  return queueWorkoutSync(userId, w);
 }
 
 export async function getWorkouts(userId: string): Promise<Workout[]> {

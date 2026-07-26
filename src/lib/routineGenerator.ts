@@ -1,6 +1,5 @@
 import { Goal, Level } from '@/store/app';
 import { Routine, RoutineDay, nid } from '@/store/routines';
-import { EXERCISES } from '@/data/exercises';
 
 export interface RoutineOption {
   routine: Routine;

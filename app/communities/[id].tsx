@@ -8,6 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ import { useToast } from '@/components/ui/Toast';
 import { EventCard } from '@/components/EventCard';
 import { FeedItem } from '@/components/feed/FeedItem';
 import { CommentSheet } from '@/components/feed/CommentSheet';
+import { SocialErrorState } from '@/components/social/SocialErrorState';
 import { colors, radius, spacing, RANKS } from '@/theme/tokens';
 import {
   useCommunity,
@@ -48,6 +50,7 @@ import { useAppStore, type UserProfile } from '@/store/app';
 import type { CommunityMember } from '@/lib/repos/communities';
 import type { RankId } from '@/theme/tokens';
 import { colorForName } from '@/lib/avatarColor';
+import { formatPostShareMessage } from '@/lib/postSharing';
 
 type DetailTab = 'muro' | 'eventos' | 'miembros';
 
@@ -206,7 +209,7 @@ export default function CommunityDetailScreen() {
             style={{
               width: 36,
               height: 36,
-              borderRadius: 18,
+              borderRadius: radius.full,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: colors.bg.elevated,
@@ -224,7 +227,7 @@ export default function CommunityDetailScreen() {
               style={{
                 width: 36,
                 height: 36,
-                borderRadius: 18,
+                borderRadius: radius.full,
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: colors.bg.elevated,
@@ -292,7 +295,7 @@ export default function CommunityDetailScreen() {
                     gap: 4,
                     paddingHorizontal: spacing.sm,
                     paddingVertical: 4,
-                    borderRadius: radius.full,
+                    borderRadius: radius.sm,
                     backgroundColor: colors.bg.elevated,
                     borderWidth: 1,
                     borderColor: colors.border,
@@ -493,20 +496,58 @@ function MuroTab({
     [deletePost, toast],
   );
 
+  const handleShare = useCallback(
+    async (post: Post) => {
+      try {
+        const result = await Share.share({
+          title: post.title ?? 'Mira esto en GMO',
+          message: formatPostShareMessage(post, profile?.unit ?? 'kg'),
+        });
+        if (result.action !== Share.dismissedAction) {
+          incrementShare.mutate(post.id, {
+            onError: (error) =>
+              toast.show({
+                message: error?.message ?? 'No se pudo registrar el compartido',
+                tone: 'danger',
+              }),
+          });
+        }
+      } catch (error) {
+        toast.show({
+          message: (error as Error)?.message ?? 'No se pudo compartir',
+          tone: 'danger',
+        });
+      }
+    },
+    [incrementShare, profile?.unit, toast],
+  );
+
   if (feedQuery.isLoading) {
     return (
-      <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
+      <View
+        style={{
+          width: '100%',
+          maxWidth: 600,
+          alignSelf: 'center',
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.xl,
+          alignItems: 'center',
+        }}
+      >
         <ActivityIndicator color={colors.primary.DEFAULT} />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={{ padding: spacing.lg, gap: spacing.md }}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}
+    >
+      <View style={{ gap: spacing.sm }}>
         {/* Composer — solo miembros activos */}
         {isMember && profile && (
-          <Card variant="raised" padding="lg" style={{ gap: spacing.sm }}>
+          <Card variant="stream" padding="lg" style={{ gap: spacing.sm }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
               <Avatar uri={profile.avatarUrl} name={profile.displayName ?? profile.username ?? ''} size={36} />
               <TextInput
@@ -538,38 +579,62 @@ function MuroTab({
           </Card>
         )}
 
+        {feedQuery.isError && posts.length > 0 && (
+          <View style={{ paddingHorizontal: spacing.lg }}>
+            <SocialErrorState
+              compact
+              title="No pudimos actualizar el muro"
+              subtitle="Mostramos las publicaciones disponibles mientras recuperas la conexión."
+              onRetry={() => void feedQuery.refetch()}
+              isRetrying={feedQuery.isFetching}
+            />
+          </View>
+        )}
+
         {/* Feed */}
         {posts.length === 0 && !feedQuery.isLoading ? (
-          <View style={{ paddingTop: spacing.xl, alignItems: 'center', gap: spacing.md }}>
-            <View
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: 36,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Icon name="chat" size={32} color={colors.text.muted} />
-            </View>
-            <Text variant="heading" style={{ textAlign: 'center' }}>El muro esta vacio</Text>
-            <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-              {isMember ? 'Se el primero en publicar algo aqui.' : 'Unete para ver y publicar en el muro.'}
-            </Text>
+          <View style={{ paddingHorizontal: spacing.lg }}>
+            {feedQuery.isError ? (
+              <SocialErrorState
+                title="No pudimos cargar el muro"
+                subtitle="Revisa tu conexión y vuelve a intentarlo."
+                onRetry={() => void feedQuery.refetch()}
+                isRetrying={feedQuery.isFetching}
+              />
+            ) : (
+              <View style={{ paddingTop: spacing.xl, alignItems: 'center', gap: spacing.md }}>
+                <View
+                  style={{
+                    width: 72,
+                    height: 72,
+                    borderRadius: radius.sm,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.bg.elevated,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Icon name="chat" size={32} color={colors.text.muted} />
+                </View>
+                <Text variant="heading" style={{ textAlign: 'center' }}>El muro esta vacio</Text>
+                <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+                  {isMember ? 'Se el primero en publicar algo aqui.' : 'Unete para ver y publicar en el muro.'}
+                </Text>
+              </View>
+            )}
           </View>
         ) : (
           posts.map((post) => (
             <FeedItem
               key={post.id}
               post={post}
+              layout="stream"
               isMine={post.userId === currentUserId}
               onToggleReaction={handleToggleReaction}
               onDelete={handleDelete}
               onOpenComments={(p) => { setCommentsPostId(p.id); setCommentsPostOwnerId(p.userId); }}
-              onShare={(p) => incrementShare.mutate(p.id)}
+              onShare={handleShare}
               onOpenProfile={(p) => router.push({ pathname: '/profile/[username]', params: { username: p.user.username } })}
             />
           ))
@@ -577,13 +642,15 @@ function MuroTab({
 
         {/* Paginación */}
         {feedQuery.hasNextPage && (
-          <Button
-            title={feedQuery.isFetchingNextPage ? 'Cargando…' : 'Ver más'}
-            variant="secondary"
-            onPress={() => feedQuery.fetchNextPage()}
-            loading={feedQuery.isFetchingNextPage}
-            fullWidth
-          />
+          <View style={{ paddingHorizontal: spacing.lg }}>
+            <Button
+              title={feedQuery.isFetchingNextPage ? 'Cargando…' : 'Ver más'}
+              variant="secondary"
+              onPress={() => feedQuery.fetchNextPage()}
+              loading={feedQuery.isFetchingNextPage}
+              fullWidth
+            />
+          </View>
         )}
       </View>
 
@@ -611,57 +678,101 @@ function EventosTab({
 }) {
   const eventsQuery = useCommunityEvents(communityId);
   const events = eventsQuery.data ?? [];
+  const hasEvents = events.length > 0;
+  const showBlockingError = eventsQuery.isError && !hasEvents;
+  const showStaleError = eventsQuery.isError && hasEvents;
 
   if (eventsQuery.isLoading) {
     return (
-      <View style={{ paddingTop: spacing.xl, alignItems: 'center' }}>
+      <View
+        style={{
+          width: '100%',
+          maxWidth: 600,
+          alignSelf: 'center',
+          paddingHorizontal: spacing.lg,
+          paddingTop: spacing.xl,
+          alignItems: 'center',
+        }}
+      >
         <ActivityIndicator color={colors.primary.DEFAULT} />
       </View>
     );
   }
 
   return (
-    <View style={{ padding: spacing.lg, gap: spacing.md }}>
+    <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center', gap: spacing.sm }}>
       {isMember && (
-        <Button
-          title="Crear evento"
-          leftIcon={<Icon name="plus" size={16} color="#fff" />}
-          onPress={() =>
-            router.push({
-              pathname: '/events/new',
-              params: { communityId },
-            } as any)
-          }
-          fullWidth
-        />
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg }}>
+          <Button
+            title="Crear evento"
+            leftIcon={<Icon name="plus" size={16} color="#fff" />}
+            onPress={() =>
+              router.push({
+                pathname: '/events/new',
+                params: { communityId },
+              } as any)
+            }
+            fullWidth
+          />
+        </View>
       )}
 
-      {events.length === 0 ? (
-        <View style={{ paddingTop: spacing.xl, alignItems: 'center', gap: spacing.md }}>
-          <View
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="calendar" size={32} color={colors.text.muted} />
-          </View>
-          <Text variant="heading" style={{ textAlign: 'center' }}>Sin eventos aun</Text>
-          <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-            {isMember ? 'Crea el primer evento de la comunidad.' : 'Unete para ver los eventos.'}
-          </Text>
+      {showStaleError && (
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <SocialErrorState
+            compact
+            title="No pudimos actualizar los eventos"
+            subtitle="Mostramos los eventos disponibles mientras recuperas la conexión."
+            onRetry={() => void eventsQuery.refetch()}
+            isRetrying={eventsQuery.isFetching}
+          />
+        </View>
+      )}
+
+      {!hasEvents ? (
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          {showBlockingError ? (
+            <SocialErrorState
+              title="No pudimos cargar los eventos"
+              subtitle="Revisa tu conexión y vuelve a intentarlo."
+              onRetry={() => void eventsQuery.refetch()}
+              isRetrying={eventsQuery.isFetching}
+            />
+          ) : (
+            <View
+              style={{
+                paddingTop: spacing.xl,
+                alignItems: 'center',
+                gap: spacing.md,
+              }}
+            >
+              <View
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: radius.sm,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: colors.bg.elevated,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Icon name="calendar" size={32} color={colors.text.muted} />
+              </View>
+              <Text variant="heading" style={{ textAlign: 'center' }}>Sin eventos aun</Text>
+              <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
+                {isMember ? 'Crea el primer evento de la comunidad.' : 'Unete para ver los eventos.'}
+              </Text>
+            </View>
+          )}
         </View>
       ) : (
         events.map((event) => (
           <EventCard
             key={event.id}
             event={event}
+            layout="stream"
             onPress={() =>
               router.push({ pathname: '/events/[id]', params: { id: event.id } })
             }
@@ -872,7 +983,7 @@ function MembersTab({
                           style={{
                             paddingHorizontal: 6,
                             paddingVertical: 2,
-                            borderRadius: radius.full,
+                            borderRadius: radius.sm,
                             backgroundColor: isOwnerRow ? colors.primary.muted : colors.bg.elevated,
                             borderWidth: 1,
                             borderColor: isOwnerRow ? colors.primary.DEFAULT : colors.border,

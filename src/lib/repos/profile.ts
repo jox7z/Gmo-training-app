@@ -42,8 +42,6 @@ function toApp(row: DbProfile): UserProfile {
     weeklyGoalDays: row.weekly_goal_days,
     instagramUsername: row.instagram_username ?? undefined,
     instagramVerified: row.instagram_verified ?? false,
-    privacy: { profilePublic: true, showActivity: true, showStats: true },
-    notifications: { workoutReminders: true, socialUpdates: true, achievements: true, weeklyReport: true },
   };
 }
 

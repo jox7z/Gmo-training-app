@@ -7,6 +7,10 @@ import {
   lookupTier,
   unlockedTierIds,
 } from '@/lib/achievements';
+import {
+  ACHIEVEMENTS_STORAGE_VERSION,
+  migrateAchievementSnapshot,
+} from '@/lib/achievementPersistence';
 
 export interface UnlockedAchievement {
   def: AchievementDef;
@@ -44,11 +48,7 @@ export const useAchievementsStore = create<AchievementsState>((set, get) => ({
     try {
       const raw = await AsyncStorage.getItem(KEY);
       if (raw) {
-        const data = JSON.parse(raw);
-        set({
-          unlocked: data.unlocked ?? {},
-          seeded: data.seeded ?? false,
-        });
+        set(migrateAchievementSnapshot(JSON.parse(raw)));
       }
     } catch (e) {
       console.warn('[Achievements] hydrate failed', e);
@@ -99,6 +99,10 @@ export const useAchievementsStore = create<AchievementsState>((set, get) => ({
 function persist(state: AchievementsState) {
   AsyncStorage.setItem(
     KEY,
-    JSON.stringify({ unlocked: state.unlocked, seeded: state.seeded }),
+    JSON.stringify({
+      version: ACHIEVEMENTS_STORAGE_VERSION,
+      unlocked: state.unlocked,
+      seeded: state.seeded,
+    }),
   ).catch(() => {});
 }

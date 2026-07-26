@@ -6,7 +6,6 @@ import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 
 const BTN = 64;
-const EDGE = 3;
 
 interface Props {
   label: string;
@@ -17,42 +16,28 @@ interface Props {
   accessoryId?: string;
 }
 
-// Botón circular chunky: cara elevada + edge oscuro que se hunde al presionar.
+// Botón circular con borde naranja neon + glow (en vez del relieve 3D chunky).
 function StepperButton({ symbol, onPress }: { symbol: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} hitSlop={6} style={{ width: BTN, height: BTN + EDGE }}>
+    <Pressable onPress={onPress} hitSlop={6} style={{ width: BTN, height: BTN }}>
       {({ pressed }) => (
-        <>
-          <View
-            style={{
-              position: 'absolute',
-              top: EDGE,
-              left: 0,
-              width: BTN,
-              height: BTN,
-              borderRadius: BTN / 2,
-              backgroundColor: colors.bg.cardEdge,
-            }}
-            pointerEvents="none"
-          />
-          <View
-            style={{
-              width: BTN,
-              height: BTN,
-              borderRadius: BTN / 2,
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.borderStrong,
-              alignItems: 'center',
-              justifyContent: 'center',
-              transform: pressed ? [{ translateY: EDGE }] : undefined,
-            }}
-          >
-            <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text.primary, lineHeight: 32 }}>
-              {symbol}
-            </Text>
-          </View>
-        </>
+        <View
+          style={{
+            width: BTN,
+            height: BTN,
+            borderRadius: BTN / 2,
+            backgroundColor: colors.bg.elevated,
+            borderWidth: 1,
+            borderColor: colors.accent.DEFAULT,
+            alignItems: 'center',
+            justifyContent: 'center',
+            transform: pressed ? [{ scale: 0.94 }] : undefined,
+          }}
+        >
+          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text.primary, lineHeight: 32 }}>
+            {symbol}
+          </Text>
+        </View>
       )}
     </Pressable>
   );
