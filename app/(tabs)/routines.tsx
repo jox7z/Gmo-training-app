@@ -15,7 +15,8 @@ import { useRoutinesStore } from '@/store/routines';
 import { useAppStore } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
 import { Icon } from '@/components/Icon';
-import { computeRoutineScore, MUSCLE_LABELS, analyzeRoutineMuscles } from '@/lib/optimizationScore';
+import { computeRoutineScore, analyzeRoutineMuscles } from '@/lib/optimizationScore';
+import { RoutineScoreCard } from '@/components/routines/RoutineScoreCard';
 import { MuscleOptimizationTable, STATUS_COLOR } from '@/components/MuscleOptimizationTable';
 import { MuscleMap, type MuscleKey } from '@/components/MuscleMap';
 
@@ -51,14 +52,6 @@ export default function Routines() {
     () => (activeRoutine ? analyzeRoutineMuscles(activeRoutine) : []),
     [activeRoutine],
   );
-  const scoreColor = optScore
-    ? optScore.score > 80
-      ? colors.success
-      : optScore.score >= 50
-        ? colors.warning
-        : colors.danger
-    : colors.text.muted;
-
   const muscleDropdownOptions = useMemo(() => {
     const options: { id: string; label: string }[] = [{ id: 'all', label: 'Todos' }];
     for (const m of muscleStats) {
@@ -186,64 +179,8 @@ export default function Routines() {
             />
           </Card>
 
-          {/* Score de optimización — entra con fade escalonado */}
-          {optScore && (
-            <Animated.View
-              entering={FadeInDown.delay(50).springify().damping(18)}
-              layout={LinearTransition.springify().damping(18)}
-              style={{ marginTop: spacing['2xl'], alignItems: 'center' }}
-            >
-              <Text variant="heading" style={{ marginBottom: spacing.md, alignSelf: 'stretch' }}>Score de optimización</Text>
-              <Card variant="raised" padding="lg" style={{ alignSelf: 'stretch' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                  <View
-                    style={{
-                      width: 68,
-                      height: 68,
-                      borderRadius: 34,
-                      backgroundColor: scoreColor + '22',
-                      borderWidth: 2,
-                      borderColor: scoreColor,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 22, fontWeight: '700', color: scoreColor, lineHeight: 26 }}>
-                      {optScore.score}
-                    </Text>
-                    <Text style={{ fontSize: 10, color: scoreColor, opacity: 0.8 }}>/100</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    {optScore.weakGroups.length > 0 ? (
-                      <>
-                        <Text variant="label" tone="muted">Grupos más débiles</Text>
-                        <Text weight="semibold" style={{ marginTop: 4 }}>
-                          {optScore.weakGroups.map((g) => MUSCLE_LABELS[g] ?? g).join(' · ')}
-                        </Text>
-                        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
-                          {(['coverage', 'balance', 'volume', 'frequency', 'separation'] as const).map((key) => {
-                            const val = optScore.breakdown[key];
-                            const barColor = val > 80 ? colors.success : val >= 50 ? colors.warning : colors.danger;
-                            return (
-                              <View key={key} style={{ flex: 1 }}>
-                                <View style={{ height: 3, borderRadius: 2, backgroundColor: colors.border }}>
-                                  <View style={{ height: 3, borderRadius: 2, backgroundColor: barColor, width: `${val}%` as any }} />
-                                </View>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      </>
-                    ) : (
-                      <Text variant="caption" tone="muted">
-                        Agrega ejercicios a tu rutina para ver el análisis
-                      </Text>
-                    )}
-                  </View>
-                </View>
-              </Card>
-            </Animated.View>
-          )}
+          {/* Score de optimización — entra con fade escalonado (card compartida con el editor) */}
+          {optScore && <RoutineScoreCard score={optScore} style={{ marginTop: spacing['2xl'] }} />}
 
           {/* Mapa muscular — entra con fade escalonado */}
           {muscleStats.length > 0 && (

@@ -379,6 +379,31 @@ the only place that decides where the user goes. Key invariants there:
   `showSelector={false}`), Records cards, and Progress. It absorbed
   `ExerciseProgressModal` — don't recreate per-screen exercise detail modals. The
   `key={exerciseId}` on its mount is what resets internal state per exercise.
+- **Score de optimización de rutina:** `src/components/routines/RoutineScoreCard.tsx` es LA card
+  del score (círculo + barras de breakdown + grupos débiles) — presentación pura sobre un
+  `RoutineScore` ya calculado, sin stores ni Supabase. La consumen la pestaña Rutina
+  (`app/(tabs)/routines.tsx`, rutina guardada) y el editor (`app/routine/[id].tsx`, borrador en
+  memoria vía `useMemo(() => computeRoutineScore(routine, profile))` — el estado local del editor
+  YA es un `Routine` completo, no hay que reconstruir shape). Cálculo 100% local (solo
+  `profile.weeklyGoalDays` + catálogo estático): nunca añadir query/RPC/migración para el score.
+  No dupliques el JSX del círculo/barras por pantalla. El gate de "sin ejercicios todavía" usa
+  `score.breakdown.coverage > 0`, NO `score.weakGroups.length > 0` — `weakGroups` es
+  `MAJOR_GROUPS` ordenado y recortado a 2 (`src/lib/optimizationScore.ts`), así que SIEMPRE
+  tiene longitud 2 sin importar el contenido de la rutina; ese chequeo era código muerto que
+  mostraba "grupos más débiles" fabricados en una rutina vacía (hallazgo de
+  `code-quality-reviewer`, corregido antes de commitear).
+- **Leaderboard (rango vs. otros):** `src/components/social/LeaderboardRow.tsx` es LA fila
+  compartida (posición vía `podiumColor()`, `Avatar`, nombre/username, puntos) — consumida por
+  `app/discover.tsx` (tab "Ranking", global, siempre navegable a `/profile/[username]`) y por
+  `app/(tabs)/progress.tsx` (sección "Leaderboard", con un `SegmentedControl` Mi rango/Global:
+  Mi rango usa `useLeaderboard(rankId)` — query directa a `profiles` filtrada por
+  `current_rank`, sin RPC — Global usa el mismo `useGlobalLeaderboard(50, enabled)` que
+  `discover.tsx`, con `enabled` nuevo para no dispararla hasta que el usuario elija ese modo;
+  mismo `queryKey`, así que la cache se comparte entre las dos pantallas). Navegabilidad = si
+  se pasa `onPress` o no (no un flag booleano separado); `variant: 'card'|'list'` es la única
+  diferencia de chrome real entre discover (cards sueltas) y progress (filas planas dentro de
+  una card). No reimplementar esta fila por pantalla. RLS de `profiles` ya es lectura pública
+  (`0001_init.sql`) — no hace falta ninguna migración para leer rango/puntos de otros usuarios.
 - **Loading skeletons:** use the shared `src/components/ui/Skeleton.tsx` primitive
   (`Skeleton`, `SkeletonCircle`, `SkeletonRow`) for every load placeholder — never a
   bare `ActivityIndicator`/`Loader` on initial content load. It's a single Reanimated 4

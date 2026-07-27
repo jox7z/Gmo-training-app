@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { View, ScrollView } from 'react-native';
 import {
   NestedReorderableList,
@@ -27,6 +27,8 @@ import { isSupabaseConfigured } from '@/lib/supabase';
 import { exerciseById } from '@/data/exercises';
 import { ExercisePickerSheet } from '@/components/ExercisePickerSheet';
 import { CreateExerciseSheet } from '@/components/CreateExerciseSheet';
+import { RoutineScoreCard } from '@/components/routines/RoutineScoreCard';
+import { computeRoutineScore } from '@/lib/optimizationScore';
 import { Icon } from '@/components/Icon';
 import { supersetLabel, dissolveNonContiguousGroups } from '@/lib/supersets';
 
@@ -69,6 +71,15 @@ export default function RoutineEditor() {
   const [groupSelection, setGroupSelection] = useState<string[]>([]);
 
   const day = routine.days[activeDayIdx];
+
+  // Score en vivo del BORRADOR: `routine` ya es un `Routine` completo (el mismo
+  // shape que consume la pestaña Rutina), así que no hay que reconstruir nada —
+  // cada mutación del editor crea un objeto nuevo y el memo recalcula sin guardar.
+  // Cálculo puro y local (sin query/RPC): solo lee `profile.weeklyGoalDays`.
+  const routineScore = useMemo(
+    () => (profile ? computeRoutineScore(routine, profile) : null),
+    [routine, profile],
+  );
 
   const addDay = () => {
     const newDay: RoutineDay = { id: nid(), name: `Día ${routine.days.length + 1}`, exercises: [] };
@@ -385,6 +396,10 @@ export default function RoutineEditor() {
             </Text>
           </Card>
         )}
+
+        {/* Score de optimización del borrador — se recalcula al vuelo con cada
+            cambio de ejercicios/sets, antes de guardar. */}
+        {routineScore && <RoutineScoreCard score={routineScore} style={{ marginTop: spacing.xl }} />}
 
         {/* Tabs de días */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.xl }}>

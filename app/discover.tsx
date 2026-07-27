@@ -11,9 +11,10 @@ import { IconButton } from '@/components/ui/IconButton';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
-import { colors, radius, spacing, RANKS, RankId, podiumColor } from '@/theme/tokens';
+import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import { useSearchUsers, type SearchUserResult } from '@/lib/queries/search';
 import { useGlobalLeaderboard, type GlobalRankEntry } from '@/lib/queries/social';
+import { LeaderboardRow } from '@/components/social/LeaderboardRow';
 import { useEvents, type EventFilter } from '@/lib/queries/events';
 import { type CommunityEvent } from '@/lib/repos/events';
 import { EventCard } from '@/components/EventCard';
@@ -384,10 +385,13 @@ function RankingTab() {
       data={entries}
       keyExtractor={(e) => e.id}
       renderItem={({ item, index }) => (
-        <RankingRow
+        <LeaderboardRow
           entry={item}
           position={index + 1}
-          onOpen={() =>
+          variant="card"
+          isMe={item.isMe}
+          isFollowing={item.isFollowing}
+          onPress={() =>
             router.push({ pathname: '/profile/[username]', params: { username: item.username } })
           }
         />
@@ -424,50 +428,6 @@ function RankingTab() {
       }
       showsVerticalScrollIndicator={false}
     />
-  );
-}
-
-function RankingRow({
-  entry,
-  position,
-  onOpen,
-}: {
-  entry: GlobalRankEntry;
-  position: number;
-  onOpen: () => void;
-}) {
-  const info = rankInfo(entry.currentRank);
-  const posColor = podiumColor(position);
-
-  return (
-    <Pressable onPress={onOpen} style={({ pressed }) => [pressed && { opacity: 0.85 }]}>
-      <Card
-        padding="md"
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-          backgroundColor: entry.isMe ? colors.primary.muted : undefined,
-        }}
-      >
-        <Text weight="black" numeric style={{ width: 30, textAlign: 'center', color: posColor }}>
-          {position}
-        </Text>
-        <Avatar uri={entry.avatarUrl} name={entry.displayName} size={42} borderColor={info.color} />
-        <View style={{ flex: 1 }}>
-          <Text weight="bold" numberOfLines={1}>
-            {entry.displayName}{entry.isMe ? ' (tú)' : ''}
-          </Text>
-          <Text variant="caption" tone="muted" numberOfLines={1}>@{entry.username}</Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text weight="bold" numeric style={{ color: info.color }}>
-            {entry.rankPoints.toLocaleString()}
-          </Text>
-          <Text variant="label" tone="muted" style={{ fontSize: 9 }}>{info.label}</Text>
-        </View>
-      </Card>
-    </Pressable>
   );
 }
 

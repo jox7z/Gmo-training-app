@@ -200,11 +200,18 @@ export function useLeaderboard(rankId: RankId | undefined) {
 
 export type { GlobalRankEntry };
 
-export function useGlobalLeaderboard(limit = 50) {
+/**
+ * Ranking global (RPC `global_leaderboard`). `enabled` permite montar el hook
+ * sin disparar la RPC hasta que la vista lo necesite (progress solo consulta
+ * el global cuando el usuario cambia a esa pestaña). La queryKey no depende de
+ * `enabled`, así que la caché se comparte con discover.
+ */
+export function useGlobalLeaderboard(limit = 50, enabled = true) {
   return useQuery({
     queryKey: ['leaderboard', 'global', limit] as const,
     queryFn: () => listGlobalLeaderboard(limit),
     staleTime: 30_000,
+    enabled,
   });
 }
 

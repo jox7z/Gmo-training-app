@@ -16,19 +16,24 @@ import { WeightDetailModal } from '@/components/WeightDetailModal';
 import { TimeSeriesChart, type TimeSeriesPoint } from '@/components/TimeSeriesChart';
 import { ExerciseDetailSheet } from '@/components/ExerciseDetailSheet';
 import { WeeklyMuscleHeatmapCard } from '@/components/WeeklyMuscleHeatmapCard';
-import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, podiumColor, type RankId } from '@/theme/tokens';
+import { colors, radius, spacing, RANKS, rankFromPoints, nextRank, type RankId } from '@/theme/tokens';
 import { RANK_IMAGES } from '@/theme/rankImages';
 import { useAppStore, type Unit } from '@/store/app';
 import { StreakRing } from '@/components/StreakRing';
-import { Skeleton } from '@/components/ui/Skeleton';
+import { Skeleton, SkeletonRow } from '@/components/ui/Skeleton';
 import { useWorkoutsStore } from '@/store/workouts';
 import { listTrainedExercises, buildExerciseTimeline } from '@/lib/exerciseProgress';
 import { weekStreakFromHistory, daysThisWeekFromHistory } from '@/lib/achievements';
 import { exerciseImage } from '@/data/exerciseImages';
 import { Image } from 'expo-image';
 import { toDisplay } from '@/lib/units';
-import { useLeaderboard, type LeaderboardEntry } from '@/lib/queries/social';
-import { Avatar } from '@/components/Avatar';
+import {
+  useLeaderboard,
+  useGlobalLeaderboard,
+  type LeaderboardEntry,
+  type GlobalRankEntry,
+} from '@/lib/queries/social';
+import { LeaderboardRow } from '@/components/social/LeaderboardRow';
 import { useProgressSummary, useProgressTimeline } from '@/lib/queries/progress';
 import {
   formatDuration,
@@ -63,6 +68,14 @@ const EXERCISE_METRIC_OPTIONS: { value: 'weight' | 'reps'; label: string }[] = [
   { value: 'reps', label: 'Reps' },
 ];
 
+/** Alcance del leaderboard: solo mi rango (query por `current_rank`) o global (RPC). */
+type LeaderboardMode = 'rank' | 'global';
+
+const LEADERBOARD_MODES: { value: LeaderboardMode; label: string }[] = [
+  { value: 'rank', label: 'Mi rango' },
+  { value: 'global', label: 'Global' },
+];
+
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -73,6 +86,7 @@ export default function ProgressScreen() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [exerciseMetric, setExerciseMetric] = useState<'weight' | 'reps'>('weight');
+  const [leaderboardMode, setLeaderboardMode] = useState<LeaderboardMode>('rank');
 
   const history = useWorkoutsStore((s) => s.history);
   const streakWeeks = useMemo(() => weekStreakFromHistory(history), [history]);
@@ -105,6 +119,9 @@ export default function ProgressScreen() {
 
   const currentRank = rankFromPoints(profile?.rankPoints ?? 0);
   const leaderboardQuery = useLeaderboard(currentRank.id);
+  // Solo se dispara la RPC global cuando el usuario elige esa pestaña; comparte
+  // caché con el ranking de app/discover.tsx (misma queryKey).
+  const globalLeaderboardQuery = useGlobalLeaderboard(50, leaderboardMode === 'global');
 
   const summary: ProgressSummary | undefined = summaryQuery.data;
 
@@ -113,13 +130,16 @@ export default function ProgressScreen() {
     timelineQuery.isRefetching ||
     bodyMeasurementsQuery.isRefetching ||
     bodyTimelineQuery.isRefetching ||
-    leaderboardQuery.isRefetching;
+    leaderboardQuery.isRefetching ||
+    globalLeaderboardQuery.isRefetching;
   const onRefresh = () => {
     summaryQuery.refetch();
     timelineQuery.refetch();
     bodyMeasurementsQuery.refetch();
     bodyTimelineQuery.refetch();
-    leaderboardQuery.refetch();
+    // Solo el leaderboard visible: el otro modo está deshabilitado o frío.
+    if (leaderboardMode === 'global') globalLeaderboardQuery.refetch();
+    else leaderboardQuery.refetch();
   };
 
   return (
@@ -235,10 +255,23 @@ export default function ProgressScreen() {
 
         <LeaderboardSection
           rankId={currentRank.id}
-          entries={leaderboardQuery.data ?? []}
-          loading={leaderboardQuery.isLoading}
-          isError={leaderboardQuery.isError}
-          onRetry={() => leaderboardQuery.refetch()}
+          mode={leaderboardMode}
+          onModeChange={setLeaderboardMode}
+          rank={{
+            entries: leaderboardQuery.data ?? [],
+            isLoading: leaderboardQuery.isLoading,
+            isError: leaderboardQuery.isError,
+            onRetry: () => leaderboardQuery.refetch(),
+          }}
+          global={{
+            entries: globalLeaderboardQuery.data ?? [],
+            // `isPending` (no `isLoading`) porque la query arranca deshabilitada:
+            // en el primer render tras cambiar a Global aún está idle y `isLoading`
+            // sería false → se colaría un frame de EmptyState antes del skeleton.
+            isLoading: globalLeaderboardQuery.isPending,
+            isError: globalLeaderboardQuery.isError,
+            onRetry: () => globalLeaderboardQuery.refetch(),
+          }}
           currentUserId={profile?.id}
         />
       </ScrollView>
@@ -912,120 +945,117 @@ function RanksSection({ currentPoints }: { currentPoints: number }) {
   );
 }
 
+/** Estado de una de las dos queries de leaderboard, aplanado por el screen. */
+interface LeaderboardData<T> {
+  entries: T[];
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+}
+
 function LeaderboardSection({
   rankId,
-  entries,
-  loading,
-  isError,
-  onRetry,
+  mode,
+  onModeChange,
+  rank,
+  global: globalData,
   currentUserId,
 }: {
   rankId: RankId;
-  entries: LeaderboardEntry[];
-  loading: boolean;
-  isError: boolean;
-  onRetry: () => void;
+  mode: LeaderboardMode;
+  onModeChange: (m: LeaderboardMode) => void;
+  rank: LeaderboardData<LeaderboardEntry>;
+  global: LeaderboardData<GlobalRankEntry>;
   currentUserId?: string;
 }) {
+  const router = useRouter();
   const rankInfo = RANKS.find((r) => r.id === rankId) ?? RANKS[0];
-  const state = useQueryState({ isLoading: loading, isError, isEmpty: entries.length === 0 });
+  const isGlobal = mode === 'global';
+  const active = isGlobal ? globalData : rank;
+  const state = useQueryState({
+    isLoading: active.isLoading,
+    isError: active.isError,
+    isEmpty: active.entries.length === 0,
+  });
 
   return (
     <View style={{ marginTop: spacing.xl, gap: spacing.md, marginBottom: spacing.md }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <Text variant="heading">Leaderboard</Text>
-        <View
-          style={{
-            paddingHorizontal: spacing.sm,
-            paddingVertical: 4,
-            borderRadius: radius.full,
-            backgroundColor: `${rankInfo.color}22`,
-            borderWidth: 1,
-            borderColor: `${rankInfo.color}44`,
-          }}
-        >
-          <Text variant="caption" weight="bold" style={{ color: rankInfo.color }}>
-            {rankInfo.label}
-          </Text>
-        </View>
+        {isGlobal ? (
+          <Text variant="label" tone="muted">TOP 50</Text>
+        ) : (
+          <View
+            style={{
+              paddingHorizontal: spacing.sm,
+              paddingVertical: 4,
+              borderRadius: radius.full,
+              backgroundColor: `${rankInfo.color}22`,
+              borderWidth: 1,
+              borderColor: `${rankInfo.color}44`,
+            }}
+          >
+            <Text variant="caption" weight="bold" style={{ color: rankInfo.color }}>
+              {rankInfo.label}
+            </Text>
+          </View>
+        )}
       </View>
+
+      <SegmentedControl options={LEADERBOARD_MODES} value={mode} onChange={onModeChange} />
 
       <Card variant="raised" padding="md">
         {state === 'loading' ? (
-          <View style={{ padding: spacing.xl, alignItems: 'center' }}>
-            <Text variant="caption" tone="muted">Cargando leaderboard…</Text>
+          <View>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <SkeletonRow key={i} />
+            ))}
           </View>
         ) : state === 'error' ? (
-          <ErrorState title="No se pudo cargar el leaderboard." onRetry={onRetry} />
+          <ErrorState title="No se pudo cargar el leaderboard." onRetry={active.onRetry} />
         ) : state === 'empty' ? (
-          <EmptyState icon="trophy" title="Sin datos para este rango" />
+          <EmptyState
+            icon="trophy"
+            title={isGlobal ? 'Sin ranking todavía' : 'Sin datos para este rango'}
+            subtitle={
+              isGlobal
+                ? 'Cuando los atletas acumulen puntos aparecerán aquí en el top global.'
+                : undefined
+            }
+          />
+        ) : isGlobal ? (
+          <View>
+            {globalData.entries.map((entry, i) => (
+              <LeaderboardRow
+                key={entry.id}
+                entry={entry}
+                position={i + 1}
+                isMe={entry.isMe}
+                isFollowing={entry.isFollowing}
+                showDivider={i < globalData.entries.length - 1}
+                onPress={() =>
+                  router.push({
+                    pathname: '/profile/[username]',
+                    params: { username: entry.username },
+                  })
+                }
+              />
+            ))}
+          </View>
         ) : (
           <View>
-            {entries.map((entry, i) => (
+            {rank.entries.map((entry, i) => (
               <LeaderboardRow
                 key={entry.id}
                 entry={entry}
                 position={i + 1}
                 isMe={entry.id === currentUserId}
-                showDivider={i < entries.length - 1}
+                showDivider={i < rank.entries.length - 1}
               />
             ))}
           </View>
         )}
       </Card>
-    </View>
-  );
-}
-
-function LeaderboardRow({
-  entry,
-  position,
-  isMe,
-  showDivider,
-}: {
-  entry: LeaderboardEntry;
-  position: number;
-  isMe: boolean;
-  showDivider: boolean;
-}) {
-  const entryRankColor = RANKS.find((r) => r.id === entry.currentRank)?.color ?? colors.text.muted;
-  const posColor = podiumColor(position);
-
-  return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.md,
-        paddingHorizontal: spacing.xs,
-        borderBottomWidth: showDivider ? 1 : 0,
-        borderBottomColor: colors.border,
-        backgroundColor: isMe ? colors.primary.muted : 'transparent',
-        borderRadius: isMe ? radius.md : 0,
-      }}
-    >
-      <Text
-        weight="bold"
-        numeric
-        style={{ width: 28, color: posColor, textAlign: 'center', fontSize: 13 }}
-      >
-        {position}
-      </Text>
-      <Avatar
-        uri={entry.avatarUrl}
-        name={entry.displayName}
-        size={36}
-        borderColor={entryRankColor}
-      />
-      <View style={{ flex: 1, marginLeft: spacing.sm }}>
-        <Text weight="semibold" numberOfLines={1}>
-          {entry.displayName}{isMe ? ' (tú)' : ''}
-        </Text>
-        <Text variant="caption" tone="muted">@{entry.username}</Text>
-      </View>
-      <Text variant="caption" weight="bold" numeric style={{ color: entryRankColor }}>
-        {entry.rankPoints.toLocaleString()}
-      </Text>
     </View>
   );
 }
