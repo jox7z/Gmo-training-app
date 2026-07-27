@@ -43,7 +43,8 @@
       "PowerShell(git *)",
       "Bash(node *)",
       "Bash(ls *)",
-      "Bash(cd *)"
+      "Bash(cd *)",
+      "Bash(npm test *)"
     ]
   }
 }

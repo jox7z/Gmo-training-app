@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView } from 'react-native';
+import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, type StyleProp, type ViewStyle } from 'react-native';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -43,6 +43,19 @@ const REST_PHRASES = [
   'El descanso también entrena',
   'Respira y vuelve más fuerte',
   'Esto es lo que te hace diferente',
+];
+
+// Frases que se muestran MIENTRAS la serie está en curso (no en descanso): el tono
+// empuja a seguir apretando, no a recuperarse.
+const SET_MOTIVATION_PHRASES = [
+  '¡Sigue así, no pares!',
+  'Cada rep cuenta',
+  'Tú puedes con esto',
+  'Falta poco, aguanta',
+  'Concéntrate, una más',
+  'Dale con todo',
+  'Esto vale la pena',
+  'Hoy es tu día',
 ];
 
 const SET_SPLASH_PHRASES = [
@@ -1161,6 +1174,10 @@ function SetPhase({
           </Text>
         </View>
 
+        {/* Frase motivacional rotativa durante la serie (mismo tratamiento que el descanso).
+            Sin marginTop: el contenedor padre ya separa con gap: spacing.lg. */}
+        <MotivationalPhrase phrases={SET_MOTIVATION_PHRASES} />
+
         {/* Acciones rápidas: calentamiento (solo 1ª serie) + cambio de ejercicio */}
         <View
           style={{
@@ -1334,7 +1351,10 @@ function LogPhase({
   );
 }
 
-function RestPhrase() {
+// Frase motivacional rotativa (cicla cada ~4.5s con entrada spring + salida fade).
+// Reutilizada tanto en el descanso (REST_PHRASES) como durante la serie
+// (SET_MOTIVATION_PHRASES); el array llega por prop, la animación es la misma.
+function MotivationalPhrase({ phrases, style }: { phrases: string[]; style?: StyleProp<ViewStyle> }) {
   const [phraseIdx, setPhraseIdx] = useState(0);
   const phraseOpacity = useRef(new Animated.Value(1)).current;
   const phraseScale   = useRef(new Animated.Value(1)).current;
@@ -1348,7 +1368,7 @@ function RestPhrase() {
         Animated.timing(phraseScale,   { toValue: 0.82, duration: 300, useNativeDriver: true }),
         Animated.timing(phraseY,       { toValue: 12, duration: 300, useNativeDriver: true }),
       ]).start(() => {
-        setPhraseIdx((i) => (i + 1) % REST_PHRASES.length);
+        setPhraseIdx((i) => (i + 1) % phrases.length);
         // Reset position for entrance
         phraseY.setValue(-16);
         phraseScale.setValue(0.9);
@@ -1373,16 +1393,18 @@ function RestPhrase() {
 
     const t = setInterval(cycle, 4500);
     return () => clearInterval(t);
-  }, []);
+  }, [phrases.length]);
 
   return (
     <Animated.View
-      style={{
-        opacity: phraseOpacity,
-        transform: [{ scale: phraseScale }, { translateY: phraseY }],
-        marginTop: spacing.lg,
-        alignItems: 'center',
-      }}
+      style={[
+        {
+          opacity: phraseOpacity,
+          transform: [{ scale: phraseScale }, { translateY: phraseY }],
+          alignItems: 'center',
+        },
+        style,
+      ]}
     >
       <Text
         tracking="snug"
@@ -1393,7 +1415,7 @@ function RestPhrase() {
           textAlign: 'center',
         }}
       >
-        {REST_PHRASES[phraseIdx]}
+        {phrases[phraseIdx]}
       </Text>
     </Animated.View>
   );
@@ -1467,7 +1489,7 @@ function RestPhase({
         </Card>
 
         {/* Rotating motivational phrase — lively, cycles every ~4.5s */}
-        <RestPhrase />
+        <MotivationalPhrase phrases={REST_PHRASES} style={{ marginTop: spacing.lg }} />
       </View>
 
       <Button title={nextLabel} variant="primary" size="lg" fullWidth onPress={onConfirm} />

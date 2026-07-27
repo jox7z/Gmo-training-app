@@ -467,6 +467,15 @@ the only place that decides where the user goes. Key invariants there:
   `Button` has its own built-in effect — don't wrap it. List items in the training
   section animate with `FadeInDown` (stagger capped at `Math.min(i, 8)`) +
   `LinearTransition`; never put `entering`/`layout` on FlashList items (recycler crash).
+- **Frases motivacionales del workout activo:** `MotivationalPhrase({ phrases, style })`
+  en `app/workout/active.tsx` es EL componente de frase rotativa (ciclo de 4500ms,
+  entrada spring overshoot + slide-up, salida fade/shrink/slide-down, con la API
+  `Animated` clásica de RN como el resto de ese archivo — no Reanimated). Se monta dos
+  veces con arrays distintos: `REST_PHRASES` en `RestPhase` (tono de recuperación, con
+  `style={{ marginTop: spacing.lg }}` porque ese contenedor no tiene `gap`) y
+  `SET_MOTIVATION_PHRASES` en `SetPhase`, bajo el chip del cronómetro (tono de empuje,
+  sin margin: el padre ya separa con `gap: spacing.lg`). Para añadir frases edita solo
+  el array; no dupliques el componente ni metas el texto en la DB — es 100% local.
 - New IDs: `uuidv4()` from `src/lib/ids.ts`.
 - Workout save (`repos/workouts.ts`) is idempotent — duplicate-key (`23505`) is
   swallowed, and `ensureWorkoutSynced` checks existence before insert. Preserve this
