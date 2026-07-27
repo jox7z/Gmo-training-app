@@ -398,7 +398,9 @@ export default function RoutineEditor() {
         )}
 
         {/* Score de optimización del borrador — se recalcula al vuelo con cada
-            cambio de ejercicios/sets, antes de guardar. */}
+            cambio de ejercicios/sets, antes de guardar. Colapsado por defecto
+            (defaultExpanded=false, prop omitida): acá abajo hay que scrollear
+            los ejercicios del día, así que el score no debe estorbar. */}
         {routineScore && <RoutineScoreCard score={routineScore} style={{ marginTop: spacing.xl }} />}
 
         {/* Tabs de días */}

@@ -179,8 +179,12 @@ export default function Routines() {
             />
           </Card>
 
-          {/* Score de optimización — entra con fade escalonado (card compartida con el editor) */}
-          {optScore && <RoutineScoreCard score={optScore} style={{ marginTop: spacing['2xl'] }} />}
+          {/* Score de optimización — entra con fade escalonado (card compartida con el editor).
+              defaultExpanded: esta pantalla ES el análisis de la rutina, sin lista de
+              ejercicios que scrollear encima, así que arranca mostrando el desglose completo. */}
+          {optScore && (
+            <RoutineScoreCard score={optScore} defaultExpanded style={{ marginTop: spacing['2xl'] }} />
+          )}
 
           {/* Mapa muscular — entra con fade escalonado */}
           {muscleStats.length > 0 && (
