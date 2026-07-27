@@ -1,20 +1,60 @@
-import { View, Pressable, Alert, Platform } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, ActivityIndicator, Platform } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { signInWithOAuth, AuthError, type OAuthProvider } from '@/lib/auth';
 
 /**
- * OAuth button placeholders. Wire up when Apple/Google providers are configured
- * in Supabase Dashboard → Authentication → Providers.
+ * Botones OAuth (Google / Apple) — flujo web-based real (ver src/lib/auth/oauth.ts).
  *
- * For now they show a friendly "coming soon" alert instead of failing silently.
+ * Apple sólo se renderiza en iOS (requisito de Apple: si ofreces login social de
+ * terceros, debes ofrecer Sign in with Apple). El error se propaga al padre vía
+ * `onError` para mostrarse con el MISMO mecanismo que los errores de
+ * email/password (Card danger + useState en login.tsx / signup.tsx).
+ *
+ * Hasta que los providers estén habilitados en el Dashboard de Supabase, tocar un
+ * botón produce un error "provider is not enabled" que pasa por `humanizeAuthError`.
  */
 
 interface Props {
+  /** loading del submit de email/password del padre — deshabilita también estos botones. */
   loading?: boolean;
+  /** Superficie el error OAuth con el mismo mecanismo que el padre usa para email/password. */
+  onError?: (message: string | null) => void;
+  /**
+   * Avisa al padre mientras hay un flujo OAuth en curso. El tramo posterior al
+   * cierre del navegador (`exchangeCodeForSession` en vuelo) no es visible desde
+   * fuera: sin esto el botón de email/password del padre sigue habilitado y se
+   * pueden disparar dos flujos de auth a la vez.
+   */
+  onBusyChange?: (busy: boolean) => void;
 }
 
-export function OAuthButtons({ loading }: Props) {
+export function OAuthButtons({ loading, onError, onBusyChange }: Props) {
+  const [pending, setPending] = useState<OAuthProvider | null>(null);
+  const busy = !!loading || pending !== null;
+
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
+
+  const handlePress = async (provider: OAuthProvider) => {
+    if (busy) return;
+    onError?.(null);
+    setPending(provider);
+    try {
+      await signInWithOAuth(provider);
+      // Éxito: onAuthStateChange en _layout.tsx recibe SIGNED_IN y navega.
+      // No hacemos nada aquí para no competir con esa redirección.
+    } catch (e: unknown) {
+      onError?.(e instanceof AuthError ? e.message : 'Ha ocurrido un error inesperado.');
+    } finally {
+      setPending(null);
+    }
+  };
+
   return (
     <View style={{ gap: spacing.sm }}>
       <Divider />
@@ -22,13 +62,17 @@ export function OAuthButtons({ loading }: Props) {
         <OAuthButton
           provider="apple"
           label="Continuar con Apple"
-          disabled={loading}
+          disabled={busy}
+          loading={pending === 'apple'}
+          onPress={() => handlePress('apple')}
         />
       )}
       <OAuthButton
         provider="google"
         label="Continuar con Google"
-        disabled={loading}
+        disabled={busy}
+        loading={pending === 'google'}
+        onPress={() => handlePress('google')}
       />
     </View>
   );
@@ -38,10 +82,14 @@ function OAuthButton({
   provider,
   label,
   disabled,
+  loading,
+  onPress,
 }: {
-  provider: 'apple' | 'google';
+  provider: OAuthProvider;
   label: string;
   disabled?: boolean;
+  loading?: boolean;
+  onPress: () => void;
 }) {
   const isApple = provider === 'apple';
   const bg = isApple ? '#FFFFFF' : colors.bg.elevated;
@@ -49,35 +97,36 @@ function OAuthButton({
   const borderColor = isApple ? '#FFFFFF' : colors.border;
 
   return (
-    <Pressable
-      onPress={() =>
-        Alert.alert(
-          'Próximamente',
-          `Login con ${isApple ? 'Apple' : 'Google'} estará disponible muy pronto.`,
-        )
-      }
+    <PressableScale
+      onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
-        {
-          backgroundColor: bg,
-          borderRadius: radius.lg,
-          paddingVertical: 14,
-          paddingHorizontal: spacing.lg,
-          borderWidth: 1,
-          borderColor,
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: spacing.sm,
-          opacity: pressed || disabled ? 0.7 : 1,
-        },
-      ]}
+      // El dimming va plano en `style`: PressableScale ya anima opacidad/escala
+      // al pulsar, así que aquí sólo queda el estado estático de deshabilitado.
+      style={{
+        backgroundColor: bg,
+        borderRadius: radius.lg,
+        paddingVertical: 14,
+        paddingHorizontal: spacing.lg,
+        borderWidth: 1,
+        borderColor,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        opacity: disabled ? 0.7 : 1,
+      }}
     >
-      {isApple ? <AppleIcon /> : <GoogleIcon />}
-      <Text weight="semibold" style={{ color: fg }}>
-        {label}
-      </Text>
-    </Pressable>
+      {loading ? (
+        <ActivityIndicator color={fg} />
+      ) : (
+        <>
+          {isApple ? <AppleIcon /> : <GoogleIcon />}
+          <Text weight="semibold" style={{ color: fg }}>
+            {label}
+          </Text>
+        </>
+      )}
+    </PressableScale>
   );
 }
 

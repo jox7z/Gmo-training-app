@@ -22,6 +22,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [oauthBusy, setOauthBusy] = useState(false);
   const [touched, setTouched] = useState({ email: false, password: false });
 
   const passwordRef = useRef<TextInput | null>(null);
@@ -34,7 +35,7 @@ export default function Login() {
   }, []);
 
   const emailValid = isEmailValid(email);
-  const canSubmit = emailValid && password.length >= 6 && !loading;
+  const canSubmit = emailValid && password.length >= 6 && !loading && !oauthBusy;
 
   const handleLogin = async () => {
     setTouched({ email: true, password: true });
@@ -146,7 +147,7 @@ export default function Login() {
             fullWidth
           />
 
-          <OAuthButtons loading={loading} />
+          <OAuthButtons loading={loading} onError={setError} onBusyChange={setOauthBusy} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl, gap: 4 }}>
             <Text variant="caption" tone="secondary">¿No tienes cuenta?</Text>

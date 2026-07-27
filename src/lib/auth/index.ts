@@ -179,3 +179,15 @@ export async function updatePassword(password: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password });
   if (error) throw new AuthError('UNKNOWN', humanizeAuthError(error), error);
 }
+
+// OAuth (Google/Apple) vive en su propio módulo por su dependencia de
+// expo-web-browser/expo-linking; se re-exporta aquí para que los callers usen
+// el mismo `@/lib/auth` que el resto de funciones de auth. Va al final para que
+// `AuthError` ya esté declarada cuando oauth.ts la importe (evita ciclos init).
+export {
+  signInWithOAuth,
+  exchangeOAuthCode,
+  OAUTH_GENERIC_ERROR,
+  OAUTH_CANCELLED_MESSAGE,
+  type OAuthProvider,
+} from './oauth';

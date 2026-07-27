@@ -23,6 +23,7 @@ export default function Signup() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [oauthBusy, setOauthBusy] = useState(false);
   const [touched, setTouched] = useState({
     email: false,
     password: false,
@@ -48,7 +49,8 @@ export default function Signup() {
     passwordValid &&
     confirmValid &&
     acceptTerms &&
-    !loading;
+    !loading &&
+    !oauthBusy;
 
   const handleSignup = async () => {
     setTouched({ email: true, password: true, confirm: true });
@@ -183,7 +185,7 @@ export default function Signup() {
             fullWidth
           />
 
-          <OAuthButtons loading={loading} />
+          <OAuthButtons loading={loading} onError={setError} onBusyChange={setOauthBusy} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing.xl, gap: 4 }}>
             <Text variant="caption" tone="secondary">¿Ya tienes cuenta?</Text>

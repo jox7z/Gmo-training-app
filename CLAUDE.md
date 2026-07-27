@@ -271,6 +271,62 @@ the only place that decides where the user goes. Key invariants there:
   `app/achievements.tsx` (whitelisted authed route), `AchievementMedal` + `AchievementUnlockModal`
   in `src/components/achievements/`, and the profile "Logros" tab renders real engine data.
   To add a track/tier, edit `ACHIEVEMENTS` only — UI and store pick it up automatically.
+- **OAuth (Apple/Google) login** (`src/lib/auth/oauth.ts`, `src/components/auth/OAuthButtons.tsx`)
+  is **web-based**, not native SDKs: `supabase.auth.signInWithOAuth()` +
+  `expo-web-browser`'s `WebBrowser.openAuthSessionAsync` opens the consent screen in an
+  embedded browser and returns the redirect URL directly — no
+  `expo-apple-authentication`/`@react-native-google-signin` (both require a dev build;
+  the app still targets Expo Go). This is real OAuth against Supabase's
+  `auth.users`/`auth.identities`, just with a browser hop instead of a native
+  bottom-sheet. The Supabase client (`src/lib/supabase.ts`) sets `flowType: 'pkce'`
+  (needed on top of the pre-existing `detectSessionInUrl: false` — with the default
+  `'implicit'` flow the redirect returns tokens in the fragment and
+  `exchangeCodeForSession` wouldn't apply), so the code→session exchange is **manual**:
+  `signInWithOAuth` in `oauth.ts` parses `code`/`error`/`error_description` out of the
+  redirect via `Linking.parse`, then calls `exchangeCodeForSession`. It also polyfills
+  `crypto.getRandomValues` from `expo-crypto` (only if missing — never clobbers an
+  existing one) because Hermes has no global `crypto`, which supabase-js needs to
+  generate the PKCE verifier; without it supabase-js silently falls back to a
+  `Math.random`-based verifier. `WebBrowser` result types `cancel`/`dismiss`/`locked`
+  are a silent no-op, not an error. Post-login is **provider-agnostic already** —
+  `app/_layout.tsx`'s `onAuthStateChange` listener redirects by `is_profile_complete`
+  regardless of how the user signed in, so nothing there changes for OAuth. No
+  `authProvider` field was added to `profiles`/`UserProfile` — Supabase already tracks
+  it server-side in `auth.identities`/`app_metadata` and no UI needs to show it.
+  Activating this for real requires the user to complete Google Cloud Console + Apple
+  Developer (paid) + paste credentials into the Supabase Dashboard — until then, tapping
+  a button surfaces a humanized "provider is not enabled" error (`humanizeAuthError`),
+  not a crash. **Expo Go cannot reliably complete the redirect leg** (confirmed against
+  Expo's own docs + a known `supabase/auth` issue: `Linking.createURL` in Expo Go
+  returns a dynamic `exp://<lan-ip>:<port>/...` URL that Supabase's redirect allow-list
+  doesn't match reliably, even with wildcards — don't try to "fix" this by adding
+  `exp://` wildcard entries to `supabase/config.toml`, it's a documented dead end).
+  `signInWithOAuth` guards against this explicitly (`Constants.executionEnvironment ===
+  ExecutionEnvironment.StoreClient` from `expo-constants`) and throws a clear Spanish
+  error asking for a development build, instead of letting the browser open and fail as
+  a silent "cancel". End-to-end verification is deliberately deferred until the app
+  jumps to a development build (same jump already planned for push notifications) —
+  this doesn't block the feature being code-complete. `access_denied` (user declines
+  the provider's consent screen) is treated the same as closing the browser (silent,
+  not an error); any other provider error surfaces a fixed generic Spanish message
+  (`OAUTH_GENERIC_ERROR`) rather than passing the raw, often-English OAuth2 error code
+  through `humanizeAuthError` (that table is shaped for GoTrueError objects, not raw
+  query-param error codes). `WebBrowser.maybeCompleteAuthSession()` is called at module
+  load in `oauth.ts` — required for the web target (`npm run web`) or the popup never
+  auto-closes. `app/auth/callback.tsx` (registered in `_layout.tsx`) is a fallback
+  route, not the happy path — normally `openAuthSessionAsync` intercepts the redirect
+  before it ever reaches the router; the route exists only for the case where it
+  doesn't (e.g. Android kills the process mid-browser-hop and the code comes back as a
+  cold-start deep link instead), so it doesn't get silently dropped on Expo Router's
+  unmatched-route screen. It reuses `exchangeOAuthCode` (extracted out of
+  `signInWithOAuth` in `oauth.ts`) and deliberately does **not** navigate on success —
+  `_layout.tsx`'s existing `onAuthStateChange` + gating effect already does that the
+  moment the session appears, so duplicating it here would race it. `OAuthButtons`
+  exposes `onBusyChange` (fires whenever its internal in-flight state changes, including
+  the window after the browser closes while `exchangeCodeForSession` is still in
+  flight) — `login.tsx`/`signup.tsx` fold it into their own `canSubmit`, so the
+  email/password submit button can't be tapped concurrently with an in-flight OAuth
+  exchange.
 - **Instagram:** the OAuth linking/verification flow was retired from the client —
   only the manual, unverified `instagram_username` field remains (edited in
   `app/profile/edit.tsx`, displayed/opened via `openInstagram` from `src/lib/linking.ts`).

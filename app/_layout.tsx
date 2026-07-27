@@ -455,6 +455,7 @@ export default function RootLayout() {
             <Stack.Screen name="auth/forgot-password" options={{ animation: 'slide_from_right' }} />
             <Stack.Screen name="auth/check-email" options={{ animation: 'fade' }} />
             <Stack.Screen name="auth/reset-password" options={{ animation: 'fade' }} />
+            <Stack.Screen name="auth/callback" options={{ animation: 'fade' }} />
             <Stack.Screen
               name="publish"
               options={{ presentation: 'modal', animation: 'slide_from_bottom' }}

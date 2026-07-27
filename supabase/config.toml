@@ -20,7 +20,7 @@ file_size_limit = "10MiB"
 [auth]
 enabled = true
 site_url = "gmo://"
-additional_redirect_urls = ["gmo://", "http://localhost:8081"]
+additional_redirect_urls = ["gmo://", "gmo://auth/callback", "gmo://auth/reset-password", "http://localhost:8081"]
 jwt_expiry = 3600
 enable_signup = true
 
@@ -30,10 +30,10 @@ double_confirm_changes = true
 enable_confirmations = false
 
 [auth.external.apple]
-enabled = false
+enabled = true
 
 [auth.external.google]
-enabled = false
+enabled = true
 
 [functions.generate_routine]
 verify_jwt = true

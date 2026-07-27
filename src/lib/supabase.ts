@@ -21,6 +21,12 @@ export const supabase = createClient(url || 'https://placeholder.supabase.co', a
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // PKCE es requerido por el flujo OAuth (src/lib/auth/oauth.ts): con el
+    // default 'implicit' el redirect devuelve tokens en el fragment y
+    // exchangeCodeForSession no aplica. No afecta login por email/password
+    // (grant de contraseña) ni los deep links de reset/confirmación (que hoy
+    // no intercambian código en la app).
+    flowType: 'pkce',
   },
 });
 
