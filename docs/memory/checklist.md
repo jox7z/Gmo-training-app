@@ -149,7 +149,13 @@ reacciones (fire/muscle/clap) confunden — reducir a 2 (muscle+heart).
 - [ ] Tests (Jest + RNTL)
 - [ ] Sentry crash reporting
 - [ ] PostHog / Amplitude analytics
-- [ ] EAS Update OTA
+- [ ] EAS Update OTA 🟡 config lista, falta activar — `expo-updates@~29.0.19`
+  instalado, `runtimeVersion: '1.0.0'` fijo en `app.config.js` (string literal:
+  la policy `appVersion` rompe `eas update` en SDK 54, expo/expo #45276),
+  `eas.json` con perfiles/canales development|preview|production y `.easignore`.
+  Pendiente (requiere cuenta EAS del usuario): `eas login` → `eas init` →
+  `eas update:configure` → primer build con `expo-updates` dentro → `eas update`
+  de prueba.
 
 ## 🐛 Bugs conocidos
 

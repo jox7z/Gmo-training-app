@@ -40,13 +40,38 @@ eas build --profile preview --platform android
 
 ## Subir versión sin re-buildear (OTA)
 
-Solo si añadiste `expo-updates`:
+`expo-updates` ya está instalado y `eas.json` define 3 canales:
+`development`, `preview`, `production` (uno por perfil de build).
+
 ```powershell
 eas update --branch preview --message "fix login flow"
+# o --branch development / --branch production
 ```
+
+El `--branch` debe coincidir con el `channel` del build que instaló el probador,
+si no el update no le llega.
 
 La app se actualiza sola al siguiente arranque. **No funciona para cambios
 nativos** (dependencias nuevas, plugins de Expo nuevos, assets del manifest).
+
+> ⚠️ **Falta activarlo (pasos con credenciales, aún no ejecutados):**
+> ```powershell
+> eas login
+> eas init              # crea/vincula el proyecto, IMPRIME el projectId por consola
+> eas update:configure  # ídem para confirmar canales/updates.url
+> ```
+> `app.config.js` es config **dinámica** (`.js`) — `eas-cli` NO puede escribirle
+> automático (solo escribe sobre `app.json` estático), así que estos comandos
+> imprimen el `projectId` en vez de guardarlo solos. Copiarlo a mano en
+> `app.config.js`: descomentar `extra.eas.projectId` y `updates.url` (ya están
+> ahí como placeholder comentado, con la instrucción inline).
+>
+> Recién después: un `eas build` nuevo (el APK debe incluir `expo-updates`) y
+> luego ya sirven los `eas update`. Un build viejo NO recibe OTA.
+>
+> `runtimeVersion` está fijado a `'1.0.0'` (string literal, no la policy
+> `appVersion` — falla en SDK 54, expo/expo #45276). Un update solo llega a
+> builds con el MISMO `runtimeVersion`: si lo cambiás, hay que re-buildear.
 
 ## Errores típicos
 

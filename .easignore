@@ -1,0 +1,26 @@
+# .easignore REEMPLAZA a .gitignore para lo que sube EAS (build/update).
+# Por eso replica primero todo .gitignore y despues agrega lo especifico de EAS.
+
+# --- espejo de .gitignore ---
+node_modules/
+.expo/
+dist/
+npm-debug.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+.env
+.env.local
+.DS_Store
+*.log
+expo-env.d.ts
+
+# --- solo EAS: nada de esto hace falta en el bundle JS/assets ---
+supabase/
+scripts/
+docs/
+.claude/
