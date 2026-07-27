@@ -1,0 +1,42 @@
+# Supabase project config
+# https://supabase.com/docs/guides/local-development/cli/config
+project_id = "gmo-training-app"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "gmo://"
+additional_redirect_urls = ["gmo://", "gmo://auth/callback", "gmo://auth/reset-password", "http://localhost:8081"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[auth.external.apple]
+enabled = true
+
+[auth.external.google]
+enabled = true
+
+[functions.generate_routine]
+verify_jwt = true
+
+[functions.instagram_oauth]
+verify_jwt = false
