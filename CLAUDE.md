@@ -33,6 +33,19 @@ workoutCompare, optimizationScore, achievements, exerciseProgress) — no RN Tes
 Library yet; components/stores/repos are untested by design for now. In fixtures use
 `import type` for store types so suites don't drag AsyncStorage into the runtime.
 
+**Component/store testing infra (added, not yet used by any suite):**
+`@testing-library/react-native@^14` (async API — `await render(...)`, `await
+fireEvent...`, `await act(...)` in any new RNTL test) + `test-renderer@1.1` (the
+React-19-compatible renderer RNTL v14 needs; NOT `react-test-renderer`, deprecated
+under React 19) are devDependencies. Root `jest.setup.ts` (`.ts`, not `.js`, for the
+same `no-undef` reason as jest.config) wires the official
+`@react-native-async-storage/async-storage/jest/async-storage-mock` via
+`jest.mock(...)`, referenced from `"setupFiles"` (not `"setupFilesAfterEnv"` —
+mocking a native module needs to be in place before any module-load-time import of
+AsyncStorage; `setupFilesAfterEnv` runs after the test framework installs and is for
+`expect.extend`/global `beforeEach` instead). RNTL's custom matchers ship built-in
+since v12.4 — don't add `@testing-library/jest-native` (deprecated).
+
 Supabase (backend is already deployed to a real project; `.env` holds live keys):
 
 ```bash
