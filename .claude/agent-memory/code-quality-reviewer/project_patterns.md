@@ -99,6 +99,8 @@ metadata:
 - `getNextPosition()` is a pure replica of `advancePosition()` logic. Must stay in sync.
 - `swapExercise(exIdx, newId)` returns new index (may shift if completed sets exist). `handleSwapSelect` uses the returned index correctly.
 - `WorkoutMetric` owns the open hierarchy for weight, reps, timers and summary facts.
+- Decimal `BigStepperInput` accessibility stays text-only; Fabric can crash when
+  coercing `accessibilityValue.now/min/max` values such as `22.5` to integers.
 - `RestMascotCoach` mounts once per rest with a finite UI-thread entrance; no loop.
 - `RestRing` renders a declarative SVG offset per tick; no Animated JS work or recovery verdict.
 - `SetProgressPills` is static and neutral; no pulse loop.

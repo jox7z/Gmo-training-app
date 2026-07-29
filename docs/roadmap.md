@@ -29,7 +29,7 @@
 
 ### Limitaciones transversales
 
-- **Tests puros** — Jest/Expo, 121 contratos en 20 suites; falta UI/integración
+- **Tests puros** — Jest/Expo, 122 contratos en 20 suites; falta UI/integración
 - **Español hardcodeado** — sin i18n
 - **Corre en Expo Go** — limita push notifications y módulos nativos
 
@@ -71,7 +71,7 @@
 - Skills móviles cubren producto, arte gym/social, motion, accesibilidad,
   rendimiento, QA, assets y guardrails de dominio.
 - `frontend-design` queda limitado a web y redirige Expo/RN al contrato móvil.
-- Skill de testing: Jest/Expo mantiene 121 contratos puros en 20 suites.
+- Skill de testing: Jest/Expo mantiene 122 contratos puros en 20 suites.
 - Pendiente operativo: screenshots/smoke físico asistido; no existe control de
   dispositivo automatizado desde los agentes Markdown.
 
@@ -94,7 +94,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | ✅ Dashboard personal | P1 | M | Perfil compacto con FlashList única, tabs sticky, FeedItem canónico, actividad factual, logros y menú Compartir/Ajustes. |
 | ✅ Mapa + GMO Rating | P1 | M | Editor/Rutinas muestran radial transparente de cobertura, volumen, frecuencia y estructura; Progreso usa calendario + hitos, no volumen. |
 | 🟡 Sprint C3 — hitos/perfil/crash | P0 | M | Código y gates completos: rangos reales, refresh fijo, calendario, hitos, selector, perfil compacto y editor estable. Falta smoke físico Expo Go. |
-| 🟡 Workout visual abierto | P1 | S | Peso/reps/tiempo comparten `WorkoutMetric`; progreso neutral, CTA rojo único y robot GMO en cada descanso. Falta smoke físico 360/390/430/768. |
+| 🟡 Workout visual abierto | P1 | S | Peso/reps/tiempo comparten `WorkoutMetric`; progreso neutral, CTA rojo único y robot GMO en cada descanso. Crash Fabric con pesos decimales corregido. Falta smoke físico 360/390/430/768. |
 | 🔴 Bloqueador rangos live | P0 | M–L | `recalc_weekly_ranks()` es ejecutable desde Data API, no idempotente y usa seis tiers legacy. Reconciliar ledger antes de migrar, revocar ACLs y alinear nueve tiers. |
 | ✅ Objetivos múltiples | P1 | S | Live usa `profiles.goals`; principal en `goals[0]`, secundarios opcionales y retorno estable desde rutina personalizada. |
 
@@ -115,7 +115,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | Item | Prioridad | Esfuerzo | Notas y dependencias |
 |---|---|---|---|
 | Analytics de producto (PostHog) | P1 | M | Necesario antes de decidir paywall. |
-| ✅ Tests Jest/Expo | P1 | M inicial, continuo | Base ampliada 2026-07-28: 20 suites/121 contratos puros. Siguiente: integración UI y SQL privacy matrix. |
+| ✅ Tests Jest/Expo | P1 | M inicial, continuo | Base actual: 20 suites/122 contratos puros. Siguiente: integración UI y SQL privacy matrix. |
 | Monetización (RevenueCat/IAP) | P1–P2 | L | Tras analytics; Strong/Hevy/Fitbod monetizan con Pro. |
 | i18n (extraer strings) | P2 | M–L | Hacerlo antes de que crezca la superficie abarata el costo. |
 | Wearables / HealthKit / Google Fit | P2 | L | Requiere dev build; diferenciador de Strava. |
@@ -173,7 +173,7 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   El sheet permanece fijo mientras solo cambia la lista filtrada. Sin dependencia
   ni cambio DB.
 - **Recuperación (2026-07-29):** 285 ediciones exactas reconstruidas desde
-  transcripciones; C3 vuelve a 20 suites/121 tests. Cliente de objetivos alineado
+  transcripciones; la base alcanza 20 suites/122 tests. Cliente de objetivos alineado
   con `profiles.goals`; SQL live timestamped recuperado. `0051`/`0052` siguen
   bloqueadas por reconciliación del ledger.
 - **Sprint pre-release (2026-07-26):** checkpoint `3c6f69a`; rescate selectivo
@@ -185,7 +185,7 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   `0051`/`0052`.
 - **Sprint C3 (2026-07-28):** celebración de rango con emblema, refresh fijo,
   `GMO Rating`, calendario mensual, mapa de hitos con evidencia, selector muscular
-  buscable, perfil compacto y editor de series por IDs. Gates: 20 suites/121 tests,
+  buscable, perfil compacto y editor de series por IDs. Gates: 20 suites/122 tests,
   typecheck/lint limpios y export Android; smoke físico pendiente.
 - **Workout visual abierto (2026-07-29):** menos tarjetas/bordes y efectos;
   `WorkoutMetric` repite la jerarquía de peso, reps, descanso y resumen. El rojo

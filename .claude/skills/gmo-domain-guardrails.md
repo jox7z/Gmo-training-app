@@ -24,6 +24,8 @@ Read `AGENTS.md` and the touched source before editing. Keep Spanish UI copy.
 - Parse set drafts through `numericInput.ts`, commit them before completion, and
   mutate only through stable exercise-entry/set IDs. Stale or invalid patches
   return `false`; optional haptics never decide whether data persists.
+- Decimal workout inputs expose text-only `accessibilityValue`. Do not send
+  `now/min/max`: Fabric may convert them to native integers and crash on `22.5`.
 - Active workout facts use the open `WorkoutMetric` hierarchy. Keep ordinary
   progress neutral, one red phase CTA, and red/ember only for records or explicit
   states. Every rest phase renders `RestMascotCoach` once with stable copy and

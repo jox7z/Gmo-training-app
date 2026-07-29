@@ -2,7 +2,7 @@
 
 > Última rotación: 2026-07-29.
 > C3 cerró celebración de rangos, refresh fijo, `GMO Rating`, calendario mensual,
-> hitos musculares, perfil compacto y editor numérico estable; 121 tests en
+> hitos musculares, perfil compacto y editor numérico estable; 122 tests en
 > 20 suites. El workout activo ahora usa métricas abiertas y robot en cada
 > descanso, sin splash ni prescripción de recuperación. El historial vive
 > en `docs/memory/checklist.md`.
@@ -32,8 +32,9 @@ Ownership: evidencia manual; código solo para bugs reproducibles.
    teclado abierto, evidencia principal/secundaria y sesión exacta.
 6. Perfil compacto: identidad, tabs sticky, paginación, actividad, logros, menú
    Compartir/Ajustes y ausencia de engranaje/Cuenta duplicada.
-7. Repetir `+/−`, escribir coma, límites 0/1000 kg y 1/999 reps, guardar, cambiar
-   ejercicio, background/reanudar y haptics no disponibles.
+7. Repetir `+/−`, escribir `22.5` y coma decimal, límites 0/1000 kg y 1/999 reps,
+   guardar/terminar serie sin crash Fabric, cambiar ejercicio, background/reanudar
+   y haptics no disponibles.
 8. Workout activo: peso/reps comparten geometría, progreso normal no usa rojo,
    GMO aparece en cada descanso, frase no rota y el timer no prescribe minutos.
 9. Reduce Motion: feed indicator, PR, robot de descanso, transiciones, editor de

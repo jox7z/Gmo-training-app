@@ -4,6 +4,10 @@ export interface NumericInputBounds {
   decimals: number;
 }
 
+export interface NumericAccessibilityValue {
+  text: string;
+}
+
 const DECIMAL_INPUT = /^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/;
 
 export function formatNumericInput(
@@ -55,4 +59,16 @@ export function normalizeNumericValue(
   const factor = 10 ** decimals;
   const rounded = Math.round(clamped * factor) / factor;
   return Math.min(max, Math.max(min, rounded));
+}
+
+/**
+ * Fabric convierte `accessibilityValue.now/min/max` a enteros nativos en algunas
+ * versiones. Los pesos decimales como 22.5 deben anunciarse solo como texto para
+ * no perder precisión ni derribar el TextInput.
+ */
+export function numericAccessibilityValue(
+  text: string,
+  label: string,
+): NumericAccessibilityValue {
+  return { text: `${text.trim()} ${label.trim()}`.trim() };
 }

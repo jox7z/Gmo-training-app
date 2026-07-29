@@ -145,7 +145,9 @@ the only place that decides where the user goes. Key invariants there:
   rounding and bounds. Reps stay integer 1–999 and stored weight 0–1000 kg.
   Update active sets through stable entry/set IDs; stale mutations return `false`.
   Commit both drafts before save, serialize valid changes through the persistence
-  queue, and never let haptic failure reject the mutation.
+  queue, and never let haptic failure reject the mutation. Keep decimal
+  `TextInput.accessibilityValue` text-only; Fabric can crash while coercing
+  `now/min/max` values such as `22.5` into native integers.
 - **Active workout visual rhythm:** render weight, reps, elapsed rest and progress
   facts through the open `WorkoutMetric` hierarchy. Normal progress stays
   cream/neutral; primary red belongs to the phase CTA and explicit records or

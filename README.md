@@ -36,7 +36,7 @@ npm run exercises:audit
 # npm run exercises:sync  # actualiza solo matches conservadores
 ```
 
-Jest cubre 121 contratos puros en 20 suites. El gate automático es test +
+Jest cubre 122 contratos puros en 20 suites. El gate automático es test +
 typecheck + lint;
 el smoke de UI/lifecycle sigue en Expo Go.
 

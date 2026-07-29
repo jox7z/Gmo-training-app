@@ -90,7 +90,9 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   timestamp no se sincroniza a Supabase.
 - **Logging competitivo:** cada serie puede mostrar/autorrellenar su equivalente
   previo sin pisar ediciones; los PR aparecen en vivo y los ejercicios con barra
-  ofrecen calculadora de discos.
+  ofrecen calculadora de discos. Los pesos decimales se anuncian mediante texto
+  accesible; no se envían campos numéricos de accesibilidad que Fabric trate como
+  enteros.
 - **Ritmo visual del workout:** peso, reps, tiempo y resumen reutilizan
   `WorkoutMetric`: dato principal en crema y metadata secundaria sin marcos
   completos. El rojo queda para el CTA de fase, PR y estados relevantes; progreso

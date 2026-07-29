@@ -16,7 +16,7 @@
 | Progreso | ✅ honesto | Tendencia real, calendario mensual, hitos por cargas reales, peso separado y punto→sesión |
 | Gamificación | ✅ | Racha derivada por meta, 9 rangos, logros, eventos y comunidades |
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
-| Calidad técnica | 🟡 | 121 tests puros en 20 suites, typecheck/lint limpios; falta smoke físico |
+| Calidad técnica | 🟡 | 122 tests puros en 20 suites, typecheck/lint limpios; falta smoke físico |
 
 ## Sprint en cierre — Workout abierto + GMO en descanso (2026-07-29)
 
@@ -31,17 +31,19 @@
 - [x] Splash, glow, copy rotatorio y pulso continuo retirados del workout ordinario
 - [x] Descanso desplazable en pantallas cortas con CTA fijo; columna tablet 600 px
 - [x] Timer ajustable, pills de hasta 20 series y cierre de PR accesibles
+- [x] Crash Fabric con peso decimal `22.5` eliminado: accessibilityValue text-only
 - [x] AGENTS, CLAUDE, agentes/skills, overview, arquitectura, roadmaps y prompts sincronizados
 
 ### Verificación
 
-- [x] `npm test -- --runInBand` — 20 suites / 121 tests / 0 fallos
+- [x] `npm test -- --runInBand` — 20 suites / 122 tests / 0 fallos
 - [x] `npm run typecheck` — 0 errores
 - [x] `npm run lint` — 0 errores / 0 warnings
 - [x] Export Android — 2062 módulos / HBC 6,19 MB
 - [x] QA visual estático — overflow, texto grande, 20 series, PR y Reduce Motion cerrados
 - [x] Auditoría de rendimiento — RestRing sin animación JS; mascota UI-thread finita
-- [x] Revisión final `code-quality-reviewer` — sin hallazgos accionables
+- [x] Regresión `numericAccessibilityValue` — sin `now/min/max` enteros
+- [x] Revisión final `code-quality-reviewer` — fix Fabric sin hallazgos accionables
 - [ ] Smoke físico Expo Go — 360/390/430/768, landscape, texto grande y descanso restaurado
 
 Riesgo restante: el workout conserva dos ticks de estado por segundo durante

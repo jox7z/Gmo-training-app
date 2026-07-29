@@ -67,6 +67,9 @@
   compartida una vez por fase de descanso y ejecuta solo una entrada finita en UI
   thread; Reduce Motion salta directamente al estado final. `RestRing` es factual,
   sin umbral de recuperación, gradiente ni prescripción.
+- `numericAccessibilityValue()` construye un `accessibilityValue` exclusivamente
+  textual para los inputs decimales. No incluir `now/min/max`: Fabric puede
+  convertirlos a enteros nativos y fallar con valores válidos como `22.5`.
 - `src/lib/muscleVolume.ts` agrega series equivalentes por músculo para rutinas
   planificadas: 1 primaria, 0.5 secundaria y overrides opcionales del catálogo.
   `MuscleVolumeMap` se usa en editor/Rutinas; ya no representa Progreso.

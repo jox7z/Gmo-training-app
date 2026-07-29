@@ -68,6 +68,8 @@ visual_work_blocked:
 
 - Build hierarchy with open space and `WorkoutMetric`, not nested bordered cards.
 - Weight and reps share one control geometry. Values dominate labels and units.
+- Decimal `TextInput` controls expose text-only `accessibilityValue`; never pass
+  `now/min/max` values that Fabric can coerce to native integers.
 - Keep normal progress cream/neutral. Red belongs to the phase CTA, records and
   explicit relevant states.
 - Every rest phase renders `RestMascotCoach`; the timer remains factual and never

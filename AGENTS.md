@@ -159,7 +159,9 @@ the only place that decides where the user goes. Key invariants there:
   active set through `updateSetById(exerciseEntryId, setId, patch)` so stale IDs
   return `false` without throwing. Commit both drafts before completing a set,
   serialize every valid mutation through the persistence queue, and keep haptic
-  rejection non-fatal.
+  rejection non-fatal. `TextInput.accessibilityValue` for these decimal controls
+  must remain text-only: Fabric may coerce `now/min/max` to native integers and
+  crash on valid weights such as `22.5`.
 - **Active workout visual rhythm:** use `WorkoutMetric` as the open, borderless
   hierarchy for weight, reps, elapsed rest and progress facts. Values dominate;
   labels/units remain secondary. Normal progress is cream/neutral, never red.

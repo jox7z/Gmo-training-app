@@ -51,15 +51,16 @@ levantamientos, no volumen ni 1RM estimado. Feed celebra rangos con crests y se
 actualiza sin mover la lista. Perfil propio es compacto y el editor numérico usa
 IDs estables. Gates automáticos pasan; smoke físico sigue pendiente.
 
-**Recuperación 2026-07-29:** C3 fue reconstruido desde 285 ediciones exactas,
-volvió a 20 suites/121 tests y mantiene typecheck/lint limpios.
+**Recuperación 2026-07-29:** C3 fue reconstruido desde 285 ediciones exactas;
+la regresión Fabric eleva la base a 20 suites/122 tests con typecheck/lint limpios.
 
 **Delta workout visual 2026-07-29:** el registro activo adopta ritmo abierto:
 menos contenedores/bordes, datos principales dominantes, progreso neutro y rojo
 reservado al CTA/PR/estado. `WorkoutMetric` unifica peso, reps, tiempo y resumen.
 Cada descanso muestra al robot GMO con una entrada finita y frase estable;
 `RestRing` deja de afirmar recuperación o prescribir minutos. Se retiraron splash,
-glow, gradiente de descanso, pulso y copy rotatorio.
+glow, gradiente de descanso, pulso y copy rotatorio. El editor anuncia pesos
+decimales como texto accesible para evitar la conversión entera de Fabric.
 
 **Delta agentes visuales 2026-07-26:** dirección `gym editorial industrial` para
 adultos jóvenes gym-first. MotionSites aporta composición/coreografía, nunca

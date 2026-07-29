@@ -21,6 +21,7 @@ import { runHapticSafely } from '@/lib/haptics';
 import {
   formatNumericInput,
   normalizeNumericValue,
+  numericAccessibilityValue,
   parseNumericInput,
   stepNumericValue,
 } from '@/lib/numericInput';
@@ -241,12 +242,7 @@ export const BigStepperInput = forwardRef<BigStepperInputHandle, Props>(
             onSubmitEditing={Keyboard.dismiss}
             inputAccessoryViewID={Platform.OS === 'ios' ? accessoryId : undefined}
             accessibilityLabel={label}
-            accessibilityValue={{
-              min,
-              max,
-              now: currentValue.current,
-              text: `${text} ${label}`,
-            }}
+            accessibilityValue={numericAccessibilityValue(text, label)}
             accessibilityHint={invalid ? 'Introduce un número válido' : undefined}
             maxFontSizeMultiplier={1.3}
             style={{

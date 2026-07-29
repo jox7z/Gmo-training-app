@@ -1,5 +1,6 @@
 import {
   formatNumericInput,
+  numericAccessibilityValue,
   parseNumericInput,
   stepNumericValue,
 } from '@/lib/numericInput';
@@ -29,5 +30,14 @@ describe('numericInput', () => {
   it('formatea sin ceros decimales inútiles', () => {
     expect(formatNumericInput(82, 1)).toBe('82');
     expect(formatNumericInput(82.5, 1)).toBe('82.5');
+  });
+
+  it('anuncia decimales como texto sin campos nativos enteros', () => {
+    const value = numericAccessibilityValue('22.5', 'Peso · kg');
+
+    expect(value).toEqual({ text: '22.5 Peso · kg' });
+    expect(value).not.toHaveProperty('now');
+    expect(value).not.toHaveProperty('min');
+    expect(value).not.toHaveProperty('max');
   });
 });
