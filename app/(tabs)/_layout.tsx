@@ -13,12 +13,16 @@ import { useMainTabsStore, type MainTabName } from '@/store/mainTabs';
 // Screens renderizadas directamente para habilitar PagerView swipe.
 // El deep-linking individual a /(tabs)/X se sustituye por el índice del PagerView.
 import FeedScreen from './index';
+import GmupScreen from './gmup';
 import RoutinesScreen from './routines';
 import ProgressScreen from './progress';
 import ProfileScreen from './profile';
 
+// El orden define el índice del PagerView. GMUP es la segunda página: el hub
+// social queda a un swipe del Feed.
 const TABS: { key: MainTabName; label: string }[] = [
   { key: 'feed',     label: 'Feed'     },
+  { key: 'gmup',     label: 'GMUP'     },
   { key: 'routines', label: 'Rutinas'  },
   { key: 'progress', label: 'Progreso' },
   { key: 'profile',  label: 'Perfil'   },
@@ -73,9 +77,10 @@ export default function TabsLayout() {
         onPageSelected={handlePageSelected}
       >
         <View key="0" style={styles.page}><FeedScreen /></View>
-        <View key="1" style={styles.page}><RoutinesScreen /></View>
-        <View key="2" style={styles.page}><ProgressScreen /></View>
-        <View key="3" style={styles.page}><ProfileScreen /></View>
+        <View key="1" style={styles.page}><GmupScreen /></View>
+        <View key="2" style={styles.page}><RoutinesScreen /></View>
+        <View key="3" style={styles.page}><ProgressScreen /></View>
+        <View key="4" style={styles.page}><ProfileScreen /></View>
       </PagerView>
 
       <View
@@ -166,13 +171,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs / 2,
   },
   iconShell: {
-    minWidth: spacing['3xl'],
+    // Con 5 pestañas cada ítem dispone de ~69 px en pantallas de 360: el shell
+    // se ciñe al icono para que las etiquetas largas ("Progreso") no trunquen.
+    minWidth: spacing['2xl'] + spacing.xs,
     minHeight: spacing['2xl'],
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
   },
   iconShellActive: {

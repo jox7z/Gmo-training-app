@@ -25,7 +25,12 @@ const FILTERS: { key: CommunityFilter; label: string }[] = [
   { key: 'mine',   label: 'Mías'   },
 ];
 
-export function CommunitiesExplorer() {
+interface Props {
+  /** Espacio extra al final: la barra de pestañas de GMUP tapa el último ítem. */
+  bottomInset?: number;
+}
+
+export function CommunitiesExplorer({ bottomInset = 0 }: Props) {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
 
@@ -154,7 +159,7 @@ export function CommunitiesExplorer() {
         </View>
       }
       contentContainerStyle={{
-        paddingBottom: insets.bottom + spacing.lg,
+        paddingBottom: insets.bottom + spacing.lg + bottomInset,
         width: '100%',
         maxWidth: 600,
         alignSelf: 'center',

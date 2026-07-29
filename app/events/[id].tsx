@@ -5,8 +5,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon, type IconName } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
@@ -106,68 +108,33 @@ export default function EventDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.sm,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        }}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.full,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="chevron-left" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
-        <Text variant="heading" style={{ flex: 1 }} numberOfLines={1}>
-          {event?.kind === 'meetup' ? 'Quedada' : event?.kind === 'challenge' ? 'Reto' : 'Evento'}
-        </Text>
-        {/* Menú del creador */}
-        {event?.isCreator && (
-          <Pressable
-            onPress={() =>
-              Alert.alert(
-                event.title,
-                undefined,
-                [
-                  { text: 'Editar', onPress: handleEdit },
-                  { text: 'Eliminar', style: 'destructive', onPress: handleDelete },
-                  { text: 'Cancelar', style: 'cancel' },
-                ],
-              )
-            }
-            hitSlop={8}
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.full,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Text style={{ fontSize: 18, color: colors.text.primary, lineHeight: 20 }}>{'···'}</Text>
-          </Pressable>
-        )}
-      </View>
+      <ScreenHeader
+        title={event?.kind === 'meetup' ? 'Quedada' : event?.kind === 'challenge' ? 'Reto' : 'Evento'}
+        subtitle={event?.title}
+        border
+        right={
+          event?.isCreator ? (
+            <IconButton
+              name="more"
+              accessibilityLabel="Opciones del evento"
+              accessibilityHint="Editar o eliminar este evento"
+              variant="surface"
+              size="sm"
+              onPress={() =>
+                Alert.alert(
+                  event.title,
+                  undefined,
+                  [
+                    { text: 'Editar', onPress: handleEdit },
+                    { text: 'Eliminar', style: 'destructive', onPress: handleDelete },
+                    { text: 'Cancelar', style: 'cancel' },
+                  ],
+                )
+              }
+            />
+          ) : undefined
+        }
+      />
 
       {eventQuery.isLoading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

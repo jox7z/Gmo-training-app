@@ -1,7 +1,7 @@
 import Svg, { Path, Circle } from 'react-native-svg';
 import { colors } from '@/theme/tokens';
 
-type Name = 'home' | 'routines' | 'feed' | 'profile' | 'progress';
+type Name = 'home' | 'routines' | 'feed' | 'profile' | 'progress' | 'gmup';
 
 interface Props {
   name: Name;
@@ -9,9 +9,16 @@ interface Props {
   focused: boolean;
 }
 
-export function TabIcon({ name, color }: Props) {
+export function TabIcon({ name, color, focused }: Props) {
   return (
-    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+    <Svg
+      width={26}
+      height={26}
+      viewBox="0 0 24 24"
+      fill="none"
+      // El trazo engrosa en la pestaña activa: el estado no depende solo del color.
+      strokeWidth={focused ? 2.4 : 1.8}
+    >
       {iconPath(name, color)}
     </Svg>
   );
@@ -63,6 +70,16 @@ function iconPath(name: Name, color: string) {
         <>
           <Circle cx={12} cy={8} r={4} stroke={stroke} strokeWidth={2} />
           <Path d="M4 21 a8 8 0 0 1 16 0" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
+        </>
+      );
+    case 'gmup':
+      // Grupo: dos siluetas: el hub social ("team up").
+      return (
+        <>
+          <Circle cx={9} cy={8} r={3.5} stroke={stroke} strokeWidth={2} />
+          <Path d="M2.5 20 a6.5 6.5 0 0 1 13 0" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
+          <Path d="M16 5.2 a3.5 3.5 0 0 1 0 6.6" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
+          <Path d="M17.5 14.4 A6.5 6.5 0 0 1 21.5 20" stroke={stroke} strokeWidth={2} strokeLinecap="round" />
         </>
       );
     default:

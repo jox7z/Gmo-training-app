@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type MainTabName = 'feed' | 'routines' | 'progress' | 'profile';
+export type MainTabName = 'feed' | 'gmup' | 'routines' | 'progress' | 'profile';
 
 interface MainTabsState {
   requestedTab: MainTabName | null;

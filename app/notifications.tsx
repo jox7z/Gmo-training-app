@@ -11,7 +11,10 @@ import { StatusBar } from 'expo-status-bar';
 import { FlashList } from '@shopify/flash-list';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
-import { Loader } from '@/components/ui/Loader';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { SkeletonRows } from '@/components/ui/Skeleton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { useNotifications, useMarkRead, type Notification } from '@/lib/queries/notifications';
@@ -141,28 +144,6 @@ function Separator() {
 // Empty state
 // =====================================================
 
-function EmptyState() {
-  return (
-    <View
-      style={{
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: spacing.xl,
-        paddingTop: spacing['4xl'],
-        gap: spacing.md,
-      }}
-    >
-      <Icon name="bell" size={48} color={colors.text.muted} />
-      <Text variant="heading" tone="muted" style={{ textAlign: 'center' }}>
-        Sin notificaciones
-      </Text>
-      <Text variant="body" tone="muted" style={{ textAlign: 'center' }}>
-        Cuando alguien reaccione, comente o te siga, aparecerá aquí.
-      </Text>
-    </View>
-  );
-}
 
 // =====================================================
 // Screen
@@ -235,38 +216,33 @@ export default function NotificationsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.sm,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          backgroundColor: colors.bg.base,
-          gap: spacing.md,
-        }}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Icon name="chevron-left" size={24} color={colors.text.primary} />
-        </Pressable>
-        <Text variant="heading" style={{ flex: 1 }}>
-          Notificaciones
-        </Text>
-        {hasUnread && (
-          <Pressable onPress={handleMarkAll} hitSlop={8}>
-            <Text variant="caption" tone="brand">
-              Marcar todo
-            </Text>
-          </Pressable>
-        )}
-      </View>
+      <ScreenHeader
+        title="Notificaciones"
+        subtitle="Reacciones, comentarios y seguidores recientes"
+        border
+        style={{ backgroundColor: colors.bg.base }}
+        right={
+          hasUnread ? (
+            <PressableScale
+              onPress={handleMarkAll}
+              hitSlop={spacing.sm}
+              accessibilityRole="button"
+              accessibilityLabel="Marcar todas las notificaciones como leídas"
+              haptic={false}
+            >
+              <Text variant="caption" tone="brand" weight="semibold">
+                Marcar todo
+              </Text>
+            </PressableScale>
+          ) : undefined
+        }
+      />
 
       {/* Content */}
       {isInitialLoading ? (
-        <Loader fullScreen />
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonRows rows={7} accessibilityLabel="Cargando notificaciones" />
+        </View>
       ) : (
         <FlashList<Notification>
           data={notifications}
@@ -278,7 +254,17 @@ export default function NotificationsScreen() {
           contentContainerStyle={{
             paddingBottom: insets.bottom + spacing.xl,
           }}
-          ListEmptyComponent={isEmpty ? <EmptyState /> : null}
+          ListEmptyComponent={
+            isEmpty ? (
+              <EmptyState
+                icon="bell"
+                title="Sin notificaciones"
+                description="Cuando alguien reaccione, comente o te siga, aparecerá aquí."
+                action={{ label: "Buscar atletas", onPress: () => router.push("/discover") }}
+                style={{ paddingTop: spacing["3xl"] }}
+              />
+            ) : null
+          }
           ListFooterComponent={
             notificationsQuery.isFetchingNextPage ? (
               <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>

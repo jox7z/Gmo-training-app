@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
@@ -118,35 +119,13 @@ export default function NewBodyMeasurement() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            padding: spacing.lg,
-            gap: spacing.md,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <Pressable onPress={close} hitSlop={8}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: radius.full,
-                backgroundColor: colors.bg.elevated,
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Icon name="close" size={16} color={colors.text.primary} />
-            </View>
-          </Pressable>
-          <Text variant="heading" style={{ flex: 1 }}>Nueva medición</Text>
-        </View>
+        <ScreenHeader
+          title="Nueva medición"
+          subtitle="Registra tu peso corporal y notas del día"
+          backIcon="close"
+          onBack={close}
+          border
+        />
 
         <ScrollView
           contentContainerStyle={{

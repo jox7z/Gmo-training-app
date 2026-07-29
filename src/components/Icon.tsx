@@ -1,4 +1,5 @@
 import Svg, { Path, Circle, Rect, G } from 'react-native-svg';
+import { colors } from '@/theme/tokens';
 
 export type IconName =
   | 'robot'
@@ -43,7 +44,13 @@ export type IconName =
   | 'search'
   | 'scale'
   | 'swap'
-  | 'instagram';
+  | 'instagram'
+  | 'alert'
+  | 'info'
+  | 'trash'
+  | 'filter'
+  | 'more'
+  | 'wifi-off';
 
 interface Props {
   name: IconName;
@@ -53,7 +60,7 @@ interface Props {
   filled?: boolean;
 }
 
-export function Icon({ name, size = 24, color = '#FFFFFF', filled = false }: Props) {
+export function Icon({ name, size = 24, color = colors.text.primary, filled = false }: Props) {
   const c = color;
 
   return (
@@ -681,6 +688,91 @@ function renderIcon(name: IconName, c: string, filled = false) {
           <Rect x="3" y="3" width="18" height="18" rx="5" stroke={c} strokeWidth={2} />
           <Circle cx="12" cy="12" r="4" stroke={c} strokeWidth={2} />
           <Circle cx="17.5" cy="6.5" r="1.2" fill={c} />
+        </>
+      );
+
+    case 'alert':
+      // Lucide alert-triangle — error o atención.
+      return (
+        <>
+          <Path
+            d="M10.3 3.9L1.8 18a2 2 0 001.7 3h17a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            fill={filled ? c : 'none'}
+          />
+          <Path
+            d="M12 9v4"
+            stroke={filled ? colors.bg.base : c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx="12" cy="17" r="1" fill={filled ? colors.bg.base : c} />
+        </>
+      );
+
+    case 'info':
+      return (
+        <>
+          <Circle cx="12" cy="12" r="9" stroke={c} strokeWidth={2} fill={filled ? c : 'none'} />
+          <Path
+            d="M12 11v5"
+            stroke={filled ? colors.bg.base : c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx="12" cy="8" r="1" fill={filled ? colors.bg.base : c} />
+        </>
+      );
+
+    case 'trash':
+      return (
+        <>
+          <Path
+            d="M4 7h16M10 4h4M6 7l1 13a2 2 0 002 2h6a2 2 0 002-2l1-13"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <Path d="M10 11v6M14 11v6" stroke={c} strokeWidth={2} strokeLinecap="round" />
+        </>
+      );
+
+    case 'filter':
+      return (
+        <Path
+          d="M3 5h18l-7 8v6l-4 2v-8L3 5z"
+          stroke={c}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill={filled ? c : 'none'}
+        />
+      );
+
+    case 'more':
+      return (
+        <>
+          <Circle cx="5" cy="12" r="1.6" fill={c} />
+          <Circle cx="12" cy="12" r="1.6" fill={c} />
+          <Circle cx="19" cy="12" r="1.6" fill={c} />
+        </>
+      );
+
+    case 'wifi-off':
+      return (
+        <>
+          <Path
+            d="M5 12.5a10 10 0 015.5-2.4M2 8.8a15 15 0 018-3.7M8.5 16a5 5 0 013.5-1.4M19 12.5a10 10 0 00-3.2-2M22 8.8a15 15 0 00-6-3.5"
+            stroke={c}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx="12" cy="19" r="1.2" fill={c} />
+          <Path d="M3 3l18 18" stroke={c} strokeWidth={2} strokeLinecap="round" />
         </>
       );
 

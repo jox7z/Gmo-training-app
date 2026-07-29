@@ -15,6 +15,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Avatar } from '@/components/Avatar';
@@ -150,34 +151,13 @@ export default function PublishModal() {
 
 function Header({ title, onClose }: { title: string; onClose: () => void }) {
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: spacing.lg,
-        gap: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-      }}
-    >
-      <Pressable onPress={onClose} hitSlop={8}>
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: radius.full,
-            backgroundColor: colors.bg.elevated,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Icon name="close" size={16} color={colors.text.primary} />
-        </View>
-      </Pressable>
-      <Text variant="heading" style={{ flex: 1 }}>{title}</Text>
-    </View>
+    <ScreenHeader
+      title={title}
+      backIcon="close"
+      backAccessibilityLabel="Cerrar publicación"
+      onBack={onClose}
+      border
+    />
   );
 }
 

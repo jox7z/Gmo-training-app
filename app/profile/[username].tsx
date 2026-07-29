@@ -7,6 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { FollowButton } from '@/components/FollowButton';
@@ -313,42 +314,13 @@ export default function PublicProfile() {
 
 function Header({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <View
-      style={{
-        width: '100%',
-        maxWidth: 600,
-        alignSelf: 'center',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: spacing.lg,
-        paddingTop: spacing.sm,
-        paddingBottom: spacing.md,
-        gap: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border,
-      }}
-    >
-      <PressableScale onPress={onBack} hitSlop={8} pressScale={0.9} haptic={false}>
-        <View
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: radius.full,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: colors.bg.elevated,
-            borderWidth: 1,
-            borderColor: colors.border,
-          }}
-        >
-          <Icon name="chevron-left" size={18} color={colors.text.primary} />
-        </View>
-      </PressableScale>
-      <View style={{ flex: 1 }}>
-        <Text variant="caption" tone="muted">Perfil</Text>
-        <Text variant="heading" numberOfLines={1}>{title}</Text>
-      </View>
-    </View>
+    <ScreenHeader
+      title={title}
+      subtitle="Perfil público"
+      onBack={onBack}
+      border
+      style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}
+    />
   );
 }
 

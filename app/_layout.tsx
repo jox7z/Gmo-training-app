@@ -18,6 +18,7 @@ import { getProfile } from '@/lib/repos/profile';
 import { getWorkouts } from '@/lib/repos/workouts';
 import { isProfileComplete } from '@/lib/auth';
 import { ToastProvider } from '@/components/ui/Toast';
+import { ConfirmProvider } from '@/components/ui/ConfirmDialog';
 
 console.log('[RootLayout] module load. Supabase configured?', isSupabaseConfigured);
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -391,6 +392,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <ToastProvider>
+          <ConfirmProvider>
           <Stack
             screenOptions={{
               headerShown: false,
@@ -468,6 +470,7 @@ export default function RootLayout() {
               options={{ animation: 'slide_from_right' }}
             />
           </Stack>
+          </ConfirmProvider>
           </ToastProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

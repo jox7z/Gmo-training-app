@@ -1,6 +1,6 @@
 import { Pressable, View, ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, radius, spacing, shadow, depth } from '@/theme/tokens';
+import { colors, fontSize, radius, spacing, shadow, depth } from '@/theme/tokens';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent';
@@ -19,6 +19,10 @@ interface Props {
   haptic?: boolean;
   /** Forces the flat (non-3D) render, e.g. for fixed-height rows. */
   flat?: boolean;
+  /** Sustituye el nombre accesible cuando el título no basta por sí solo. */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  testID?: string;
 }
 
 export function Button({
@@ -33,11 +37,23 @@ export function Button({
   style,
   haptic = true,
   flat,
+  accessibilityLabel,
+  accessibilityHint,
+  testID,
 }: Props) {
   const variantStyle = variantStyles[variant];
   const sizeStyle = sizeStyles[size];
   const isDisabled = disabled || loading;
   const chunky = !flat && size !== 'sm' && variantStyle.edgeColor != null;
+
+  // Semántica común a las dos ramas de render (3D chunky y plana).
+  const a11y = {
+    accessibilityRole: 'button' as const,
+    accessibilityLabel: accessibilityLabel ?? title,
+    accessibilityHint,
+    accessibilityState: { disabled: Boolean(isDisabled), busy: Boolean(loading) },
+    testID,
+  };
 
   const handlePress = () => {
     if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -65,6 +81,7 @@ export function Button({
   if (chunky) {
     return (
       <Pressable
+        {...a11y}
         onPress={handlePress}
         disabled={isDisabled}
         style={[
@@ -98,6 +115,7 @@ export function Button({
 
   return (
     <Pressable
+      {...a11y}
       onPress={handlePress}
       disabled={isDisabled}
       style={({ pressed }) => [
@@ -172,8 +190,27 @@ const variantStyles: Record<
   },
 };
 
+// Alturas mínimas táctiles: `sm` 40 px (los contenedores le añaden hitSlop),
+// `md`/`lg` por encima de 48 px.
 const sizeStyles: Record<Size, { container: ViewStyle; fontSize: number }> = {
-  sm: { container: { paddingVertical: 10, paddingHorizontal: 16 }, fontSize: 14 },
-  md: { container: { paddingVertical: 16, paddingHorizontal: 20 }, fontSize: 16 },
-  lg: { container: { paddingVertical: 20, paddingHorizontal: 24 }, fontSize: 18 },
+  sm: {
+    container: { paddingVertical: spacing.md, paddingHorizontal: spacing.lg, minHeight: 40 },
+    fontSize: fontSize.sm + 1,
+  },
+  md: {
+    container: {
+      paddingVertical: spacing.lg,
+      paddingHorizontal: spacing.xl - spacing.xs,
+      minHeight: 52,
+    },
+    fontSize: fontSize.base + 1,
+  },
+  lg: {
+    container: {
+      paddingVertical: spacing.xl - spacing.xs,
+      paddingHorizontal: spacing.xl,
+      minHeight: 60,
+    },
+    fontSize: fontSize.md + 1,
+  },
 };

@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -211,42 +212,27 @@ export default function EditProfile() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Header */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: spacing.lg,
-            paddingTop: spacing.sm,
-            paddingBottom: spacing.md,
-            borderBottomWidth: 1,
-            borderBottomColor: colors.border,
-          }}
-        >
-          <PressableScale onPress={() => router.back()} hitSlop={10} pressScale={0.9} haptic={false}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: radius.full,
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
+        <ScreenHeader
+          title="Editar perfil"
+          backIcon="close"
+          backAccessibilityLabel="Cerrar edición de perfil"
+          border
+          right={
+            <PressableScale
+              onPress={handleSave}
+              hitSlop={spacing.sm}
+              disabled={!canSave}
+              pressScale={0.92}
+              accessibilityRole="button"
+              accessibilityLabel="Guardar perfil"
+              accessibilityState={{ disabled: !canSave, busy: saving }}
             >
-              <Icon name="close" size={16} color={colors.text.primary} />
-            </View>
-          </PressableScale>
-          <Text variant="heading" weight="bold">Editar perfil</Text>
-          <PressableScale onPress={handleSave} hitSlop={10} disabled={!canSave} pressScale={0.92}>
-            <Text variant="body" weight="bold" tone={canSave ? 'brand' : 'muted'}>
-              {saving ? '...' : 'Guardar'}
-            </Text>
-          </PressableScale>
-        </View>
+              <Text variant="body" weight="bold" tone={canSave ? 'brand' : 'muted'}>
+                {saving ? 'Guardando…' : 'Guardar'}
+              </Text>
+            </PressableScale>
+          }
+        />
 
         <ScrollView
           contentContainerStyle={{

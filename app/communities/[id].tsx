@@ -17,7 +17,9 @@ import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Button } from '@/components/ui/Button';
+import { IconButton } from '@/components/ui/IconButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
 import { useToast } from '@/components/ui/Toast';
@@ -193,55 +195,21 @@ export default function CommunityDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
-      {/* Nav row */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.sm,
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.sm,
-          paddingBottom: spacing.sm,
-        }}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.full,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="chevron-left" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
-        <View style={{ flex: 1 }} />
-        {isOwner && (
-          <Pressable onPress={showOwnerMenu} hitSlop={8}>
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: radius.full,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text style={{ color: colors.text.primary, fontSize: 18, lineHeight: 20 }}>
-                {'···'}
-              </Text>
-            </View>
-          </Pressable>
-        )}
-      </View>
+      <ScreenHeader
+        title={community?.name ?? 'Comunidad'}
+        right={
+          isOwner ? (
+            <IconButton
+              name="more"
+              accessibilityLabel="Opciones de la comunidad"
+              accessibilityHint="Editar o eliminar esta comunidad"
+              variant="surface"
+              size="sm"
+              onPress={showOwnerMenu}
+            />
+          ) : undefined
+        }
+      />
 
       <ScrollView
         style={{ flex: 1 }}

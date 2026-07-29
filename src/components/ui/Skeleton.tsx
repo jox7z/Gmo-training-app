@@ -6,7 +6,7 @@ import {
   View,
   type ViewProps,
 } from 'react-native';
-import { colors, radius } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 const SkeletonPulseContext = createContext<Animated.Value | null>(null);
 
@@ -42,6 +42,43 @@ export function Skeleton({
         style,
       ]}
     />
+  );
+}
+
+/**
+ * SkeletonRows — placeholder para la carga *inicial* de una lista de filas
+ * (avatar + dos líneas). Es el único tratamiento válido de carga inicial en
+ * listas; `ActivityIndicator` queda reservado a paginación y refetch.
+ */
+export function SkeletonRows({
+  rows = 6,
+  avatar = true,
+  accessibilityLabel = 'Cargando lista',
+}: {
+  rows?: number;
+  avatar?: boolean;
+  accessibilityLabel?: string;
+}) {
+  return (
+    <SkeletonGroup accessibilityLabel={accessibilityLabel} style={{ gap: spacing.md }}>
+      {Array.from({ length: rows }, (_, i) => (
+        <View
+          key={i}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: spacing.md,
+            paddingVertical: spacing.sm,
+          }}
+        >
+          {avatar ? <Skeleton width={44} height={44} borderRadius={radius.full} /> : null}
+          <View style={{ flex: 1, gap: spacing.sm }}>
+            <Skeleton width="56%" height={12} />
+            <Skeleton width="34%" height={10} />
+          </View>
+        </View>
+      ))}
+    </SkeletonGroup>
   );
 }
 

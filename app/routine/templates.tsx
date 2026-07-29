@@ -9,9 +9,8 @@ import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/Icon';
-import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { famousRoutineOptions } from '@/data/routineTemplates';
 import { useRoutinesStore } from '@/store/routines';
@@ -66,27 +65,11 @@ export default function TemplatesModal() {
 
   return (
     <Screen scroll={false} padded={false}>
-      {/* Cabecera */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.lg,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          gap: spacing.md,
-        }}
-      >
-        {/* Botón volver — icono pequeño con escala 0.9 */}
-        <PressableScale onPress={() => router.back()} hitSlop={12} pressScale={0.9}>
-          <Icon name="chevron-left" size={24} color={colors.text.secondary} />
-        </PressableScale>
-        <Text variant="title" style={{ flex: 1 }}>
-          Plantillas famosas
-        </Text>
-      </View>
+      <ScreenHeader
+        title="Plantillas famosas"
+        subtitle="Rutinas base que puedes copiar y editar a tu gusto"
+        border
+      />
 
       <ScrollView
         contentContainerStyle={{

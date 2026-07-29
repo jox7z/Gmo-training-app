@@ -6,13 +6,25 @@ import { Icon } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
 import type { CommunityEvent } from '@/lib/repos/events';
 
+/**
+ * Un evento se considera terminado solo cuando tiene fin declarado y ya pasó.
+ * Sin `endsAt` sigue vigente: no inferimos duración.
+ *
+ * Fuente única del criterio: la consume `formatEventWhen` y el filtro de
+ * próximos eventos de `app/(tabs)/gmup.tsx`.
+ */
+export function isEventFinished(startsAt: string, endsAt?: string): boolean {
+  if (!endsAt) return false;
+  const end = new Date(endsAt).getTime();
+  return Number.isFinite(end) && end < Date.now();
+}
+
 /** "Hoy 18:30", "mañana", "vie 6 jun · 09:00", o "Finalizó" para eventos pasados. */
 export function formatEventWhen(startsAt: string, endsAt?: string): string {
   const start = new Date(startsAt);
-  const end = endsAt ? new Date(endsAt) : null;
   const now = new Date();
 
-  if (end && end.getTime() < now.getTime()) return 'Finalizó';
+  if (isEventFinished(startsAt, endsAt)) return 'Finalizó';
 
   const sameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();

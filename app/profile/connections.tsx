@@ -5,6 +5,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Badge } from '@/components/ui/Badge';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
@@ -97,47 +98,23 @@ export default function Connections() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.sm,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        }}
-      >
-        <Pressable
-          onPress={() => router.back()}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel="Volver"
-        >
-          <View
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: radius.full,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="chevron-left" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text variant="caption" tone="muted">{subtitle}</Text>
-          <Text variant="heading">{title}</Text>
-        </View>
-        {data.length > 0 && (
-          <Text variant="caption" tone="muted" numeric>{data.length}</Text>
-        )}
-      </View>
+      <ScreenHeader
+        title={title}
+        subtitle={subtitle}
+        border
+        right={
+          data.length > 0 ? (
+            <Text
+              variant="caption"
+              tone="muted"
+              numeric
+              accessibilityLabel={`${data.length} cuentas`}
+            >
+              {data.length}
+            </Text>
+          ) : undefined
+        }
+      />
 
       {searchQuery.isLoading && !isSelf ? (
         <ConnectionsSkeleton label={`Cargando ${title.toLowerCase()}`} />

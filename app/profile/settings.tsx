@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { View, Pressable, Alert } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { useToast } from '@/components/ui/Toast';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
@@ -20,6 +23,8 @@ export default function SettingsScreen() {
   const setProfile = useAppStore((s) => s.setProfile);
   const signOut = useAppStore((s) => s.signOut);
   const history = useWorkoutsStore((s) => s.history);
+  const toast = useToast();
+  const confirm = useConfirm();
   const [signingOut, setSigningOut] = useState(false);
 
   if (!profile) return <Loader />;
@@ -29,65 +34,37 @@ export default function SettingsScreen() {
     setProfile({ ...profile, unit });
   };
 
-  const handleSignOut = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Seguro que quieres salir? Tus datos quedan guardados en la nube.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Cerrar sesión',
-          style: 'destructive',
-          onPress: async () => {
-            setSigningOut(true);
-            await signOut();
-            setSigningOut(false);
-          },
-        },
-      ],
-    );
+  const handleSignOut = async () => {
+    const ok = await confirm({
+      title: 'Cerrar sesión',
+      message: '¿Seguro que quieres salir? Tus datos quedan guardados en la nube.',
+      confirmLabel: 'Cerrar sesión',
+      destructive: true,
+    });
+    if (!ok) return;
+    setSigningOut(true);
+    await signOut();
+    setSigningOut(false);
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Borrar cuenta',
-      'Esta función estará disponible próximamente. Mientras tanto, escríbenos para borrar tu cuenta manualmente.',
-      [{ text: 'Entendido' }],
-    );
+    toast.show({
+      message: 'Borrar la cuenta desde la app llegará pronto. Escríbenos para hacerlo manualmente.',
+      tone: 'info',
+      durationMs: 4200,
+    });
   };
 
   const totalDuration = history.reduce((a, w) => a + (w.durationSeconds ?? 0), 0);
 
   return (
     <Screen>
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: spacing.xl,
-        }}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.full,
-              backgroundColor: colors.bg.elevated,
-              borderWidth: 1,
-              borderColor: colors.border,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Icon name="chevron-left" size={18} color={colors.text.primary} />
-          </View>
-        </Pressable>
-        <Text variant="heading" weight="bold">Configuración</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader
+        title="Configuración"
+        subtitle="Cuenta, unidades y preferencias de la app"
+        padded={false}
+        style={{ marginBottom: spacing.md }}
+      />
 
       {/* Profile preview */}
       <Pressable onPress={() => router.push('/profile/edit')}>
@@ -184,7 +161,7 @@ export default function SettingsScreen() {
           <Button
             title="Cerrar sesión"
             variant="secondary"
-            onPress={handleSignOut}
+            onPress={() => void handleSignOut()}
             loading={signingOut}
             leftIcon={<Icon name="logout" size={16} color={colors.text.primary} />}
             fullWidth

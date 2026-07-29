@@ -18,6 +18,68 @@
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
 | Calidad técnica | 🟡 | 66 tests puros en 11 suites; faltan Sentry, analytics y smoke automatizado |
 
+## Recuperación — GMUP + consistencia visual (2026-07-29)
+
+Contexto: dos eventos destructivos el 2026-07-29 borraron trabajo sin commitear.
+Hacia las 04:0x se revirtieron archivos ya trackeados (el commit `210d47b`
+—"NO COMPILA"— fue un rescate parcial) y hacia las 10:5x un `git clean -fd`
+eliminó los no trackeados. GMUP **sí sobrevivió** en el rescate: faltaban su
+cableado y 4 dependencias, y el proyecto no compilaba (17 errores de `tsc`).
+
+### Recuperado
+
+- [x] `SkeletonRows`, `isEventFinished`, `RankEmblem` y `bottomInset` de
+      `CommunitiesExplorer` — las 4 dependencias que rompían GMUP
+- [x] `RankEmblem` extraído como fuente única; `RankBadge` lo consume
+- [x] Pestaña GMUP cableada como 2ª página del PagerView (5 pestañas);
+      `MainTabName` y `TabIcon` ampliados; shell del icono ajustado para que
+      "Progreso" no trunque a 360 px
+- [x] `/discover` reducido a búsqueda de atletas (586 → 252 líneas): Eventos,
+      Comunidades y Ranking viven ahora solo en GMUP
+- [x] 14 cabeceras migradas a `ScreenHeader`, incluidos los `Header` locales de
+      `publish.tsx` y `profile/[username].tsx`
+- [x] `Stat` unificado, `Badge` con borde/icono/`warning`, `Button` con
+      `accessibilityRole`/`State` en ambas ramas, `Input` con label asociado +
+      `required` + contador, `Toast` con iconografía semántica y live region
+- [x] `Icon` 43 → 49 (`alert`, `info`, `trash`, `filter`, `more`, `wifi-off`)
+- [x] `ConfirmProvider` montado; cierre de sesión migrado a `useConfirm()`
+- [x] `EmptyState` + `SkeletonRows` en Notificaciones y Discover
+- [x] `RankProgress` en el héroe de perfil y `StreakRing` en Progreso
+      (`daysThisWeek` deja de ser invisible)
+- [x] Barrel `ui/index.ts` exporta las 6 primitivas que faltaban
+- [x] `TabIcon.focused` engrosa el trazo; tabs de perfil con `tab`/`tablist`
+
+### Eliminado
+
+- `src/components/MuscleVolumeMap.tsx` — huérfano (ninguna pantalla lo
+  importaba) y causante de 12 de los 17 errores. Su dependencia
+  `src/lib/muscleVolume.ts` se perdió sin fuente recuperable. Reversible con
+  `git show 210d47b:src/components/MuscleVolumeMap.tsx`.
+
+### Verificación
+
+- [x] `npm test` — 11 suites / 66 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores (partía de 17)
+- [x] `npm run lint` — 0 errores; 2 warnings previos (`_layout.tsx:214`,
+      `workout/active.tsx:1727`)
+- [x] `expo export --platform android` — bundle completo, 6.08 MB
+- [ ] Smoke Expo Go — **no ejecutado**
+
+### Riesgo restante
+
+- Perdidos sin recuperación: `src/lib/muscleVolume.ts`, `routineQualityScore.ts`,
+  `workoutVisibility.ts` y sus 3 suites de test (90 → 66 tests). Ninguno tiene
+  ya consumidores, así que no rompen el build.
+- Sin runtime observado: `ConfirmProvider`, la 5ª pestaña y las 14 cabeceras no
+  se han visto en dispositivo.
+- Los 11 `<Modal>` siguen con chrome propio; `Sheet` solo lo usa `ConfirmDialog`.
+
+### Siguiente paso ejecutable
+
+1. Smoke en Expo Go: pestaña GMUP, sus 4 vistas y los enlaces a `/discover`.
+2. Decidir si el mapa de volumen muscular vuelve como feature nueva.
+3. Migrar los 11 modales a `Sheet`, empezando por `CommentSheet`.
+
 ## Corrección — Selector de progreso con altura estable (2026-07-24)
 
 Objetivo: mantener cabecera, buscador y filtros en una posición fija aunque la

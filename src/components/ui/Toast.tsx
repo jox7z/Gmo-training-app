@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, radius, shadow, spacing } from '@/theme/tokens';
 import { Text } from './Text';
 import { Icon, IconName } from '@/components/Icon';
 
@@ -21,9 +21,9 @@ interface ToastContextValue {
 const ToastContext = createContext<ToastContextValue | null>(null);
 
 const ICON_BY_TONE: Record<ToastTone, IconName> = {
-  danger: 'close',
+  danger: 'alert',
   success: 'check',
-  info: 'dot',
+  info: 'info',
 };
 
 const COLOR_BY_TONE: Record<ToastTone, { border: string; icon: string }> = {
@@ -91,8 +91,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             transform: [{ translateY: translate }],
           }}
         >
-          <Pressable onPress={hide}>
+          <Pressable
+            onPress={hide}
+            accessibilityRole="button"
+            accessibilityLabel={cfg.message}
+            accessibilityHint="Toca para cerrar el aviso"
+          >
             <View
+              accessibilityLiveRegion="polite"
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -102,11 +108,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 borderWidth: 1,
                 borderColor: palette.border,
                 padding: spacing.md,
-                shadowColor: '#000',
-                shadowOpacity: 0.45,
-                shadowRadius: 14,
-                shadowOffset: { width: 0, height: 6 },
-                elevation: 8,
+                ...shadow.card,
               }}
             >
               <View
@@ -116,10 +118,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   borderRadius: radius.sm,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: 'rgba(255,255,255,0.04)',
+                  backgroundColor: colors.surfaceVeil,
                 }}
               >
-                <Icon name={ICON_BY_TONE[tone]} size={16} color={palette.icon} />
+                <Icon name={ICON_BY_TONE[tone]} size={spacing.lg} color={palette.icon} />
               </View>
               <Text variant="body" weight="semibold" style={{ flex: 1 }}>
                 {cfg.message}

@@ -6,12 +6,12 @@
  * (conseguidos vs. bloqueados). Todo se deriva del historial local.
  */
 import { useMemo } from 'react';
-import { View, ScrollView, Pressable } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Icon } from '@/components/Icon';
 import { AchievementMedal } from '@/components/achievements/AchievementMedal';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -24,7 +24,6 @@ import {
 } from '@/lib/achievements';
 
 export default function AchievementsScreen() {
-  const router = useRouter();
   const history = useWorkoutsStore((s) => s.history);
   const weeklyGoalDays = useAppStore((s) => s.profile?.weeklyGoalDays);
 
@@ -42,28 +41,22 @@ export default function AchievementsScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
-      {/* Header */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: spacing.md,
-          paddingHorizontal: spacing.lg,
-          paddingVertical: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-        }}
-      >
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Icon name="chevron-left" size={24} color={colors.text.primary} />
-        </Pressable>
-        <Text variant="heading" style={{ flex: 1 }}>
-          Logros
-        </Text>
-        <Text variant="caption" tone="secondary" weight="bold" numeric>
-          {unlockedLevels}/{totalLevels}
-        </Text>
-      </View>
+      <ScreenHeader
+        title="Logros"
+        subtitle="Medallas desbloqueadas con tu historial de entrenos"
+        border
+        right={
+          <Text
+            variant="caption"
+            tone="secondary"
+            weight="bold"
+            numeric
+            accessibilityLabel={`${unlockedLevels} de ${totalLevels} niveles desbloqueados`}
+          >
+            {unlockedLevels}/{totalLevels}
+          </Text>
+        }
+      />
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing['4xl'] }}>
         {/* Resumen global */}

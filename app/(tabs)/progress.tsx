@@ -5,6 +5,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { StreakRing } from '@/components/StreakRing';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -33,6 +35,8 @@ export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const profile = useAppStore((s) => s.profile);
+  const streakWeeks = useAppStore((s) => s.streakWeeks);
+  const daysThisWeek = useAppStore((s) => s.daysThisWeek);
 
   const [bodyPeriod, setBodyPeriod] = useState<BodyPeriod>('90d');
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -54,22 +58,13 @@ export default function ProgressScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg.base }} edges={['top']}>
       <StatusBar style="light" />
 
-      {/* Sticky header */}
-      <View
-        style={{
-          paddingHorizontal: spacing.lg,
-          paddingTop: spacing.sm,
-          paddingBottom: spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
-          backgroundColor: colors.bg.base,
-        }}
-      >
-        <Text variant="title">Progreso</Text>
-        <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs }}>
-          Rendimiento real y peso corporal
-        </Text>
-      </View>
+      <ScreenHeader
+        title="Progreso"
+        subtitle="Rendimiento real y peso corporal"
+        showBack={false}
+        border
+        style={{ backgroundColor: colors.bg.base }}
+      />
 
       <ScrollView
         contentContainerStyle={{
@@ -81,6 +76,20 @@ export default function ProgressScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary.DEFAULT} />
         }
       >
+        <Card variant="section" padding="lg">
+          <Text variant="label" tone="secondary" style={{ marginBottom: spacing.md }}>
+            SEMANA EN CURSO
+          </Text>
+          <View style={{ alignItems: 'center' }}>
+            <StreakRing
+              weeks={streakWeeks}
+              daysThisWeek={daysThisWeek}
+              weeklyGoal={profile?.weeklyGoalDays ?? 4}
+              size={148}
+            />
+          </View>
+        </Card>
+
         <ProgressInsightsSection
           history={history}
           unit={profile?.unit ?? 'kg'}
@@ -200,7 +209,7 @@ function BodySection({
 
       <Button
         title="Registrar peso de hoy"
-        leftIcon={<Icon name="scale" size={18} color="#fff" />}
+        leftIcon={<Icon name="scale" size={18} color={colors.text.primary} />}
         onPress={onAdd}
         fullWidth
       />

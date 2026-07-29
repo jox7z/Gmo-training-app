@@ -10,6 +10,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
+import { RankProgress } from '@/components/RankBadge';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
@@ -118,12 +119,19 @@ export default function Profile() {
           </PressableScale>
         </View>
 
-        <View style={{ flexDirection: 'row' }}>
+        <View
+          accessibilityRole="tablist"
+          accessibilityLabel="Secciones del perfil"
+          style={{ flexDirection: 'row' }}
+        >
           {TABS.map((tab) => {
             const active = activeTab === tab.key;
             return (
               <Pressable
                 key={tab.key}
+                accessibilityRole="tab"
+                accessibilityLabel={tab.label}
+                accessibilityState={{ selected: active }}
                 onPress={() => setActiveTab(tab.key)}
                 style={{
                   flex: 1,
@@ -183,6 +191,10 @@ export default function Profile() {
             />
             <Text weight="black" style={{ color: colors.bg.base, letterSpacing: 1 }}>{rank.label.toUpperCase()}</Text>
           </View>
+          <RankProgress
+            points={profile.rankPoints}
+            style={{ alignSelf: 'stretch', marginTop: spacing.md }}
+          />
           {streakWeeks > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.xs }}>
               <Icon name="fire" size={13} color={colors.accent.DEFAULT} />
