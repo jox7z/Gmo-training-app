@@ -1,5 +1,17 @@
 import { supabase } from '@/lib/supabase';
-import { UserProfile, Sex } from '@/store/app';
+import {
+  UserProfile,
+  Sex,
+  type Goal,
+  isGoal,
+  normalizeSecondaryGoals,
+} from '@/store/app';
+import {
+  DEFAULT_WORKOUT_VISIBILITY,
+  normalizeWorkoutVisibility,
+  type WorkoutVisibility,
+} from '@/lib/workoutVisibility';
+import { resolveUserRank } from '@/lib/rankMilestone';
 
 interface DbProfile {
   id: string;
@@ -9,8 +21,12 @@ interface DbProfile {
   weight_kg: number | null;
   height_cm: number | null;
   unit_preference: 'kg' | 'lb';
+  default_workout_visibility?: WorkoutVisibility | null;
   experience_level: string;
   goal: string;
+  goals?: string[] | null;
+  /** Compatibilidad con el contrato repo-only retirado. */
+  secondary_goals?: string[] | null;
   current_rank: string;
   rank_points: number;
   weekly_goal_days: number;
@@ -20,6 +36,7 @@ interface DbProfile {
 }
 
 function toApp(row: DbProfile): UserProfile {
+  const goal = isGoal(row.goal) ? row.goal : 'hypertrophy';
   return {
     id: row.id,
     email: row.email ?? undefined,
@@ -35,9 +52,18 @@ function toApp(row: DbProfile): UserProfile {
     weightKg: row.weight_kg ?? 75,
     heightCm: row.height_cm ?? 175,
     unit: row.unit_preference,
+    defaultWorkoutVisibility: normalizeWorkoutVisibility(
+      row.default_workout_visibility,
+      DEFAULT_WORKOUT_VISIBILITY,
+    ),
     level: row.experience_level as UserProfile['level'],
-    goal: row.goal as UserProfile['goal'],
-    currentRank: row.current_rank as UserProfile['currentRank'],
+    goal,
+    secondaryGoals: normalizeSecondaryGoals(
+      goal,
+      row.goals?.slice(1) ?? row.secondary_goals,
+    ),
+    secondaryGoalsSyncPending: false,
+    currentRank: resolveUserRank(row.current_rank, row.rank_points),
     rankPoints: row.rank_points,
     weeklyGoalDays: row.weekly_goal_days,
     instagramUsername: row.instagram_username ?? undefined,
@@ -63,6 +89,9 @@ function toDb(p: UserProfile): DbProfile {
     rank_points: p.rankPoints,
     weekly_goal_days: p.weeklyGoalDays,
     instagram_username: p.instagramUsername ?? null,
+    // `goals` se guarda mediante updateProfileGoals() o complete_signup().
+    // Mantenerlo fuera del upsert general evita que una edición ordinaria del
+    // perfil reemplace accidentalmente prioridades ya persistidas.
     // NOTE: instagram_verified, instagram_user_id e instagram_linked_at NO se
     // envían en toDb(): el trigger protect_instagram_verification los protege,
     // pero mantener el payload limpio evita que un objeto UserProfile obsoleto
@@ -90,6 +119,73 @@ export async function upsertProfile(profile: UserProfile): Promise<void> {
   const { error } = await supabase
     .from('profiles')
     .upsert(toDb(profile), { onConflict: 'id' });
+
+  if (error) throw error;
+}
+
+export interface UpdateProfileGoalsResult {
+  /** false = servidor legacy; solo se persistió el objetivo principal. */
+  secondaryGoalsPersisted: boolean;
+}
+
+function isMissingGoalsColumn(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: unknown; message?: unknown };
+  const code = typeof candidate.code === 'string' ? candidate.code : '';
+  const message = typeof candidate.message === 'string' ? candidate.message : '';
+  return (
+    (code === '42703' || code === 'PGRST204') &&
+    message.includes('goals')
+  );
+}
+
+/**
+ * Guarda el objetivo principal como goals[0] y las prioridades restantes en el
+ * array `profiles.goals` desplegado. Un servidor legacy conserva `goal`.
+ */
+export async function updateProfileGoals(
+  userId: string,
+  goal: Goal,
+  secondaryGoals: readonly Goal[],
+): Promise<UpdateProfileGoalsResult> {
+  const normalizedSecondaryGoals = normalizeSecondaryGoals(goal, secondaryGoals);
+  const goals = [goal, ...normalizedSecondaryGoals];
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      goal,
+      goals,
+    })
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
+
+  if (!error) {
+    if (!data) throw new Error('No se encontró el perfil que se intentó actualizar.');
+    return { secondaryGoalsPersisted: true };
+  }
+  if (!isMissingGoalsColumn(error)) throw error;
+
+  const { data: legacyData, error: legacyError } = await supabase
+    .from('profiles')
+    .update({ goal })
+    .eq('id', userId)
+    .select('id')
+    .maybeSingle();
+
+  if (legacyError) throw legacyError;
+  if (!legacyData) throw new Error('No se encontró el perfil que se intentó actualizar.');
+  return { secondaryGoalsPersisted: false };
+}
+
+export async function updateDefaultWorkoutVisibility(
+  userId: string,
+  visibility: WorkoutVisibility,
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ default_workout_visibility: visibility })
+    .eq('id', userId);
 
   if (error) throw error;
 }

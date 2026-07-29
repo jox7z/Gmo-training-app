@@ -1,4 +1,8 @@
-import type { StyleProp, ViewStyle } from 'react-native';
+import type {
+  GestureResponderEvent,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Icon, type IconName } from '@/components/Icon';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -11,7 +15,7 @@ export interface IconButtonProps {
   name: IconName;
   accessibilityLabel: string;
   accessibilityHint?: string;
-  onPress: () => void;
+  onPress: (event: GestureResponderEvent) => void;
   variant?: IconButtonVariant;
   size?: IconButtonSize;
   selected?: boolean;

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { View, ScrollView, Modal, FlatList } from 'react-native';
+import { Alert, View, ScrollView, Modal, FlatList } from 'react-native';
 import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -24,6 +24,11 @@ import {
 } from '@/data/exercises';
 import { exerciseImage } from '@/data/exerciseImages';
 import { Icon } from '@/components/Icon';
+import { useMainTabsStore } from '@/store/mainTabs';
+import { calculatePlannedMuscleVolume } from '@/lib/muscleVolume';
+import { MuscleVolumeMap } from '@/components/MuscleVolumeMap';
+import { computeRoutineQualityScore } from '@/lib/routineQualityScore';
+import { RoutineQualityCard } from '@/components/routines/RoutineQualityCard';
 
 const EMPTY_ROUTINE = (): Routine => ({
   id: nid(),
@@ -34,8 +39,9 @@ const EMPTY_ROUTINE = (): Routine => ({
 });
 
 export default function RoutineEditor() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origin } = useLocalSearchParams<{ id: string; origin?: string }>();
   const router = useRouter();
+  const requestMainTab = useMainTabsStore((state) => state.requestTab);
   const existing = useRoutinesStore((s) => s.routines.find((r) => r.id === id));
   const upsert = useRoutinesStore((s) => s.upsertRoutine);
   const profile = useAppStore((s) => s.profile);
@@ -46,6 +52,14 @@ export default function RoutineEditor() {
   const [pickerGroup, setPickerGroup] = useState<string>('all');
 
   const day = routine.days[activeDayIdx];
+  const plannedVolume = useMemo(
+    () => calculatePlannedMuscleVolume(routine),
+    [routine],
+  );
+  const routineQuality = useMemo(
+    () => computeRoutineQualityScore(routine),
+    [routine],
+  );
 
   const addDay = () => {
     const newDay: RoutineDay = { id: nid(), name: `Día ${routine.days.length + 1}`, exercises: [] };
@@ -58,6 +72,22 @@ export default function RoutineEditor() {
     const days = routine.days.filter((_, i) => i !== idx);
     setRoutine({ ...routine, days });
     setActiveDayIdx(Math.max(0, idx - 1));
+  };
+
+  const confirmRemoveDay = (idx: number) => {
+    if (routine.days.length === 1) return;
+    Alert.alert(
+      'Eliminar día',
+      `Se eliminará ${routine.days[idx]?.name ?? 'este día'} y sus ejercicios.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: () => removeDay(idx),
+        },
+      ],
+    );
   };
 
   const updateDayName = (name: string) => {
@@ -114,6 +144,20 @@ export default function RoutineEditor() {
     if (isSupabaseConfigured && profile?.id && profile.id !== LOCAL_USER_ID) {
       saveRoutine(profile.id, routine).catch(() => {});
     }
+    if (origin === 'onboarding') {
+      requestMainTab('routines');
+      router.replace('/(tabs)');
+      return;
+    }
+    router.back();
+  };
+
+  const handleClose = () => {
+    if (origin === 'onboarding') {
+      requestMainTab('routines');
+      router.replace('/(tabs)');
+      return;
+    }
     router.back();
   };
 
@@ -130,10 +174,19 @@ export default function RoutineEditor() {
         }}
       >
         {/* Botón cerrar — icono pequeño, escala 0.9 */}
-        <PressableScale onPress={() => router.back()} hitSlop={12} pressScale={0.9}>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar editor de rutina"
+          onPress={handleClose}
+          hitSlop={12}
+          pressScale={0.9}
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+        >
           <Text variant="heading" tone="muted">✕</Text>
         </PressableScale>
-        <Text variant="heading">Editar rutina</Text>
+        <Text variant="heading" numberOfLines={1} style={{ flex: 1, textAlign: 'center' }}>
+          Editar rutina
+        </Text>
         <Button title="Guardar" size="sm" onPress={handleSave} />
       </View>
 
@@ -143,15 +196,6 @@ export default function RoutineEditor() {
           value={routine.name}
           onChangeText={(name) => setRoutine({ ...routine, name })}
         />
-        {routine.aiReasoning && (
-          <Card variant="outlined" padding="md" style={{ marginTop: spacing.md, borderColor: colors.info.DEFAULT }}>
-            <Text variant="label" tone="info">¿Por qué esta rutina?</Text>
-            <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
-              {routine.aiReasoning}
-            </Text>
-          </Card>
-        )}
-
         {/* Tabs de días */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.xl }}>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -161,8 +205,16 @@ export default function RoutineEditor() {
                 // Tab de día — escala suave; long-press para eliminar
                 <PressableScale
                   key={d.id}
+                  accessibilityRole="tab"
+                  accessibilityLabel={d.name}
+                  accessibilityHint={
+                    routine.days.length > 1
+                      ? 'Mantén presionado para eliminar este día'
+                      : undefined
+                  }
+                  accessibilityState={{ selected: active }}
                   onPress={() => setActiveDayIdx(i)}
-                  onLongPress={() => removeDay(i)}
+                  onLongPress={() => confirmRemoveDay(i)}
                   pressScale={0.95}
                   style={{
                     paddingVertical: 10,
@@ -171,9 +223,16 @@ export default function RoutineEditor() {
                     backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
                     borderWidth: 1,
                     borderColor: active ? colors.primary.DEFAULT : colors.border,
+                    minHeight: 44,
+                    justifyContent: 'center',
                   }}
                 >
-                  <Text weight="bold" tone={active ? 'primary' : 'secondary'}>
+                  <Text
+                    weight="bold"
+                    style={{
+                      color: active ? colors.bg.base : colors.text.secondary,
+                    }}
+                  >
                     {d.name}
                   </Text>
                 </PressableScale>
@@ -181,6 +240,8 @@ export default function RoutineEditor() {
             })}
             {/* Botón añadir día */}
             <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Agregar día"
               onPress={addDay}
               pressScale={0.95}
               style={{
@@ -190,6 +251,8 @@ export default function RoutineEditor() {
                 borderWidth: 1,
                 borderStyle: 'dashed',
                 borderColor: colors.border,
+                minHeight: 44,
+                justifyContent: 'center',
               }}
             >
               <Text tone="brand" weight="bold">+ Día</Text>
@@ -199,6 +262,25 @@ export default function RoutineEditor() {
 
         <View style={{ marginTop: spacing.lg }}>
           <Input label="Nombre del día" value={day.name} onChangeText={updateDayName} />
+          {routine.days.length > 1 ? (
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={`Eliminar ${day.name}`}
+              accessibilityHint="Pide confirmación antes de eliminar el día y sus ejercicios"
+              onPress={() => confirmRemoveDay(activeDayIdx)}
+              haptic={false}
+              style={{
+                alignSelf: 'flex-end',
+                justifyContent: 'center',
+                minHeight: 44,
+                paddingHorizontal: spacing.sm,
+              }}
+            >
+              <Text variant="caption" tone="danger" weight="bold">
+                Eliminar día
+              </Text>
+            </PressableScale>
+          ) : null}
         </View>
 
         <View style={{ marginTop: spacing.lg }}>
@@ -244,13 +326,15 @@ export default function RoutineEditor() {
                     </View>
                     {/* Botón quitar — icono pequeño con escala 0.88 */}
                     <PressableScale
+                      accessibilityRole="button"
+                      accessibilityLabel={`Quitar ${ex?.name ?? 'ejercicio'}`}
                       onPress={() => removeExercise(e.id)}
                       hitSlop={12}
                       pressScale={0.88}
                       haptic={false}
                       style={{
-                        width: 40,
-                        height: 40,
+                        width: 44,
+                        height: 44,
                         borderRadius: radius.full,
                         alignItems: 'center' as const,
                         justifyContent: 'center' as const,
@@ -274,6 +358,19 @@ export default function RoutineEditor() {
           onPress={() => setPickerOpen(true)}
           style={{ marginTop: spacing.md }}
           fullWidth
+        />
+
+        <RoutineQualityCard
+          result={routineQuality}
+          style={{ marginTop: spacing['2xl'] }}
+        />
+        <MuscleVolumeMap
+          results={plannedVolume}
+          title="Mapa de tu rutina"
+          subtitle="Se actualiza mientras agregas ejercicios y series."
+          frequencyUnit="días/semana"
+          gender={profile?.sex ?? 'male'}
+          style={{ marginTop: spacing.lg }}
         />
       </ScrollView>
 
@@ -308,6 +405,8 @@ function StepperField({
   const dec = () => onChange(Math.max(min, value - step));
   const inc = () => onChange(Math.min(max, value + step));
   const display = format ? format(value) : String(value);
+  const decrementDisabled = value <= min;
+  const incrementDisabled = value >= max;
 
   return (
     <View style={{ alignItems: 'center' }}>
@@ -321,19 +420,26 @@ function StepperField({
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
         {/* Botón decrementar — escala 0.9, hitSlop generoso */}
         <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={`Disminuir ${label}`}
+          accessibilityState={{ disabled: decrementDisabled }}
+          disabled={decrementDisabled}
           onPress={dec}
           hitSlop={10}
           pressScale={0.9}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: radius.full,
-            backgroundColor: colors.bg.elevated,
-            borderWidth: 1,
-            borderColor: colors.border,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          style={[
+            {
+              width: 44,
+              height: 44,
+              borderRadius: radius.full,
+              backgroundColor: colors.bg.elevated,
+              borderWidth: 1,
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+            decrementDisabled && { opacity: 0.4 },
+          ]}
         >
           <Text weight="bold" style={{ fontSize: 18, lineHeight: 20, color: colors.text.primary }}>−</Text>
         </PressableScale>
@@ -342,19 +448,26 @@ function StepperField({
         </Text>
         {/* Botón incrementar */}
         <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={`Aumentar ${label}`}
+          accessibilityState={{ disabled: incrementDisabled }}
+          disabled={incrementDisabled}
           onPress={inc}
           hitSlop={10}
           pressScale={0.9}
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: radius.full,
-            backgroundColor: colors.bg.elevated,
-            borderWidth: 1,
-            borderColor: colors.border,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
+          style={[
+            {
+              width: 44,
+              height: 44,
+              borderRadius: radius.full,
+              backgroundColor: colors.bg.elevated,
+              borderWidth: 1,
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            },
+            incrementDisabled && { opacity: 0.4 },
+          ]}
         >
           <Text weight="bold" style={{ fontSize: 18, lineHeight: 20, color: colors.text.primary }}>+</Text>
         </PressableScale>
@@ -384,8 +497,17 @@ function ExercisePicker({
   }, [group]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={{ flex: 1, backgroundColor: colors.bg.overlay, justifyContent: 'flex-end' }}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <View
+        accessibilityViewIsModal
+        style={{ flex: 1, backgroundColor: colors.bg.overlay, justifyContent: 'flex-end' }}
+      >
         {/* Contenedor con altura fija para evitar saltos al filtrar */}
         <View
           style={{
@@ -400,7 +522,14 @@ function ExercisePicker({
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Text variant="title">Ejercicios</Text>
             {/* Botón cerrar modal */}
-            <PressableScale onPress={onClose} hitSlop={12} pressScale={0.88}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar selector de ejercicios"
+              onPress={onClose}
+              hitSlop={12}
+              pressScale={0.88}
+              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+            >
               <Icon name="close" size={18} color={colors.text.muted} />
             </PressableScale>
           </View>
@@ -418,6 +547,9 @@ function ExercisePicker({
                 // Chip de filtro muscular
                 <PressableScale
                   key={g.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Filtrar por ${g.label}`}
+                  accessibilityState={{ selected: active }}
                   onPress={() => onGroupChange(g.id)}
                   pressScale={0.95}
                   style={{
@@ -427,9 +559,17 @@ function ExercisePicker({
                     backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
                     borderWidth: 1,
                     borderColor: active ? colors.primary.DEFAULT : colors.border,
+                    minHeight: 44,
+                    justifyContent: 'center',
                   }}
                 >
-                  <Text variant="caption" weight="bold" tone={active ? 'primary' : 'secondary'}>
+                  <Text
+                    variant="caption"
+                    weight="bold"
+                    style={{
+                      color: active ? colors.bg.base : colors.text.secondary,
+                    }}
+                  >
                     {g.label}
                   </Text>
                 </PressableScale>
@@ -448,6 +588,8 @@ function ExercisePicker({
               return (
                 // Fila ejercicio del picker — escala 0.97
                 <PressableScale
+                  accessibilityRole="button"
+                  accessibilityLabel={`${item.name}, ${MUSCLE_GROUP_LABELS[item.muscle]}, ${EQUIPMENT_LABELS[item.equipment]}`}
                   onPress={() => {
                     onSelect(item.id);
                     onClose();
@@ -482,7 +624,7 @@ function ExercisePicker({
                       </View>
                       {/* Nombre + músculo */}
                       <View style={{ flex: 1 }}>
-                        <Text weight="semibold" numberOfLines={1}>{item.name}</Text>
+                        <Text weight="semibold" numberOfLines={2}>{item.name}</Text>
                         <Text variant="caption" tone="muted" style={{ marginTop: 2 }}>
                           {MUSCLE_GROUP_LABELS[item.muscle]} · {EQUIPMENT_LABELS[item.equipment]}
                         </Text>

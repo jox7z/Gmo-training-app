@@ -36,12 +36,15 @@ npm run exercises:audit
 # npm run exercises:sync  # actualiza solo matches conservadores
 ```
 
-Jest cubre 66 contratos puros. El gate automático es test + typecheck + lint;
+Jest cubre 121 contratos puros en 20 suites. El gate automático es test +
+typecheck + lint;
 el smoke de UI/lifecycle sigue en Expo Go.
 
 ## Supabase
 
-El backend real está desplegado hasta `0046`. `0041` instala
+El schema real contiene los cambios representados hasta `0050` y también las
+migraciones alojadas `20260727210212`, `20260727211100` y `20260727223657`
+(objetivos múltiples + grants y borrado de cuenta). `0041` instala
 `sync_workout_snapshot`; `0042` limita `EXECUTE` a `authenticated` porque los
 default privileges de Supabase también otorgan grants explícitos al crear RPCs.
 `0043` hace monotónica la publicación: un snapshot stale nunca revierte `true`.
@@ -49,15 +52,21 @@ default privileges de Supabase también otorgan grants explícitos al crear RPCs
 músculos y ejercicios reales sin cambiar la firma ni abrir la ACL.
 `0045` evita que una sesión publicada tarde compare sus PR contra entrenos futuros.
 `0046` desempata sesiones con la misma hora mediante creación e ID estables.
+`0047`–`0050` documentan constraints y columnas de superseries ya presentes live.
+`0051`/`0052` permanecen repo-only hasta reconciliar el ledger hosted completo:
+preservación transaccional de superseries y privacidad
+Público/Seguidores/Privado. Los objetivos ya viven en `profiles.goals`; el
+contrato retirado `profiles.secondary_goals` no debe desplegarse.
 Las migraciones reproducibles viven en `supabase/migrations/`.
 
 ```bash
 supabase functions deploy generate_routine
-supabase secrets set GEMINI_API_KEY=... ANTHROPIC_API_KEY=... OPENAI_API_KEY=...
 ```
 
 `instagram_oauth` es legacy y no tiene entrada desde el cliente. El coach IA
 conversacional fue retirado por `0040_drop_ai_coach.sql`; no reintroducirlo.
+`generate_routine` solo devuelve una estructura heurística editable; no genera
+reasoning, scores ni consejos automáticos y el cliente actual no la invoca.
 
 ## Arquitectura
 
@@ -88,6 +97,8 @@ la presentación.
 - Reanudación de workout activo en la primera serie pendiente
 - CTA persistente en Feed para empezar o continuar entrenando
 - Rutinas editables, templates y generación online/offline
+- Mapa interactivo de volumen semanal estimado en editor, Rutinas y Progreso
+- Onboarding con objetivo principal, prioridades secundarias y rutina personalizada
 - Feed realtime edge-to-edge con fotos 4:5, comentarios, follow y reacción gym
 - Secciones sin bordes laterales y skeleton compartido para cargas iniciales
 - Tarjeta workout compartida entre compositor/Feed + share externo con métricas reales

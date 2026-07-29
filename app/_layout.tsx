@@ -9,12 +9,17 @@ import * as SystemUI from 'expo-system-ui';
 import 'react-native-url-polyfill/auto';
 
 import { colors } from '@/theme/tokens';
-import { useAppStore } from '@/store/app';
+import {
+  LOCAL_USER_ID,
+  normalizeSecondaryGoals,
+  useAppStore,
+  type UserProfile,
+} from '@/store/app';
 import { useRoutinesStore } from '@/store/routines';
 import { useWorkoutsStore } from '@/store/workouts';
 import { useAchievementsStore } from '@/store/achievements';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { getProfile } from '@/lib/repos/profile';
+import { getProfile, updateProfileGoals } from '@/lib/repos/profile';
 import { getWorkouts } from '@/lib/repos/workouts';
 import { isProfileComplete } from '@/lib/auth';
 import { ToastProvider } from '@/components/ui/Toast';
@@ -60,6 +65,42 @@ function getProfileBounded(userId: string) {
   );
 }
 
+async function reconcilePendingSecondaryGoals(
+  remote: UserProfile,
+): Promise<UserProfile> {
+  const local = useAppStore.getState().profile;
+  if (
+    !local?.secondaryGoalsSyncPending ||
+    local.id !== remote.id ||
+    local.secondaryGoals.length === 0 ||
+    remote.secondaryGoals.length > 0
+  ) {
+    return remote;
+  }
+
+  const pendingGoals = normalizeSecondaryGoals(remote.goal, local.secondaryGoals);
+  if (pendingGoals.length === 0) return remote;
+
+  const pendingProfile: UserProfile = {
+    ...remote,
+    secondaryGoals: pendingGoals,
+    secondaryGoalsSyncPending: true,
+  };
+  try {
+    const result = await withTimeout(
+      updateProfileGoals(remote.id, remote.goal, pendingGoals),
+      PROFILE_CHECK_TIMEOUT_MS,
+      { secondaryGoalsPersisted: false },
+    );
+    return {
+      ...pendingProfile,
+      secondaryGoalsSyncPending: !result.secondaryGoalsPersisted,
+    };
+  } catch {
+    return pendingProfile;
+  }
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -75,8 +116,6 @@ export default function RootLayout() {
   const hydrated = useAppStore((s) => s.hydrated);
   const onboarded = useAppStore((s) => s.onboarded);
   const hydrate = useAppStore((s) => s.hydrate);
-  const setProfile = useAppStore((s) => s.setProfile);
-  const markOnboarded = useAppStore((s) => s.markOnboarded);
   // profileComplete viene del store (estado de sesión, no persiste).
   // El backend es la única verdad: no depende del flag local `onboarded`.
   const profileComplete = useAppStore((s) => s.profileComplete);
@@ -85,6 +124,7 @@ export default function RootLayout() {
 
   const [authChecked, setAuthChecked] = useState(!isSupabaseConfigured);
   const [hasSession, setHasSession] = useState(false);
+  const [storesHydrated, setStoresHydrated] = useState(false);
 
   // 1. Hydrate AsyncStorage (app + routines + workouts — local stores, not gated behind auth)
   useEffect(() => {
@@ -106,129 +146,75 @@ export default function RootLayout() {
           });
         }
       })
-      .finally(() => SplashScreen.hideAsync().catch(() => {}));
+      .finally(() => {
+        setStoresHydrated(true);
+        SplashScreen.hideAsync().catch(() => {});
+      });
   }, [hydrate]);
 
-  // 2. Check initial Supabase session (with safety timeout for Android)
+  // 2. Ruta única para sesión inicial + eventos auth. Suscribirse antes de
+  // getSession permite que INITIAL_SESSION rescate la sesión cacheada si la
+  // lectura explícita cuelga/falla. Cola serializa reconciliaciones y cada
+  // snapshot nuevo invalida respuestas anteriores antes de escribir.
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
+    if (!isSupabaseConfigured || !storesHydrated) return;
+    type AuthSession =
+      Awaited<ReturnType<typeof supabase.auth.getSession>>['data']['session'];
+
     let cancelled = false;
-    const timer = setTimeout(() => {
-      if (!cancelled) {
-        console.warn('[RootLayout] getSession TIMED OUT — assuming no session');
-        setAuthChecked(true);
-      }
-    }, AUTH_TIMEOUT_MS);
-    supabase.auth.getSession()
-      .then(async ({ data: { session } }) => {
-        if (cancelled) return;
-        clearTimeout(timer);
-        console.log('[RootLayout] getSession OK, hasSession =', !!session);
-        setHasSession(!!session);
-        // Mark auth checked NOW so the 3-second guard doesn't need to cover
-        // the isProfileComplete RPC — that call gets its own timeout below.
-        setAuthChecked(true);
-        if (session) {
-          queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
-          // Fire-and-forget: la descarga del historial NO debe bloquear el gate
-          // de navegación (sin timeout, un cuelgue aquí congelaba el arranque).
-          getWorkouts(session.user.id)
-            .then((ws) => {
-              useWorkoutsStore.getState().mergeHistory(ws);
-              useAppStore.getState().refreshWeeklyProgress();
-            })
-            .catch(() => {});
+    let latestGeneration = 0;
+    let authQueue = Promise.resolve();
+    let initialTimer: ReturnType<typeof setTimeout>;
+    let authEventSeen = false;
+    let initialNullFinalized = false;
+    const initialSettledSources = new Set<'getSession' | 'INITIAL_SESSION'>();
+    const initialValidFingerprints = new Set<string>();
 
-          // El servidor es la única verdad: si no hay fila de profile, la sesión
-          // es fantasma (cuenta huérfana, borrada manualmente, etc.) → cerrar sesión.
-          // Pero distinguimos "no existe" de un error de red transitorio: ante
-          // un fallo de red NO expulsamos (no dejar sin app a alguien con mala
-          // conexión); solo cerramos sesión cuando el perfil realmente no existe.
-          let remote: Awaited<ReturnType<typeof getProfileBounded>> = null;
-          let fetchFailed = false;
-          try {
-            remote = await getProfileBounded(session.user.id);
-          } catch {
-            fetchFailed = true;
-          }
-          // Timeout = no pudimos confirmar con el servidor → tratar como fallo
-          // de red (fallback local), nunca como "perfil no existe".
-          if (remote === FETCH_TIMED_OUT) {
-            fetchFailed = true;
-            remote = null;
-          }
+    const isCurrent = (generation: number) =>
+      !cancelled && generation === latestGeneration;
 
-          if (fetchFailed) {
-            // No se pudo confirmar con el servidor (red): caemos al flag local
-            // `onboarded` para dar resiliencia offline a usuarios YA existentes.
-            // Esto NO reintroduce el bug de cuentas nuevas: esas sí alcanzan el
-            // servidor y reciben false vía getProfile/isProfileComplete; el gate
-            // (CASE 3) ya no depende de `onboarded`.
-            if (!cancelled) useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
-            return;
-          }
-
-          if (!remote) {
-            if (!cancelled) {
-              console.warn('[RootLayout] getSession: perfil no existe → signOut');
-              await useAppStore.getState().signOut();
-              setHasSession(false);
-              useAppStore.getState().setProfileComplete(null);
-            }
-            return;
-          }
-
-          // Sincronizar perfil remoto al store.
-          await setProfile(remote);
-
-          // Consultar si el onboarding está completo. Si la RPC hace timeout o
-          // falla (no podemos confirmar con el servidor) caemos al flag local
-          // `onboarded`. La verdad del servidor (cuando responde) manda: una
-          // cuenta nueva recibe false y va a /onboarding.
-          try {
-            const localOnboarded = useAppStore.getState().onboarded;
-            const ok = await withTimeout(
-              isProfileComplete(session.user.id),
-              PROFILE_CHECK_TIMEOUT_MS,
-              localOnboarded,
-            );
-            if (!cancelled) {
-              useAppStore.getState().setProfileComplete(ok);
-              if (ok) void markOnboarded();
-            }
-          } catch {
-            if (!cancelled) useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
-          }
-        }
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        clearTimeout(timer);
-        console.warn('[RootLayout] getSession ERROR:', e?.message ?? e);
-        setAuthChecked(true);
-      });
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
+    const syncWorkouts = (userId: string, generation: number) => {
+      queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
+      getWorkouts(userId)
+        .then((workouts) => {
+          if (!isCurrent(generation)) return;
+          useWorkoutsStore.getState().mergeHistory(workouts);
+          useAppStore.getState().refreshWeeklyProgress();
+        })
+        .catch(() => {});
     };
-  }, []);
 
-  // 3. Auth state subscription (login/logout in flight)
-  useEffect(() => {
-    if (!isSupabaseConfigured) return;
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[RootLayout] auth event:', event, 'session?', !!session);
+    const processAuthSnapshot = async (
+      event: string,
+      session: AuthSession,
+      generation: number,
+      localResetCompleted: boolean,
+    ) => {
+      if (!isCurrent(generation)) return;
+      console.log('[RootLayout] auth snapshot:', event, 'session?', !!session);
       setHasSession(!!session);
       setAuthChecked(true);
-      if (event === 'SIGNED_OUT' || !session) {
-        // Reset el cache para el próximo login (otra cuenta puede tener
-        // distinto estado de profile completion).
-        useAppStore.getState().setProfileComplete(null);
+
+      if (!session) {
+        if (!localResetCompleted) {
+          await useAppStore.getState().resetLocalData();
+        }
+        if (!isCurrent(generation)) return;
+        queryClient.clear();
         return;
       }
-      // Recalcula profileComplete en cada SIGNED_IN / USER_UPDATED / etc.
-      // El servidor es la única verdad: si no hay fila de profile → signOut.
-      // Distinguimos "no existe" de error de red transitorio (no expulsar).
+
+      const localOwnerId = useAppStore.getState().profile?.id;
+      if (
+        localOwnerId &&
+        localOwnerId !== LOCAL_USER_ID &&
+        localOwnerId !== session.user.id
+      ) {
+        await useAppStore.getState().resetLocalData();
+        if (!isCurrent(generation)) return;
+        queryClient.clear();
+      }
+
       let remote: Awaited<ReturnType<typeof getProfileBounded>> = null;
       let fetchFailed = false;
       try {
@@ -236,54 +222,183 @@ export default function RootLayout() {
       } catch {
         fetchFailed = true;
       }
+      if (!isCurrent(generation)) return;
       if (remote === FETCH_TIMED_OUT) {
         fetchFailed = true;
         remote = null;
       }
 
       if (fetchFailed) {
-        // No se pudo confirmar con el servidor (red): caer al flag local.
-        useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
+        useAppStore.getState().setProfileComplete(
+          useAppStore.getState().onboarded,
+        );
         return;
       }
 
       if (!remote) {
-        console.warn('[RootLayout] onAuthStateChange: perfil no existe → signOut');
+        console.warn('[RootLayout] auth snapshot: perfil no existe → signOut');
         await useAppStore.getState().signOut();
+        if (!isCurrent(generation)) return;
+        setHasSession(false);
+        useAppStore.getState().setProfileComplete(null);
         return;
       }
 
-      await setProfile(remote);
+      const reconciledProfile = await reconcilePendingSecondaryGoals(remote);
+      if (!isCurrent(generation)) return;
+      await useAppStore.getState().setProfile(reconciledProfile);
+      if (!isCurrent(generation)) return;
 
-      // La verdad del servidor manda; si la RPC hace timeout/falla caemos al
-      // flag local `onboarded` (resiliencia offline para usuarios existentes).
       try {
         const localOnboarded = useAppStore.getState().onboarded;
-        const ok = await withTimeout(
+        const complete = await withTimeout(
           isProfileComplete(session.user.id),
           PROFILE_CHECK_TIMEOUT_MS,
           localOnboarded,
         );
-        useAppStore.getState().setProfileComplete(ok);
-        if (ok) void markOnboarded();
+        if (!isCurrent(generation)) return;
+        useAppStore.getState().setProfileComplete(complete);
+        if (complete) void useAppStore.getState().markOnboarded();
       } catch {
-        useAppStore.getState().setProfileComplete(useAppStore.getState().onboarded);
+        if (!isCurrent(generation)) return;
+        useAppStore.getState().setProfileComplete(
+          useAppStore.getState().onboarded,
+        );
       }
-      queryClient.invalidateQueries({ queryKey: ['feed', 'list'] });
-      getWorkouts(session.user.id)
-        .then((ws) => {
-          useWorkoutsStore.getState().mergeHistory(ws);
-          useAppStore.getState().refreshWeeklyProgress();
-        })
-        .catch(() => {});
-    });
-    return () => subscription.unsubscribe();
-  }, [setProfile, markOnboarded]);
 
-  // 4. Centralized redirect logic — runs whenever ready state OR location changes.
+      syncWorkouts(session.user.id, generation);
+    };
+
+    const enqueueSnapshot = (event: string, session: AuthSession) => {
+      const localOwnerId = useAppStore.getState().profile?.id;
+      const crossesOwner =
+        !!session &&
+        !!localOwnerId &&
+        localOwnerId !== LOCAL_USER_ID &&
+        localOwnerId !== session.user.id;
+      const mustResetLocal = !session || crossesOwner;
+      const localReset = mustResetLocal
+        ? useAppStore.getState().resetLocalData()
+        : null;
+      if (mustResetLocal) {
+        setHasSession(false);
+        if (crossesOwner) setAuthChecked(false);
+        useAppStore.getState().setProfileComplete(null);
+        queryClient.clear();
+      }
+
+      const generation = ++latestGeneration;
+      authQueue = authQueue
+        .catch(() => {})
+        .then(async () => {
+          if (localReset) await localReset;
+          if (!isCurrent(generation)) return;
+          await processAuthSnapshot(
+            event,
+            session,
+            generation,
+            mustResetLocal,
+          );
+        })
+        .catch((error) => {
+          if (!isCurrent(generation)) return;
+          console.warn(
+            '[RootLayout] auth snapshot ERROR:',
+            error?.message ?? error,
+          );
+          setAuthChecked(true);
+        });
+    };
+
+    const enqueueInitialSnapshot = (
+      source: 'getSession' | 'INITIAL_SESSION',
+      session: AuthSession,
+    ) => {
+      if (authEventSeen) return;
+      initialSettledSources.add(source);
+      if (session) {
+        const fingerprint = `${session.user.id}:${session.access_token}`;
+        if (initialValidFingerprints.has(fingerprint)) return;
+        initialValidFingerprints.add(fingerprint);
+        clearTimeout(initialTimer);
+        enqueueSnapshot(source, session);
+        return;
+      }
+      if (
+        initialValidFingerprints.size > 0 ||
+        initialNullFinalized ||
+        initialSettledSources.size < 2
+      ) return;
+      initialNullFinalized = true;
+      clearTimeout(initialTimer);
+      enqueueSnapshot(source, null);
+    };
+
+    initialTimer = setTimeout(() => {
+      if (
+        !cancelled &&
+        !authEventSeen &&
+        !initialNullFinalized &&
+        initialValidFingerprints.size === 0
+      ) {
+        console.warn('[RootLayout] initial auth TIMED OUT — assuming no session');
+        setHasSession(false);
+        setAuthChecked(true);
+      }
+    }, AUTH_TIMEOUT_MS);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setTimeout(() => {
+          if (cancelled) return;
+          if (event === 'INITIAL_SESSION') {
+            enqueueInitialSnapshot('INITIAL_SESSION', session);
+            return;
+          }
+          authEventSeen = true;
+          clearTimeout(initialTimer);
+          enqueueSnapshot(event, session);
+        }, 0);
+      },
+    );
+
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (cancelled) return;
+        if (error) throw error;
+        enqueueInitialSnapshot('getSession', session);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        initialSettledSources.add('getSession');
+        if (
+          !authEventSeen &&
+          !initialNullFinalized &&
+          initialValidFingerprints.size === 0 &&
+          initialSettledSources.size === 2
+        ) {
+          initialNullFinalized = true;
+          clearTimeout(initialTimer);
+          enqueueSnapshot('getSession-error', null);
+        }
+        console.warn(
+          '[RootLayout] getSession ERROR; waiting INITIAL_SESSION:',
+          error?.message ?? error,
+        );
+      });
+
+    return () => {
+      cancelled = true;
+      latestGeneration += 1;
+      clearTimeout(initialTimer);
+      subscription.unsubscribe();
+    };
+  }, [storesHydrated]);
+
+  // 3. Centralized redirect logic — runs whenever ready state OR location changes.
   // This is the ONLY place that decides where the user should be.
   useEffect(() => {
-    if (!hydrated || !authChecked) return;
+    if (!storesHydrated || !hydrated || !authChecked) return;
 
     const segs = segments as string[];
     const first = segs[0];
@@ -369,9 +484,18 @@ export default function RootLayout() {
       console.log('[RootLayout] → /(tabs) (from', first ?? '(root)', ')');
       router.replace('/(tabs)');
     }
-  }, [hydrated, authChecked, hasSession, onboarded, profileComplete, segments, router]);
+  }, [
+    storesHydrated,
+    hydrated,
+    authChecked,
+    hasSession,
+    onboarded,
+    profileComplete,
+    segments,
+    router,
+  ]);
 
-  const ready = hydrated && authChecked;
+  const ready = storesHydrated && hydrated && authChecked;
 
   // Render a neutral background while we resolve hydration + initial auth.
   // This prevents authenticated screens from mounting (and subscribing to

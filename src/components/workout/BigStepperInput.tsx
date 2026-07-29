@@ -1,110 +1,282 @@
-import { useEffect, useState } from 'react';
-import { Keyboard, Platform, Pressable, TextInput, View } from 'react-native';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
+import {
+  Keyboard,
+  Platform,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, fontSize, spacing } from '@/theme/tokens';
-import { Card } from '@/components/ui/Card';
-import { Text } from '@/components/ui/Text';
 
-const BTN = 64;
+import { Card } from '@/components/ui/Card';
+import { PressableScale } from '@/components/ui/PressableScale';
+import { Text } from '@/components/ui/Text';
+import { runHapticSafely } from '@/lib/haptics';
+import {
+  formatNumericInput,
+  normalizeNumericValue,
+  parseNumericInput,
+  stepNumericValue,
+} from '@/lib/numericInput';
+import { colors, fontSize, spacing } from '@/theme/tokens';
 
 interface Props {
   label: string;
   value: number;
   step: number;
   decimals: number;
-  onChange: (v: number) => void;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
   accessoryId?: string;
 }
 
-// Botón circular con borde naranja neon + glow (en vez del relieve 3D chunky).
-function StepperButton({ symbol, onPress }: { symbol: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} hitSlop={6} style={{ width: BTN, height: BTN }}>
-      {({ pressed }) => (
-        <View
-          style={{
-            width: BTN,
-            height: BTN,
-            borderRadius: BTN / 2,
-            backgroundColor: colors.bg.elevated,
-            borderWidth: 1,
-            borderColor: colors.accent.DEFAULT,
-            alignItems: 'center',
-            justifyContent: 'center',
-            transform: pressed ? [{ scale: 0.94 }] : undefined,
-          }}
-        >
-          <Text style={{ fontSize: 28, fontWeight: '700', color: colors.text.primary, lineHeight: 32 }}>
-            {symbol}
-          </Text>
-        </View>
-      )}
-    </Pressable>
-  );
+export interface BigStepperInputHandle {
+  commit: () => boolean;
 }
 
-/**
- * Input numérico gigante con steppers −/+ chunky, en tarjeta raised.
- * Mantiene la edición libre por teclado (decimal-pad) además de los botones.
- */
-export function BigStepperInput({ label, value, step, decimals, onChange, accessoryId }: Props) {
-  const [text, setText] = useState(value.toFixed(decimals).replace(/\.0$/, ''));
-  const [editing, setEditing] = useState(false);
-
-  useEffect(() => {
-    if (!editing) setText(value.toFixed(decimals).replace(/\.0$/, ''));
-  }, [value, decimals, editing]);
-
-  const bump = (delta: number) => {
-    const next = Math.max(0, value + delta);
-    onChange(parseFloat(next.toFixed(decimals)));
-    Haptics.selectionAsync();
-  };
-
+function StepperButton({
+  symbol,
+  label,
+  onPress,
+  disabled,
+  size,
+}: {
+  symbol: string;
+  label: string;
+  onPress: () => void;
+  disabled: boolean;
+  size: number;
+}) {
   return (
-    <Card variant="raised" padding="xl">
+    <PressableScale
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      hitSlop={6}
+      pressScale={0.94}
+      haptic={false}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: colors.bg.elevated,
+        borderWidth: 1,
+        borderColor: colors.accent.DEFAULT,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: disabled ? 0.42 : 1,
+      }}
+    >
       <Text
+        maxFontSizeMultiplier={1.3}
         style={{
-          fontSize: fontSize.sm,
+          fontSize: 28,
           fontWeight: '700',
-          color: colors.text.muted,
-          letterSpacing: 3,
-          textAlign: 'center',
-          marginBottom: spacing.md,
+          color: colors.text.primary,
+          lineHeight: 32,
         }}
       >
-        {label}
+        {symbol}
       </Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <StepperButton symbol="−" onPress={() => bump(-step)} />
-        <TextInput
-          value={text}
-          onFocus={() => setEditing(true)}
-          onBlur={() => {
-            setEditing(false);
-            const n = parseFloat(text);
-            if (!isNaN(n)) onChange(n);
-          }}
-          onChangeText={setText}
-          keyboardType="decimal-pad"
-          returnKeyType="done"
-          blurOnSubmit
-          onSubmitEditing={Keyboard.dismiss}
-          inputAccessoryViewID={Platform.OS === 'ios' ? accessoryId : undefined}
-          style={{
-            flex: 1,
-            color: colors.text.primary,
-            fontSize: 64,
-            fontWeight: '900',
-            textAlign: 'center',
-            fontVariant: ['tabular-nums'],
-            paddingVertical: 0,
-            paddingHorizontal: spacing.xs,
-          }}
-          selectTextOnFocus
-        />
-        <StepperButton symbol="+" onPress={() => bump(step)} />
-      </View>
-    </Card>
+    </PressableScale>
   );
 }
+
+export const BigStepperInput = forwardRef<BigStepperInputHandle, Props>(
+  function BigStepperInput(
+    {
+      label,
+      value,
+      step,
+      decimals,
+      min,
+      max,
+      onChange,
+      accessoryId,
+    },
+    ref,
+  ) {
+    const { width, fontScale } = useWindowDimensions();
+    const compact = width <= 390 || fontScale > 1.2;
+    const buttonSize = compact ? 52 : 64;
+    const inputFontSize = compact ? 48 : 60;
+    const bounds = { min, max, decimals };
+    const initialValue = normalizeNumericValue(value, bounds);
+    const currentValue = useRef(initialValue);
+    const [text, setText] = useState(formatNumericInput(initialValue, decimals));
+    const textRef = useRef(text);
+    const [editing, setEditing] = useState(false);
+    const [invalid, setInvalid] = useState(false);
+
+    useEffect(() => {
+      if (editing) return;
+      const next = normalizeNumericValue(value, { min, max, decimals });
+      currentValue.current = next;
+      const formatted = formatNumericInput(next, decimals);
+      textRef.current = formatted;
+      setText(formatted);
+    }, [value, min, max, decimals, editing]);
+
+    const commit = useCallback(
+      (next: number) => {
+        const changed = next !== currentValue.current;
+        currentValue.current = next;
+        const formatted = formatNumericInput(next, decimals);
+        textRef.current = formatted;
+        setText(formatted);
+        if (changed) onChange(next);
+        return changed;
+      },
+      [decimals, onChange],
+    );
+
+    const commitText = useCallback(
+      (showInvalid: boolean) => {
+        const parsed = parseNumericInput(textRef.current, {
+          min,
+          max,
+          decimals,
+        });
+        if (parsed === null) {
+          if (showInvalid) {
+            setInvalid(true);
+          } else {
+            const formatted = formatNumericInput(currentValue.current, decimals);
+            textRef.current = formatted;
+            setText(formatted);
+            setInvalid(false);
+          }
+          return false;
+        }
+        setInvalid(false);
+        commit(parsed);
+        return true;
+      },
+      [commit, decimals, max, min],
+    );
+
+    useImperativeHandle(
+      ref,
+      () => ({ commit: () => commitText(true) }),
+      [commitText],
+    );
+
+    const bump = (delta: number) => {
+      const draft = parseNumericInput(textRef.current, bounds);
+      const next = stepNumericValue(
+        draft ?? currentValue.current,
+        delta,
+        bounds,
+      );
+      if (!commit(next)) return;
+      setInvalid(false);
+      void runHapticSafely(() => Haptics.selectionAsync());
+    };
+
+    const draftValue = parseNumericInput(text, bounds) ?? currentValue.current;
+    const decreaseDisabled = draftValue <= min;
+    const increaseDisabled = draftValue >= max;
+
+    return (
+      <Card
+        variant="raised"
+        padding="xl"
+        style={{ alignSelf: 'center', maxWidth: 520, width: '100%' }}
+      >
+        <Text
+          numberOfLines={2}
+          maxFontSizeMultiplier={1.5}
+          style={{
+            fontSize: fontSize.sm,
+            fontWeight: '700',
+            color: colors.text.muted,
+            letterSpacing: 3,
+            textAlign: 'center',
+            marginBottom: spacing.md,
+          }}
+        >
+          {label}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <StepperButton
+            symbol="−"
+            label={`Reducir ${label.toLowerCase()}`}
+            onPress={() => bump(-step)}
+            disabled={decreaseDisabled}
+            size={buttonSize}
+          />
+          <TextInput
+            value={text}
+            onFocus={() => setEditing(true)}
+            onBlur={() => {
+              commitText(false);
+              setEditing(false);
+            }}
+            onChangeText={(next) => {
+              textRef.current = next;
+              setText(next);
+              setInvalid(false);
+              const parsed = parseNumericInput(next, bounds);
+              if (parsed !== null && parsed !== currentValue.current) {
+                currentValue.current = parsed;
+                onChange(parsed);
+              }
+            }}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+            blurOnSubmit
+            onSubmitEditing={Keyboard.dismiss}
+            inputAccessoryViewID={Platform.OS === 'ios' ? accessoryId : undefined}
+            accessibilityLabel={label}
+            accessibilityValue={{
+              min,
+              max,
+              now: currentValue.current,
+              text: `${text} ${label}`,
+            }}
+            accessibilityHint={invalid ? 'Introduce un número válido' : undefined}
+            maxFontSizeMultiplier={1.3}
+            style={{
+              flex: 1,
+              color: invalid ? colors.danger : colors.text.primary,
+              fontSize: inputFontSize,
+              fontWeight: '900',
+              textAlign: 'center',
+              fontVariant: ['tabular-nums'],
+              paddingVertical: 0,
+              paddingHorizontal: spacing.xs,
+            }}
+            selectTextOnFocus
+          />
+          <StepperButton
+            symbol="+"
+            label={`Aumentar ${label.toLowerCase()}`}
+            onPress={() => bump(step)}
+            disabled={increaseDisabled}
+            size={buttonSize}
+          />
+        </View>
+        {invalid ? (
+          <Text
+            variant="caption"
+            tone="danger"
+            accessibilityLiveRegion="polite"
+            style={{ marginTop: spacing.sm, textAlign: 'center' }}
+          >
+            Introduce un número válido
+          </Text>
+        ) : null}
+      </Card>
+    );
+  },
+);

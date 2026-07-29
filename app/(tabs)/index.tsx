@@ -1,5 +1,10 @@
-import { useCallback, useMemo, useState } from 'react';
-import { View, RefreshControl, ActivityIndicator, Share } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  AccessibilityInfo,
+  View,
+  ActivityIndicator,
+  Share,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +14,7 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
+import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FeedItem } from '@/components/feed/FeedItem';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
@@ -19,6 +25,7 @@ import {
 import { FeedEmptyState, FeedErrorState } from '@/components/feed/FeedEmptyState';
 import { CommentSheet } from '@/components/feed/CommentSheet';
 import { WorkoutLaunchCTA } from '@/components/feed/WorkoutLaunchCTA';
+import { StaticPullToRefresh } from '@/components/feed/StaticPullToRefresh';
 import { useToast } from '@/components/ui/Toast';
 import { useAppStore } from '@/store/app';
 import { useWorkoutsStore } from '@/store/workouts';
@@ -49,6 +56,9 @@ function ComposerAction({
 }) {
   return (
     <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
       onPress={onPress}
       disabled={disabled}
       hitSlop={6}
@@ -100,13 +110,16 @@ function Composer({
     >
       <Card variant={layout === 'stream' ? 'stream' : 'raised'} padding="lg">
       <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel="Crear publicación"
+        accessibilityHint="Abre el compositor para compartir una foto o actualización"
         onPress={onOpenManual}
         pressScale={0.98}
         haptic={false}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
-          gap: spacing.md,
+          gap: spacing.lg,
         }}
       >
         <Avatar uri={avatarUrl} name={displayName} size={40} />
@@ -167,6 +180,8 @@ export default function FeedHome() {
   useFeedRealtime();
 
   const [commentsPost, setCommentsPost] = useState<Post | null>(null);
+  const [manualRefreshing, setManualRefreshing] = useState(false);
+  const manualRefreshLock = useRef(false);
 
   const posts: Post[] = useMemo(() => {
     const seen = new Set<string>();
@@ -237,9 +252,34 @@ export default function FeedHome() {
 
   const { refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = feedQuery;
 
-  const onRefresh = useCallback(() => {
-    refetch();
-  }, [refetch]);
+  const onRefresh = useCallback(async () => {
+    if (manualRefreshLock.current) return;
+    manualRefreshLock.current = true;
+    setManualRefreshing(true);
+    AccessibilityInfo.announceForAccessibility('Actualizando feed');
+    try {
+      const result = await refetch();
+      if (result.error) throw result.error;
+      AccessibilityInfo.announceForAccessibility('Feed actualizado');
+    } catch (error) {
+      AccessibilityInfo.announceForAccessibility(
+        'No se pudo actualizar el feed',
+      );
+      toast.show({
+        message:
+          (error as Error)?.message ?? 'No se pudo actualizar el feed',
+        tone: 'danger',
+      });
+      throw error;
+    } finally {
+      manualRefreshLock.current = false;
+      setManualRefreshing(false);
+    }
+  }, [refetch, toast]);
+
+  const refreshFromButton = useCallback(() => {
+    void onRefresh().catch(() => undefined);
+  }, [onRefresh]);
 
   const onEndReached = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -370,7 +410,7 @@ export default function FeedHome() {
           paddingHorizontal: spacing.lg,
           paddingTop: spacing.sm,
           paddingBottom: spacing.md,
-          gap: spacing.md,
+          gap: spacing.lg,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
           backgroundColor: colors.bg.base,
@@ -382,6 +422,17 @@ export default function FeedHome() {
             {profile?.displayName ?? 'Atleta'}
           </Text>
         </View>
+        <IconButton
+          name="robot"
+          accessibilityLabel="Actualizar feed"
+          accessibilityHint="Actualiza las publicaciones sin mover la lista"
+          onPress={refreshFromButton}
+          variant="surface"
+          size="md"
+          disabled={manualRefreshing}
+          iconColor={colors.primary.DEFAULT}
+          haptic={false}
+        />
         {/* Bell icon with unread badge */}
         <PressableScale onPress={goNotifications} hitSlop={8} pressScale={0.9} haptic={false}>
           <View
@@ -465,68 +516,69 @@ export default function FeedHome() {
           <SocialStreamColumn style={{ paddingHorizontal: spacing.lg }}>
             <FeedErrorState
               message={feedQuery.error?.message}
-              onRetry={onRefresh}
+              onRetry={refreshFromButton}
             />
           </SocialStreamColumn>
         </View>
       ) : (
-        <FlashList<Post>
-          data={posts}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <FeedItem
-              post={item}
-              layout="stream"
-              isMine={item.userId === profile?.id}
-              onToggleReaction={handleToggleReaction}
-              onDelete={handleDelete}
-              onOpenComments={handleOpenComments}
-              onShare={handleShare}
-              onOpenProfile={handleOpenProfile}
+        <StaticPullToRefresh
+          refreshing={manualRefreshing}
+          onRefresh={onRefresh}
+        >
+          {(pullProps) => (
+            <FlashList<Post>
+              data={posts}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <FeedItem
+                  post={item}
+                  layout="stream"
+                  isMine={item.userId === profile?.id}
+                  onToggleReaction={handleToggleReaction}
+                  onDelete={handleDelete}
+                  onOpenComments={handleOpenComments}
+                  onShare={handleShare}
+                  onOpenProfile={handleOpenProfile}
+                />
+              )}
+              contentContainerStyle={{
+                paddingTop: spacing.lg,
+                paddingBottom: insets.bottom + 200,
+              }}
+              ListHeaderComponent={
+                <Composer
+                  displayName={profile?.displayName ?? 'Atleta'}
+                  avatarUrl={profile?.avatarUrl}
+                  onOpenManual={goManualPublish}
+                  onShareWorkout={goShareWorkout}
+                  onShareWorkoutDisabled={!recentWorkout}
+                  onSharePR={goSharePR}
+                  layout="stream"
+                />
+              }
+              ListEmptyComponent={
+                isEmpty ? (
+                  <SocialStreamColumn style={{ paddingHorizontal: spacing.lg }}>
+                    <FeedEmptyState onDiscover={goDiscover} />
+                  </SocialStreamColumn>
+                ) : null
+              }
+              ListFooterComponent={
+                isFetchingNextPage ? (
+                  <SocialStreamColumn>
+                    <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+                      <ActivityIndicator color={colors.primary.DEFAULT} />
+                    </View>
+                  </SocialStreamColumn>
+                ) : null
+              }
+              {...pullProps}
+              onEndReached={onEndReached}
+              onEndReachedThreshold={0.5}
+              showsVerticalScrollIndicator={false}
             />
           )}
-          contentContainerStyle={{
-            paddingTop: spacing.lg,
-            paddingBottom: insets.bottom + 200,
-          }}
-          ListHeaderComponent={
-            <Composer
-              displayName={profile?.displayName ?? 'Atleta'}
-              avatarUrl={profile?.avatarUrl}
-              onOpenManual={goManualPublish}
-              onShareWorkout={goShareWorkout}
-              onShareWorkoutDisabled={!recentWorkout}
-              onSharePR={goSharePR}
-              layout="stream"
-            />
-          }
-          ListEmptyComponent={
-            isEmpty ? (
-              <SocialStreamColumn style={{ paddingHorizontal: spacing.lg }}>
-                <FeedEmptyState onDiscover={goDiscover} />
-              </SocialStreamColumn>
-            ) : null
-          }
-          ListFooterComponent={
-            isFetchingNextPage ? (
-              <SocialStreamColumn>
-                <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
-                  <ActivityIndicator color={colors.primary.DEFAULT} />
-                </View>
-              </SocialStreamColumn>
-            ) : null
-          }
-          refreshControl={
-            <RefreshControl
-              refreshing={feedQuery.isRefetching && !isFetchingNextPage}
-              onRefresh={onRefresh}
-              tintColor={colors.primary.DEFAULT}
-            />
-          }
-          onEndReached={onEndReached}
-          onEndReachedThreshold={0.5}
-          showsVerticalScrollIndicator={false}
-        />
+        </StaticPullToRefresh>
       )}
 
       <WorkoutLaunchCTA

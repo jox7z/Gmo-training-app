@@ -1,99 +1,47 @@
 # Workflow multi-agente
 
-Cómo orquestar a los 3 agentes + el revisor en cada sprint.
+Todos los prompts empiezan con `CAVEMAN` y leen
+`.claude/skills/caveman.md`. Ownership explícito, acción primero, reporte corto.
 
-## Modo permanente
+## Clasificar antes de delegar
 
-Todos los prompts empiezan con `CAVEMAN`. Todos los agentes leen
-`.claude/skills/caveman.md`. Acción primero, scope/ownership explícito, reporte
-corto. Una fuente compartida antes que copias. Una dependencia solo entra con
-beneficio medible.
+- **Visual puro:** explorer → director visual → UI RN → motion si aporta →
+  QA visual → auditor de rendimiento si existe evidencia → build → reviewer.
+- **Cross-layer:** explorer → Supabase fullstack define/implementa contrato seguro →
+  UI RN → QA/build/reviewer.
+- **Verificación:** `build-verify`.
+- **Revisión de bugs:** `code-quality-reviewer`.
 
-## Orden duro por feature
+`supabase-fullstack-engineer` posee `src/lib/**`, `src/store/**`, Supabase y el
+gating auth/perfil de `app/_layout.tsx`. `react-native-ui-engineer` posee
+presentación dentro de una allowlist; no inventa contratos de datos.
 
-```
-Supabase  →  Backend  →  Frontend  →  Revisor caveman
-```
+## Checkpoints
 
-- BD primero porque es la fuente de verdad
-- Backend depende del schema
-- Frontend depende de los hooks
-- Revisor al final para evitar deuda acumulada
-
-**Nunca en paralelo dentro del mismo feature.** Sí en paralelo entre
-features distintos si tocan zonas distintas del repo.
-
-## Checkpoints obligatorios entre prompts
-
-Después de cada agente, antes de pasar al siguiente, verifica:
-
-| Después de | Checkpoint |
+| Después de | Evidencia |
 |---|---|
-| **Supabase** | En SQL Editor: las RPCs nuevas devuelven lo esperado con `select * from rpc_name(...)` o `select rpc_name(...)`. Las tablas nuevas existen en Table Editor |
-| **Backend** | `npm run typecheck` limpio. Importa un hook nuevo en cualquier archivo de prueba — no debe romper |
-| **Frontend** | La feature funciona end-to-end en la app real (no solo typecheck). Cada estado de UI tiene su captura |
-| **Revisor** | Aplicas SI o SI los items de "🩸 Sangrado crítico". Los "⚠️ Cosas raras" son opcionales |
+| Director visual | concepto, estados, allowlist, forbidden paths, aceptación |
+| Supabase fullstack | contrato tipado, seguridad, retry/cache, estado live |
+| UI RN | estados renderizados, hooks consumidos, typecheck/lint focal |
+| Motion | Reduce Motion y evidencia de frame/render proporcional |
+| QA visual | matriz dispositivo/estado; lo no observado queda sin verificar |
+| Build | tests, typecheck, lint y build solicitado |
+| Reviewer | findings High → Low o `CLEAN` |
 
-## Plantilla para invocar a cada agente
+## Coordinación
 
-Pega esto al inicio del mensaje al agente:
+- Nunca dos agentes editan el mismo archivo a la vez.
+- Visuales escalan auth, repos, queries, stores, persistencia, media o Supabase con
+  el payload canónico de boundary.
+- El reviewer no ejecuta ni corrige. El owner aplica sus hallazgos.
+- No declarar smoke físico, SQL live, FPS ni screenshots sin evidencia observada.
 
-```
-CAVEMAN. Vas a aplicar el Prompt [ID, ej: SIMPL-1A] de docs/skills/prompts.md.
+## Definición de terminado
 
-Antes de tocar nada, lee:
-1. docs/skills/agents/[tu-rol].md  (tu identidad y reglas)
-2. docs/memory/architecture.md     (capas y reglas duras)
-3. docs/skills/prompts.md          (el bloque del prompt asignado)
-
-Aplica EXACTAMENTE el prompt. No añadas features extra. Respeta tu scope.
-
-Al terminar:
-1. npm test + npm run typecheck deben estar limpios
-2. Lista los archivos creados/modificados
-3. Si encontraste algo que no estaba en el prompt y lo cambiaste, dilo
-4. Si encontraste un bug fuera de tu scope, NO lo arregles — solo repórtalo
-```
-
-Esta plantilla evita que el agente "mejore" cosas que no debería tocar
-— el problema más común con prompts grandes.
-
-## Reglas de coordinación
-
-- **Nunca dos agentes tocando el mismo archivo a la vez.** Si dos
-  prompts afectan `app/_layout.tsx`, deben ir en sprints distintos
-- **Cada sprint cierra con el revisor** antes de empezar el siguiente
-- **El revisor NO escribe código** — sus hallazgos los aplica el agente
-  correspondiente como mini-prompt
-- **Si un agente reporta bloqueo** ("falta una RPC que no existe"),
-  para el sprint y vuelve al agente upstream — no improvises
-
-## Cuándo lanzar revisor caveman
-
-- **Siempre** al final de un sprint (feature completo)
-- **Opcional** después de cambios grandes en un solo agente (más de
-  500 líneas tocadas)
-- **No lo lances** por cada commit pequeño — su valor está en mirar
-  bloques coherentes
-
-## Actualizar memoria al terminar sprint
-
-La documentación es parte de la definición de terminado, no una tarea opcional.
-
-1. Marca el progreso en `docs/memory/checklist.md` con fecha, estado,
-   archivos clave, verificación, riesgo restante y siguiente paso.
-2. Actualiza `docs/roadmap.md` y/o `docs/roadmap-ui.md` cuando cambie una
-   prioridad, dependencia, benchmark o estado de fase.
-3. Si cambiaste una decisión de producto o arquitectura, actualiza
-   `docs/memory/overview.md` o `docs/memory/architecture.md`.
-4. **Borra los prompts aplicados de `docs/skills/prompts.md`** y deja solo
-   el siguiente bloque ejecutable. El checklist conserva la traza histórica.
-5. Actualiza `AGENTS.md` y la skill operativa afectada cuando el cambio
-   introduzca una regla que los próximos agentes deban respetar.
-6. Ejecuta `npm test` + `npm run typecheck` + `npm run lint`. No uses “completado” si
-   los checks fallan; registra el bloqueo exacto.
-7. Antes de cerrar, busca claims obsoletos en todos los `.md` relacionados
-   (features retiradas, migraciones, versiones, siguientes sprints).
-8. Si entra una fuente externa, fija commit/release, audita licencia por tipo de
-   contenido y registra atribución. Metadata y media pueden tener licencias
-   distintas; una licencia del repo no autoriza automáticamente sus imágenes.
+1. Actualizar `docs/memory/checklist.md` con fecha, estado, verificación, riesgo y
+   siguiente paso.
+2. Sincronizar roadmaps, overview/arquitectura, `AGENTS.md`, `CLAUDE.md` y skills
+   cuando cambien reglas.
+3. Ejecutar `npm test -- --runInBand`, `npm run typecheck`, `npm run lint` y
+   `git diff --check`.
+4. Registrar warning, dispositivo, SQL o deployment no verificado; no esconderlo.

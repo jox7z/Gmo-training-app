@@ -26,6 +26,6 @@ npm run typecheck
 
 ## Cuándo correr
 
-- Después de cada cambio del agente Backend
+- Después de cada cambio TypeScript del owner correspondiente
 - Antes de cerrar cualquier sprint
 - Antes de invocar al revisor caveman

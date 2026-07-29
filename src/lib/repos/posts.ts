@@ -1,5 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { RankId } from '@/theme/tokens';
+import { resolveUserRank } from '@/lib/rankMilestone';
+import type { WorkoutVisibility } from '@/lib/workoutVisibility';
 
 export type PostType =
   | 'workout'
@@ -113,7 +115,7 @@ function toPost(row: DbFeedRow): Post {
       displayName: row.display_name,
       username: row.username,
       avatarUrl: row.avatar_url ?? undefined,
-      currentRank: row.current_rank as RankId,
+      currentRank: resolveUserRank(row.current_rank),
     },
     type: row.type,
     refId: row.ref_id ?? undefined,
@@ -151,7 +153,7 @@ function toComment(row: DbCommentRow): Comment {
     user: {
       displayName: row.display_name,
       username: row.username,
-      currentRank: row.current_rank as RankId,
+      currentRank: resolveUserRank(row.current_rank),
     },
     body: row.body,
     createdAt: row.created_at,
@@ -205,16 +207,41 @@ export async function publishWorkout(
   title: string,
   caption?: string,
   photoUrl?: string,
+  visibility?: WorkoutVisibility,
 ): Promise<string> {
-  const { data, error } = await supabase.rpc('publish_workout', {
+  const args = {
     workout_id: workoutId,
     p_title: title,
     caption: caption ?? null,
     photo_url: photoUrl ?? null,
-  });
+    p_visibility: visibility ?? null,
+  };
+  const { data, error } = await supabase.rpc(
+    'publish_workout_with_visibility',
+    args,
+  );
 
-  if (error) throw error;
-  return data as string;
+  if (!error) return data as string;
+
+  const missingPrivacyRpc = error.code === 'PGRST202' || error.code === '42883';
+  if (!missingPrivacyRpc) throw error;
+  if (visibility !== 'public') {
+    throw new Error(
+      'La privacidad social todavía no está activa en el servidor. Usa Público o inténtalo más tarde.',
+    );
+  }
+
+  const { data: legacyData, error: legacyError } = await supabase.rpc(
+    'publish_workout',
+    {
+      workout_id: workoutId,
+      p_title: title,
+      caption: caption ?? null,
+      photo_url: photoUrl ?? null,
+    },
+  );
+  if (legacyError) throw legacyError;
+  return legacyData as string;
 }
 
 export interface PublishPRParams {

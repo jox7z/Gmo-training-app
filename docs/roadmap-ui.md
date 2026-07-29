@@ -1,6 +1,6 @@
 # Roadmap UI — Gmo Training App (Pista C)
 
-> **Fecha base:** 2026-07-07 · **Revisión incremental:** 2026-07-22 · **Base:** v0.1.0, rama `feat/initial-app-foundation` · Complementa [roadmap.md](roadmap.md) (Pista C = UI/UX)
+> **Fecha base:** 2026-07-07 · **Revisión incremental:** 2026-07-29 · **Base:** v0.1.0, rama `feat/initial-app-foundation` · Complementa [roadmap.md](roadmap.md) (Pista C = UI/UX)
 >
 > **Leyenda de prioridad:** P0 (crítico) · P1 (importante) · P2 (deseable)
 > **Leyenda de esfuerzo:** S (<1/2 día) · M (1–3 días) · L (1+ semana)
@@ -14,16 +14,17 @@
 
 **Top 5 gaps** (benchmark vs Strong, Hevy, Fitbod y Strava):
 
-1. 🔴 **Notificaciones y lifecycle nativo pendientes** — el descanso ya se basa en timestamp y sobrevive background/reinicio, pero todavía no avisa en lock screen. Push/local notifications requieren development build y permiso contextual. → **B1/C3**
+1. 🔴 **Smoke pre-release pendiente** — los flujos críticos y layouts necesitan validación física en Expo Go: 360/390/430/768 px, lifecycle, publicación, privacidad y paginación. → **B1**
 2. 🟡 **Shareables visuales incompletos** — la tarjeta social factual y el share
    externo de texto ya usan duración/series/reps/trabajo/músculos/ejercicios;
    faltan plantillas de imagen para PR/racha/mes y mapa muscular. → **C2-10**
-3. 🟡 **Logging competitivo con profundidad pendiente** — anterior/autofill, PR en vivo, validación y plate calculator ya están; faltan RPE opt-in, supersets y warm-up automático. → **B2**
+3. 🟡 **Logging competitivo con profundidad pendiente** — anterior/autofill, PR en vivo, validación, plate calculator y supersets ya están; faltan RPE opt-in y warm-up automático. → **B2**
 4. 🟡 **Biblioteca sin media animada licenciable** — el hub Información/Historial/Récords ya es accesible en pleno entreno. El catálogo conserva 220 IDs e imágenes offline; exercises-dataset aporta 46 instrucciones, pero sus GIF/thumbnail pertenecen a Gym visual y no se pueden reutilizar sin licencia. → **B2**
 5. 🟡 **Sistema visual todavía inconsistente** — C0/C1 ya añadió tipografía,
    primitivas, robot GMO, mascota compartida y crests; C2 convirtió las superficies
    sociales en stream edge-to-edge. Siguen pendientes la fachada única de iconos,
-   skeleton unificado, bottom sheets y limpieza de hex.
+   bottom sheets y limpieza de hex; el skeleton compartido ya está aplicado. Perfil propio ya usa
+   dashboard virtualizado con tabs sticky y `FeedItem` compartido.
 
 **Top 3 fortalezas a conservar** (ninguna migración puede degradarlas — ver §4):
 
@@ -32,13 +33,34 @@
 3. **Stack social completo** (feed, reacciones, comentarios, realtime, perfiles) — equivalente al de Hevy, por delante de Strong/Fitbod.
 
 **Lectura de fases:** C0 y los assets críticos de C1 quedaron mayormente resueltos
-el 2026-07-19; C2 continúa incremental en Expo Go. C3 (Tier 2, Skia) sigue
+el 2026-07-19; C2 continúa incremental en Expo Go. C4 (Tier 2, Skia) sigue
 gated por el mismo salto a development build que push notifications (B1).
 
 **Delta de producto 2026-07-22:** Strava y Hevy validan que convertir el log en
 contenido compartible sí distribuye la app. GMO adopta esa parte. No adopta Focus
 Exercises ni ciclos prescritos de Fitbod: el alcance actual es registro, historial,
 progreso factual y red social, sin guía automática.
+
+**Delta 2026-07-26:** prioridad pre-release. Rutinas dejan de mostrar score `/100`,
+mapa óptimo/bajo/exceso y consejos automáticos. Perfil propio funciona como dashboard
+personal. Se mantiene Expo Go; C4 nativo y notificaciones quedan aplazados.
+
+**Delta Sprint C3 2026-07-28:** `GMO Rating` radial reemplaza el score verboso;
+Progreso usa calendario mensual 6×7 y mapa de hitos con evidencia real en cuatro
+levantamientos, no volumen ni 1RM estimado. Feed celebra rangos con crests y se
+actualiza sin mover la lista. Perfil propio es compacto y el editor numérico usa
+IDs estables. Gates automáticos pasan; smoke físico sigue pendiente.
+
+**Recuperación 2026-07-29:** C3 fue reconstruido desde 285 ediciones exactas,
+volvió a 20 suites/121 tests y mantiene typecheck/lint limpios.
+
+**Delta agentes visuales 2026-07-26:** dirección `gym editorial industrial` para
+adultos jóvenes gym-first. MotionSites aporta composición/coreografía, nunca
+cursores/WebGL/scroll web; Hevy aporta logging+progreso+social; Nike aporta lenguaje
+editorial deportivo. Gymshark se usa solo como referencia cultural/brand porque su
+Training App dejó de recibir actualizaciones. Cinco agentes separan dirección,
+implementación RN, motion, QA visual y auditoría de rendimiento; las reglas
+reutilizables viven en skills y los cambios cross-layer escalan a Supabase.
 
 ---
 
@@ -62,7 +84,7 @@ progreso factual y red social, sin guía automática.
 | Hevy | Tap en checkmark = set completado + rest timer (una interacción, doble efecto). Columna "anterior" con autofill. **Plate calculator dentro del teclado de peso.** Complejidad opt-in (RPE 6–10, superset scrolling). Live Activities en lock screen. |
 | Fitbod | Sets precargados por el algoritmo (loggear = confirmar). Rest timer notifica **fuera de la app** (tono/vibración/lock screen). Exertion rating post-ejercicio. Desde 2026, Focus Exercises fija lifts prioritarios en ciclos progresivos de 4 semanas. Riesgo documentado: overlay del timer tapa los inputs. |
 | Strava | Log de fuerza renovado (2026-05): importa detalle desde 14 partners o permite añadirlo manualmente; se pueden editar ejercicios, series, reps, peso y tiempo. Recalcula sets/volumen y muscle map. Sigue sin ser captura en vivo especializada: no documenta rest timer, supersets ni RPE por serie. |
-| **Gmo hoy** | Tracking set-by-set con RestRing, SetProgressPills, timestamp de descanso persistido, serie anterior/autofill protegido, PR en vivo, validación y plate calculator métrica/imperial. **Falta:** notificación fuera de la app, supersets, warm-up automático y RPE opt-in. |
+| **Gmo hoy** | Tracking set-by-set con RestRing, SetProgressPills, timestamp de descanso persistido, serie anterior/autofill protegido, PR en vivo, validación, plate calculator métrica/imperial y supersets. **Falta:** notificación fuera de la app, warm-up automático y RPE opt-in. |
 
 **Adoptamos:** notificación local del rest timer (ya es B1 — la evidencia de Fitbod confirma que es el estándar); columna "anterior" + autofill por set (patrón Strong/Hevy, S–M, sin librerías); plate calculator embebido en el input de peso (patrón Hevy, el mejor de los cuatro); RPE opt-in. **No adoptamos:** la densidad tipo planilla de Strong — nuestro logging "hero interactivo" es diferenciador; tampoco el overlay de timer que tape inputs (anti-patrón documentado de Fitbod).
 
@@ -76,7 +98,7 @@ progreso factual y red social, sin guía automática.
 | Strava | Feed social como home; 5 tabs con **botón Record central** como CTA permanente; tab You consolida todo lo personal con tarjetas expandibles. |
 | **Gmo hoy** | Home = feed social (patrón Hevy/Strava ✓) con 4 tabs swipeables y CTA persistente que inicia el próximo día o reanuda una sesión activa mostrando progreso. **Falta:** widgets de OS y calendario real para sugerir el día. |
 
-**Adoptado 2026-07-19:** CTA de inicio/continuación siempre visible sobre el Feed, sin alterar la tab bar ni el recycler. **Aplazamos:** widgets de OS (requieren dev build y módulos nativos → tras C3/B1, P2).
+**Adoptado 2026-07-19:** CTA de inicio/continuación siempre visible sobre el Feed, sin alterar la tab bar ni el recycler. **Aplazamos:** widgets de OS (requieren dev build y módulos nativos → tras C4/B1, P2).
 
 ### D3 — Progreso y gráficas · Gap 🔴 Alta
 
@@ -86,14 +108,14 @@ progreso factual y red social, sin guía automática.
 | Hevy | Body graph muscular de 7 días como cabecera; sets por grupo muscular con rangos 30d/3m/año; selector de carga, fuerza estimada, trabajo y reps; Strength Level comparado por edad/peso/sexo. |
 | Fitbod | 7 métricas graficables por ejercicio; Strength Score 0–100 por músculo; **muscle recovery heatmap** (frescura % por músculo); Focus Exercises usa estimaciones, PRs y promedios dentro de un ciclo de 4 semanas. |
 | Strava | Progress Summary Chart **interactiva con drill-down** (tap en semana → lista de actividades) y comparativas de rangos (1w–52w); Training Log visual; heatmaps. |
-| **Gmo hoy** | Una tendencia por ejercicio con carga, repeticiones o tiempo registrado; picker buscable con miniaturas locales, recientes/más entrenados/músculo/equipo; selector de rango, ejes mínimos y tooltip táctil accesible. Cada punto abre la sesión exacta en un ledger factual. El peso corporal vive separado. No diagnostica ni estima fuerza. |
+| **Gmo hoy** | Tendencia por ejercicio con carga, repeticiones o tiempo registrado; picker buscable con miniaturas locales; calendario mensual 6×7 con ledger por día; mapa de hitos de banca/sentadilla/peso muerto/press militar con carga, reps, fecha y sesión. El peso corporal vive separado. No diagnostica, estima 1RM ni compara población. |
 
 **Adoptamos:** gráfica con ejes/tooltips/selector de rango; Records basados en
 series completadas; selector visual/buscable del historial real; selector de
 carga/reps/tiempo y lenguaje llano. Trabajo queda solo como dato de ledger/social.
 **No adoptamos:** fuerza estimada, fórmulas opacas, diagnósticos automáticos por
-una sola sesión ni Strength Level social por demografía. El mapa muscular queda
-en Rutinas y futuros shareables, no duplicado dentro de Progreso.
+una sola sesión ni Strength Level social por demografía. El mapa de hitos es una
+lectura del propio historial y sus cuatro tracks existentes, nunca “élite”.
 
 ### D4 — Biblioteca de ejercicios · Gap 🟡 Media-Alta
 
@@ -151,7 +173,7 @@ adoptamos:** kudos separado ni consejos automáticos.
 | Empty states | Icono en círculo + texto + botón; sin ilustración. |
 | Offline | Stores locales persistidos (logging funciona offline ✓, patrón validado por las 4). |
 
-**Adoptamos:** skeleton unificado (C2-1, primera librería por ratio esfuerzo/impacto); ilustraciones unDraw/Lottie en empty states (C1/C2); **una acción primaria clara en cada pantalla vacía** (patrón Strong — auditar nuestros empty states para que todos tengan CTA); degradación offline explícita en features sociales (patrón Strava — mensaje claro en vez de spinner infinito, S). **No adoptamos:** sign-up wall antes de valor (anti-patrón criticado en Hevy; nuestro onboarding ya muestra valor antes).
+**Adoptado:** skeleton compartido propio sin dependencia nueva (C2-1) y **una acción primaria clara en cada pantalla vacía**. **Pendiente:** degradación offline explícita en superficies sociales. **No adoptamos:** sign-up wall antes de valor ni librerías de skeleton/empty state redundantes.
 
 ### D8 — Lenguaje visual · Gap 🟡 Media
 
@@ -163,15 +185,20 @@ adoptamos:** kudos separado ni consejos automáticos.
 | Strava | Sistema ejemplar: dark mode global 2024 (3 opciones), tipografía dual (Boathouse marca / Inter datos), Strava Orange + acentos, **sistema propio de 1.440 iconos**. |
 | **Gmo hoy** | Paleta dark roja, botones 3D chunky y tab bar con blur/scale/haptics. C0 añadió tipografía con line-height/letter-spacing, metales/gradientes y `Chip`/`IconButton`/`SegmentedControl`. **Falta:** migrar usos duplicados, unificar 3 sistemas de iconos y eliminar 88 hex fuera de tokens. |
 
-**Adoptamos:** sistema de iconos unificado vía lucide (C2-3, la lección del sistema Strava a coste cero); tokens de line-height/letter-spacing y limpieza de hex (C0); mapa muscular como gráfico identitario nuestro (ya tenemos la librería — reforzarlo en stats/shareables, patrón Hevy). **No adoptamos:** tema claro (dark-only es decisión de identidad; Strava tardó una década — reevaluar solo si el mercado lo exige) ni tipografía custom de marca (coste/beneficio prematuro).
+**Adoptamos:** fachada interna de iconos, tokens de line-height/letter-spacing y
+limpieza gradual de hex. El mapa de volumen queda como referencia factual de series
+equivalentes en planificación y puede reutilizarse en shareables; Progreso usa
+hitos de fuerza propios. Ninguno se convierte en recuperación o diagnóstico.
+**No adoptamos:** tema claro
+ni tipografía custom.
 
 ---
 
 ## 4. Fortalezas propias a conservar (lista de no-regresión)
 
-Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
+Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 
-1. **AchievementUnlockModal** — confeti coreografiado, anillo expansivo, rebote, brillo. Si C3 introduce fast-confetti, debe **reemplazar partículas manteniendo la coreografía** (secuencia, timing, haptics).
+1. **AchievementUnlockModal** — confeti coreografiado, anillo expansivo, rebote, brillo. Si C4 introduce fast-confetti, debe **reemplazar partículas manteniendo la coreografía** (secuencia, timing, haptics).
 2. **Summary del workout** (mascota + registro factual) y **RestRing** con ventana de recuperación verde. No reintroducir tarjetas comparativas ni deltas automáticos.
 3. **SetProgressPills** y micro-interacciones con haptics extendidos (`PressableScale`).
 4. **Botones 3D chunky** (`Button` con edge/pressTravel) — identidad propia; no sustituir por botones planos de ninguna librería.
@@ -215,7 +242,7 @@ Vinculante para C2/C3: ninguna adopción de librería puede degradar esto.
 | 6 | `react-native-reanimated-carousel` — onboarding visual | P2 | S–M | — | D6 |
 | 7 | ThumbHash en `expo-image` + `recyclingKey` en FlashList (feed) | P2 | S | — | D7 |
 | 8 | ✅ Plate calculator embebido para barra, kg/lb y discos configurables (2026-07-19; Modal nativo) | P1 | M | — | D1 |
-| 9 | ✅ Mapa muscular fraccional en Rutinas; retirado de Progreso para evitar duplicación (2026-07-19) | P1 | M | — | D3 |
+| 9 | ✅ Score prescriptivo retirado y reemplazado por score transparente; mapa factual compartido + selector muscular en grid (2026-07-27) | P0 | M | — | D3 |
 | 10 | 🟡 Tarjeta workout + texto externo listos y endurecidos (2026-07-22); faltan imágenes PR/racha/mes + mapa muscular y privacidad real | P0 | M | C1 emblemas | D5 |
 | 11 | ✅ Hub Información/Historial/Récords accesible desde workout y Progreso (2026-07-19) | P1 | M | — | D4 |
 | 12 | ✅ Stream social edge-to-edge: móvil full width, tablet 600 px, fotos 4:5 y galería pública 3 columnas (2026-07-22) | P0 | M | — | D2/D5/D7 |
@@ -259,6 +286,10 @@ Etiquetas: tipo de fuente según jerarquía de §2 · App(s) que respalda · Dim
 
 | Fuente | Tipo | Fecha | App(s) | Dimensiones |
 |---|---|---|---|---|
+| [MotionSites Templates](https://motionsites.ai/templates) | galería_oficial | 2026 | Dirección web/motion | D8 |
+| [Nike Training Club](https://www.nike.com/help/a/ntc-info) | blog_oficial | 2026 | Nike | D6 D8 |
+| [Gymshark Training App](https://support.gymshark.com/en/articles/11185911-the-gymshark-training-app) | blog_oficial | 2026-03-17 | Gymshark, referencia brand; producto retirado | D6 D8 |
+| [Hevy UI Breakdown](https://screensdesign.com/showcase/hevy-workout-tracker-gym-log) | galería | 2026 (consulta) | Hevy | D1 D2 D6 D7 D8 |
 | [Tailored Campaigns — Meta for Business](https://www.facebook.com/business/ads/automation/tailored-campaigns) | blog_oficial | 2026 (consulta) | Instagram/Meta | D2 D5 D7 |
 | [About Fitbod Exercises – Fitbod](https://fitbod.me/about-fitbod-exercises/) | blog_oficial | s/f | Fitbod | D8 |
 | [New And Improved Exercise History & Records – Fitbod Blog](https://fitbod.me/blog/exercise-history-and-records/) | blog_oficial | 2023-04-16 | Fitbod | D2 D3 D4 D5 |

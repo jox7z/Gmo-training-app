@@ -3,16 +3,19 @@ import { Animated, View, Pressable, Image, Modal, ScrollView } from 'react-nativ
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Card } from '@/components/ui/Card';
+import { useReduceMotion } from '@/components/ui/useReduceMotion';
 import { Text } from '@/components/ui/Text';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
 import { BicepIcon } from '@/components/BicepIcon';
+import { RankEmblem } from '@/components/RankEmblem';
 import { WorkoutShareCard } from '@/components/social/WorkoutShareCard';
 import type { SocialLayout } from '@/components/social/SocialStreamColumn';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import type { Post, ReactionKind } from '@/lib/repos/posts';
+import { resolveRankMilestone } from '@/lib/rankMilestone';
 import {
   parseWorkoutPostMetadata,
   type WorkoutPostPrMetadata,
@@ -64,6 +67,7 @@ function ActionButton({
   color,
   filled,
   weight = 'semibold',
+  accessibilityLabel,
 }: {
   icon?: IconName;
   emoji?: string;
@@ -74,10 +78,13 @@ function ActionButton({
   color?: string;
   filled?: boolean;
   weight?: 'regular' | 'medium' | 'semibold' | 'bold';
+  accessibilityLabel?: string;
 }) {
   const tone = color ?? colors.text.muted;
   return (
     <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
       hitSlop={6}
       onPress={onPress}
       onLongPress={onLongPress}
@@ -164,6 +171,7 @@ const PR_AUTOPLAY_MS = 3000;
 
 function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
   const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
+  const reduceMotion = useReduceMotion();
   // Medimos el ancho real del carril con onLayout en vez de calcularlo desde el
   // ancho de pantalla: así el slide cabe exacto sin depender del padding de la
   // lista ni del borde dorado del PrGoldenWrapper (antes el slide quedaba ~3px
@@ -183,7 +191,7 @@ function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
   // Auto-deslizamiento: avanza al siguiente PR cada PR_AUTOPLAY_MS y vuelve
   // al primero al llegar al final.
   useEffect(() => {
-    if (prs.length < 2) return;
+    if (reduceMotion || prs.length < 2 || interval <= 0) return;
     const t = setInterval(() => {
       if (interactingRef.current) return;
       const next = (idxRef.current + 1) % prs.length;
@@ -192,7 +200,7 @@ function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
       scrollRef.current?.scrollTo({ x: next * interval, animated: true });
     }, PR_AUTOPLAY_MS);
     return () => clearInterval(t);
-  }, [prs.length, interval]);
+  }, [prs.length, interval, reduceMotion]);
 
   return (
     <View style={{ overflow: 'hidden' }} onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}>
@@ -255,15 +263,20 @@ function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
 // Dot que se estira/encoge con spring al activarse, en lugar de saltar.
 function PrDot({ active }: { active: boolean }) {
   const anim = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      anim.setValue(active ? 1 : 0);
+      return;
+    }
     Animated.spring(anim, {
       toValue: active ? 1 : 0,
       friction: 6,
       tension: 160,
       useNativeDriver: false, // anima width/color — no soportado por el driver nativo
     }).start();
-  }, [active, anim]);
+  }, [active, anim, reduceMotion]);
 
   return (
     <Animated.View
@@ -340,8 +353,13 @@ export function PrGoldenWrapper({
   layout?: SocialLayout;
 }) {
   const glow = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      glow.setValue(0);
+      return;
+    }
     const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(glow, { toValue: 1, duration: 1600, useNativeDriver: false }),
@@ -350,7 +368,7 @@ export function PrGoldenWrapper({
     );
     anim.start();
     return () => anim.stop();
-  }, [glow]);
+  }, [glow, reduceMotion]);
 
   const borderColor = glow.interpolate({
     inputRange: [0, 1],
@@ -436,30 +454,231 @@ function PrBody({ post, layout }: { post: Post; layout: SocialLayout }) {
   );
 }
 
-function RankUpBody({ post }: { post: Post }) {
-  const newRankId = (post.metadata?.toRank ?? post.metadata?.to_rank ?? post.user.currentRank) as RankId;
-  const info = rankInfo(newRankId);
+function RankUpBody({
+  post,
+  layout,
+}: {
+  post: Post;
+  layout: SocialLayout;
+}) {
+  const milestone = resolveRankMilestone(post.metadata);
+  if (!milestone) {
+    return <NeutralRankBody post={post} layout={layout} />;
+  }
+
+  const { fromRank, toRank } = milestone;
+  const isStream = layout === 'stream';
+
   return (
-    <View style={{ overflow: 'hidden', borderRadius: radius.lg }}>
+    <View
+      style={{
+        backgroundColor: colors.bg.base,
+        borderBottomColor: toRank.color,
+        borderBottomWidth: 1,
+        borderLeftColor: toRank.color,
+        borderLeftWidth: isStream ? 0 : 1,
+        borderRadius: isStream ? 0 : radius.lg,
+        borderRightColor: toRank.color,
+        borderRightWidth: isStream ? 0 : 1,
+        borderTopColor: toRank.color,
+        borderTopWidth: 1,
+        overflow: 'hidden',
+      }}
+    >
       <LinearGradient
-        colors={info.gradient as unknown as [string, string]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={{ padding: spacing.lg, borderRadius: radius.lg }}
+        colors={[colors.bg.cardEdge, colors.bg.base, colors.bg.cardEdge]}
+        start={{ x: 0, y: 0.2 }}
+        end={{ x: 1, y: 0.8 }}
+        style={{
+          alignItems: 'center',
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.xl,
+        }}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Icon name="lightning" size={20} color={colors.bg.base} />
-          <Text weight="black" style={{ color: colors.bg.base }}>
-            {info.label.toUpperCase()}
+        <LinearGradient
+          pointerEvents="none"
+          colors={toRank.gradient as unknown as [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            borderRadius: radius.full,
+            height: 180,
+            opacity: 0.09,
+            position: 'absolute',
+            top: 32,
+            width: 180,
+          }}
+        />
+
+        <View
+          style={{
+            alignItems: 'center',
+            flexDirection: 'row',
+            gap: spacing.sm,
+            width: '100%',
+          }}
+        >
+          <View
+            pointerEvents="none"
+            style={{
+              backgroundColor: toRank.color,
+              flex: 1,
+              height: 1,
+              opacity: 0.45,
+            }}
+          />
+          <Text variant="label" weight="bold" style={{ color: toRank.color }}>
+            NUEVO RANGO
           </Text>
+          <View
+            pointerEvents="none"
+            style={{
+              backgroundColor: toRank.color,
+              flex: 1,
+              height: 1,
+              opacity: 0.45,
+            }}
+          />
         </View>
-        <Text variant="title" style={{ color: colors.bg.base, marginTop: spacing.sm }}>
-          {post.title}
+
+        <View
+          style={{
+            alignItems: 'center',
+            height: 136,
+            justifyContent: 'center',
+            marginTop: spacing.sm,
+            width: '100%',
+          }}
+        >
+          <View
+            pointerEvents="none"
+            style={{
+              backgroundColor: toRank.color,
+              height: 1,
+              left: 0,
+              opacity: 0.2,
+              position: 'absolute',
+              right: 0,
+              top: 67,
+            }}
+          />
+          <View
+            pointerEvents="none"
+            style={{
+              borderColor: toRank.color,
+              borderRadius: radius.full,
+              borderWidth: 1,
+              height: 132,
+              opacity: 0.18,
+              position: 'absolute',
+              width: 132,
+            }}
+          />
+          <RankEmblem
+            rankId={toRank.id}
+            size={112}
+            accessibilityLabel={`Promoción de ${fromRank.label} a ${toRank.label}`}
+          />
+        </View>
+
+        <Text
+          variant="eyebrow"
+          weight="black"
+          style={{ color: toRank.color, textAlign: 'center' }}
+        >
+          {toRank.label}
         </Text>
-        <Text variant="caption" weight="bold" style={{ color: colors.bg.base, opacity: 0.75, marginTop: spacing.xs }}>
-          {post.subtitle ?? '¡Dale sus felicitaciones!'}
+        <Text
+          variant="heading"
+          weight="bold"
+          style={{ marginTop: spacing.sm, textAlign: 'center' }}
+        >
+          {post.title ?? `Nuevo rango ${toRank.label}`}
         </Text>
+        <Text
+          variant="caption"
+          tone="secondary"
+          style={{ marginTop: spacing.xs, textAlign: 'center' }}
+        >
+          {fromRank.label} → {toRank.label}
+        </Text>
+        {post.subtitle ? (
+          <Text
+            variant="caption"
+            tone="muted"
+            style={{ marginTop: spacing.sm, textAlign: 'center' }}
+          >
+            {post.subtitle}
+          </Text>
+        ) : null}
       </LinearGradient>
+    </View>
+  );
+}
+
+function NeutralRankBody({
+  post,
+  layout,
+}: {
+  post: Post;
+  layout: SocialLayout;
+}) {
+  const isStream = layout === 'stream';
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={`Actualización de rango. ${post.title ?? 'Cambio de rango'}`}
+      style={{
+        alignItems: 'center',
+        backgroundColor: colors.bg.elevated,
+        borderBottomColor: colors.border,
+        borderBottomWidth: 1,
+        borderLeftColor: colors.border,
+        borderLeftWidth: isStream ? 0 : 1,
+        borderRadius: isStream ? 0 : radius.lg,
+        borderRightColor: colors.border,
+        borderRightWidth: isStream ? 0 : 1,
+        borderTopColor: colors.border,
+        borderTopWidth: 1,
+        flexDirection: 'row',
+        gap: spacing.md,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.xl,
+      }}
+    >
+      <View
+        importantForAccessibility="no"
+        style={{
+          alignItems: 'center',
+          backgroundColor: colors.surfaceVeil,
+          borderColor: colors.borderStrong,
+          borderRadius: radius.sm,
+          borderWidth: 1,
+          height: 44,
+          justifyContent: 'center',
+          width: 44,
+        }}
+      >
+        <Icon name="medal" size={22} color={colors.text.muted} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text variant="label" tone="muted">
+          ACTUALIZACIÓN DE RANGO
+        </Text>
+        <Text variant="heading" style={{ marginTop: spacing.xs }}>
+          {post.title ?? 'Cambio de rango'}
+        </Text>
+        {post.subtitle ? (
+          <Text
+            variant="caption"
+            tone="muted"
+            style={{ marginTop: spacing.xs }}
+          >
+            {post.subtitle}
+          </Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -525,11 +744,7 @@ function Body({ post, layout }: { post: Post; layout: SocialLayout }) {
     case 'pr':
       return <PrBody post={post} layout={layout} />;
     case 'rank_up':
-      return (
-        <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
-          <RankUpBody post={post} />
-        </View>
-      );
+      return <RankUpBody post={post} layout={layout} />;
     case 'streak':
       return (
         <View style={layout === 'stream' ? { paddingHorizontal: spacing.lg } : undefined}>
@@ -558,6 +773,8 @@ function ReactionSummary({ post }: { post: Post }) {
   if (total === 0) return null;
   return (
     <View
+      accessible
+      accessibilityLabel={`${total} ${total === 1 ? 'reacción' : 'reacciones'}`}
       style={{
         flexDirection: 'row',
         alignItems: 'center',
@@ -583,6 +800,7 @@ export function FeedItem({
   onShare,
   onOpenProfile,
 }: Props) {
+  const reduceMotion = useReduceMotion();
   const info = useMemo(() => rankInfo(post.user.currentRank), [post.user.currentRank]);
   const relative = useMemo(() => formatRelative(post.createdAt), [post.createdAt]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -623,6 +841,8 @@ export function FeedItem({
         ]}
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Abrir perfil de ${post.user.displayName}`}
           onPress={() => onOpenProfile(post)}
           hitSlop={6}
           style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}
@@ -647,7 +867,12 @@ export function FeedItem({
         </Pressable>
 
         {isMine && (
-          <Pressable onPress={() => setMenuOpen(true)} hitSlop={10}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Más opciones de la publicación"
+            onPress={() => setMenuOpen(true)}
+            hitSlop={10}
+          >
             <View
               style={{
                 width: 44,
@@ -697,6 +922,11 @@ export function FeedItem({
         }}
       >
         <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            isActive ? 'Quitar reacción Bíceps' : 'Reaccionar con Bíceps'
+          }
+          accessibilityState={{ selected: isActive }}
           hitSlop={6}
           onPress={handleReactTap}
           style={({ pressed }) => [
@@ -723,11 +953,21 @@ export function FeedItem({
         <ActionButton
           icon="chat"
           label={post.commentCount > 0 ? `${post.commentCount}` : 'Comentar'}
+          accessibilityLabel={
+            post.commentCount > 0
+              ? `${post.commentCount} comentarios`
+              : 'Comentar'
+          }
           onPress={() => onOpenComments(post)}
         />
         <ActionButton
           icon="share"
           label={post.shareCount > 0 ? `${post.shareCount}` : 'Compartir'}
+          accessibilityLabel={
+            post.shareCount > 0
+              ? `${post.shareCount} veces compartida`
+              : 'Compartir'
+          }
           onPress={() => onShare(post)}
         />
       </View>
@@ -736,6 +976,7 @@ export function FeedItem({
 
   return (
     <Pressable
+      accessible={false}
       onLongPress={() => {
         if (!isMine) return;
         askDelete();
@@ -775,14 +1016,16 @@ export function FeedItem({
       <Modal
         transparent
         visible={menuOpen}
-        animationType="fade"
+        animationType={reduceMotion ? 'none' : 'fade'}
         onRequestClose={() => setMenuOpen(false)}
       >
         <Pressable
+          accessible={false}
           onPress={() => setMenuOpen(false)}
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
         >
           <View
+            accessibilityViewIsModal
             style={{
               backgroundColor: colors.bg.elevated,
               borderTopLeftRadius: radius.xl,
@@ -791,10 +1034,20 @@ export function FeedItem({
               gap: spacing.sm,
             }}
           >
-            <Pressable onPress={askDelete} style={{ paddingVertical: spacing.md }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Eliminar publicación"
+              onPress={askDelete}
+              style={{ minHeight: 44, justifyContent: 'center' }}
+            >
               <Text weight="bold" tone="danger">Eliminar publicación</Text>
             </Pressable>
-            <Pressable onPress={() => setMenuOpen(false)} style={{ paddingVertical: spacing.md }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar"
+              onPress={() => setMenuOpen(false)}
+              style={{ minHeight: 44, justifyContent: 'center' }}
+            >
               <Text tone="secondary">Cancelar</Text>
             </Pressable>
           </View>
@@ -805,10 +1058,11 @@ export function FeedItem({
       <Modal
         transparent
         visible={confirmOpen}
-        animationType="fade"
+        animationType={reduceMotion ? 'none' : 'fade'}
         onRequestClose={() => setConfirmOpen(false)}
       >
         <View
+          accessibilityViewIsModal
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.6)',

@@ -31,14 +31,28 @@ Supabase (backend is already deployed to a real project; `.env` holds live keys)
 
 ```bash
 supabase functions deploy generate_routine
-supabase secrets set GEMINI_API_KEY=... ANTHROPIC_API_KEY=... OPENAI_API_KEY=...
 # Migrations live in supabase/migrations/ (0001..00NN) and apply in numeric order.
 ```
 ## Subagents
-- Always after creating the plan for any feature or change, use the agent of supabase-fullstack-engineer. After completing all the process always check with the code-quality-reviewer agent. If the plan its a new feature, clear the context of the subagent.
+- Route by ownership instead of invoking Supabase for every task:
+  - `gmo-visual-director`: read-only visual brief, hierarchy, states and allowlist.
+  - `react-native-ui-engineer`: presentation-only Expo/RN implementation.
+  - `motion-performance-engineer`: Reanimated, gestures, haptics and measured motion.
+  - `mobile-visual-qa`: read-only screenshot/device/state review.
+  - `react-native-performance-auditor`: read-only FPS/render/image/bundle evidence.
+  - `supabase-fullstack-engineer`: domain helpers, auth, repos, queries, stores,
+    persistence, auth gating in `app/_layout.tsx`, media privacy, Storage, RLS,
+    RPCs, Edge Functions or migrations.
+  - `build-verify` and `code-quality-reviewer`: final automated and code gates.
 - **Caveman is permanent for every agent.** Start delegated prompts with `CAVEMAN`,
   require action-first concise reporting, strict ownership and no filler. The single
   source is `.claude/skills/caveman.md`.
+- Visual agents must read the relevant `.claude/skills/gmo-*`,
+  `mobile-visual-*` and `react-native-performance.md` contracts. They may render
+  existing hooks/selectors but must not mutate data contracts or forbidden paths
+  without a handoff to `supabase-fullstack-engineer`.
+- `react-native-ui-engineer` may edit visual theme values only inside its allowlist;
+  rank IDs, thresholds and progression semantics are domain-owned.
 
 ## Architecture
 
@@ -76,6 +90,8 @@ the only place that decides where the user goes. Key invariants there:
   `Date.now()` instead of accumulated ticks; DB mapping deliberately ignores this
   client-only field.
   `profileComplete` is session-only state and is deliberately **not** persisted.
+  Logout and account changes clear profile, workouts, routines, achievements and
+  React Query cache through serialized resets; never merge local history across users.
 - **Server state — React Query** (`@tanstack/react-query`). Provider + a global
   `QueryClient` are in `app/_layout.tsx`; window-focus refetch is wired to React
   Native `AppState` via `focusManager`.
@@ -92,14 +108,15 @@ the only place that decides where the user goes. Key invariants there:
   local stores using the `LOCAL_USER_ID` sentinel (`'local-user'`).
 
 ### Edge functions (Deno) — `supabase/functions/`
-- `generate_routine/` — AI routine generation (pairs with the offline heuristic in
-  `src/lib/routineGenerator.ts`). Uses the shared provider secrets
-  (`GEMINI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`).
+- `generate_routine/` — authenticated heuristic routine structure. It returns
+  editable days/exercises without scores, reasoning or automatic advice. The client
+  currently uses its local equivalent and has no edge-function entry point.
   > The **AI coach was fully removed** (migration `0040_drop_ai_coach.sql`): the
   > `coach/` function, the `coach.tsx` screen + `src/lib/{coach,queries/coach,repos/coach}.ts`,
   > and the DB objects `ai_usage_log`, `ai_response_cache`, `ai_conversations`,
   > `ai_messages`, `ai_usage_remaining()`, `increment_cache_hit()` are all gone. Don't
-  > reintroduce coach wiring. The provider secrets stayed (shared with generate_routine).
+  > reintroduce coach wiring. Provider secrets may remain configured remotely but
+  > current repository code does not consume them.
 - `instagram_oauth/` — **legacy, no client entry point**: the Instagram OAuth linking
   flow was removed from the app (no screen calls it anymore; `src/lib/instagram.ts`
   was deleted). The function and its secrets (`IG_APP_ID`, `IG_APP_SECRET`,
@@ -123,13 +140,34 @@ the only place that decides where the user goes. Key invariants there:
   shipped PNGs are real original crests generated as one cohesive
   atlas; editable masters live in `assets/brand/`. Preserve filenames and the static
   `RANK_IMAGES` map when replacing them.
+  Render shared crests through `RankEmblem`. Social `rank_up` posts must resolve
+  both `fromRank`/`toRank` or snake-case equivalents through
+  `resolveRankMilestone`; map legacy `legend` to `olympus`, celebrate only a real
+  promotion, and render invalid/no-op/downgrade metadata neutrally. Normalize
+  remote profile ranks with `resolveUserRank`, preferring finite non-negative
+  points. The hosted job represented by `0025` is a pre-release P0: live grants
+  EXECUTE to `PUBLIC`, `anon` and `authenticated`, it is non-idempotent and still
+  uses legacy tiers. Do not deploy an isolated fix before the hosted migration
+  ledger is reconciled.
 - **Workout finish:** `src/lib/workoutValidation.ts` is the client gate before moving
   an active session into history. A workout needs at least one completed working set;
   completed reps/weights/durations must be finite and plausible. Pending sets are a
   warning, not a blocker. Do not bypass this from alternate finish flows.
-- **Muscle optimization** uses fractional set counting: a primary muscle gets 1 set per
-  working set, each `secondary` muscle gets 0.5. See `Exercise` in `src/data/exercises.ts`
-  and `src/lib/optimizationScore.ts`.
+- **Workout numeric editor:** parse text through `src/lib/numericInput.ts`; commas
+  are valid decimal separators but empty values, exponents and non-finite values
+  are not. Reps stay integer 1–999 and stored weight stays 0–1000 kg. Mutate the
+  active set through `updateSetById(exerciseEntryId, setId, patch)` so stale IDs
+  return `false` without throwing. Commit both drafts before completing a set,
+  serialize every valid mutation through the persistence queue, and keep haptic
+  rejection non-fatal.
+- **Routine quality score:** `src/lib/routineQualityScore.ts` is the only source.
+  It returns a deterministic 0–100 score from coverage (35%), volume (30%),
+  frequency (20%) and structure (15%), rendered through `RoutineQualityCard`.
+  Render it compactly as `GMO Rating`: segmented radial total, four-part 2×2
+  breakdown and the single planning disclaimer. Do not show contributed points or
+  long explanatory copy. It is local/derived only:
+  never persist it, hide the formula, add weak-group verdicts, prescribe changes,
+  infer recovery or promise results.
 - **Achievements (logros)** — Duolingo-style tiered system, **fully client-side & offline**
   (no Supabase tables). `src/lib/achievements.ts` is the authoritative catalog + pure
   engine: each track has escalating *tiers* and a `measure(ctx)` derived entirely from
@@ -180,6 +218,27 @@ the only place that decides where the user goes. Key invariants there:
   line is valid. Never add estimated max formulas, rep prescriptions, opaque scores
   or automatic "improved/declined" verdicts. Reuse `hasValidSetPerformance` so
   legacy/remote data follows the same 1–999 reps and 0–1000 kg bounds.
+- **Muscle-volume map:** `src/lib/muscleVolume.ts` is the only source for planned
+  and completed muscle volume. It reports estimated equivalent sets: 1 for the
+  primary muscle, 0.5 for each secondary, with optional per-exercise catalog
+  overrides. Zones are factual reference bands: 0 none, <5 minimal, 5–9.5
+  effective, 10–20 productive, >20 very high. Render them only through
+  `MuscleVolumeMap`; tapping a non-grey region shows contributing exercises,
+  equivalent sets and frequency. Keep the visible estimation disclaimer. This is
+  allowed in routine editor and active routine, never in Progress. The separate
+  transparent routine score may consume these results, but the map never claims
+  recovery, diagnosis or automatic advice. Unknown legacy exercises without
+  catalog metadata stay omitted.
+- **Progress calendar and muscle milestones:** current Progress uses
+  `trainingCalendar.ts` for a fixed Monday-first 6×7 local-month grid. It clamps
+  navigation at the current month, excludes future/invalid sessions and opens the
+  exact ledger represented by a day. `muscleMilestones.ts` derives only from the
+  four strength tracks in `ACHIEVEMENTS`; never duplicate their thresholds. It
+  accepts only completed non-warmup plausible sets, preserves the exact load, reps,
+  date and workout evidence, gives secondary muscles exactly one level less and
+  never estimates 1RM or compares users. The searchable stable-height selector
+  contains `Todos`, all 12 muscles, `Con hitos` and `Sin hitos`; filtering changes
+  only results, while keyboard opening may elevate/shrink that region.
 - **Exercise progress picker:** `ExerciseProgressPicker` receives only exercises
   already present in `buildExercisePerformance(history)`, never the full catalog.
   Search runs over that complete trained list with diacritic-insensitive matching;
@@ -190,7 +249,9 @@ the only place that decides where the user goes. Key invariants there:
   bundled `exerciseImage(id)` assets through `expo-image`; missing/legacy IDs fall
   back to the dumbbell icon. Never fetch exercise thumbnails remotely. Keep the
   picker sheet at a stable height: filtering/search changes only the results region,
-  never the header, controls or sheet position.
+  never the header, controls or sheet position. The muscle filter opens an internal
+  two-column selector with `Todos` and returns to the same results sheet; do not
+  restore a muscle-only horizontal rail.
 - **Workout history detail:** `WorkoutResultsModal` is a factual session ledger.
   Keep duration, effective sets, reps, work and recorded set rows; never restore
   congratulatory comparison cards, deltas or automatic improvement copy. Points in
@@ -203,6 +264,13 @@ the only place that decides where the user goes. Key invariants there:
   Migration `0046` orders PR baselines by
   `(started_at, coalesce(created_at, started_at), id)`; never compare a historical
   post against future sessions or leave equal timestamps unordered.
+- **Workout privacy:** `Workout.visibility` and
+  `profiles.default_workout_visibility` use `public | followers | private`; legacy
+  data defaults to `public`. The workout is the source of truth. Restricted workout
+  posts must be filtered consistently by RLS and every `SECURITY DEFINER` social
+  RPC. `post-photos` remains public, so followers/private workouts cannot attach a
+  photo until media moves to private storage with signed URLs. Never present a
+  client-only privacy control as active server privacy.
 - **Social stream layout:** public/social surfaces use `Card variant="stream"` and
   `SocialStreamColumn`: full viewport width on phones, centered at max 600 px on
   tablets, zero lateral border/radius and 8 px between posts. `FeedItem`,
@@ -211,6 +279,12 @@ the only place that decides where the user goes. Key invariants there:
   full-bleed 4:5, and action targets stay at least 44 px. Do not apply this layout
   to forms, modals, auth, routines, Progress, private history or settings. Public
   profile galleries remain 3 columns with 1 px gaps and no outer margin.
+  Feed refresh uses `StaticPullToRefresh`: the FlashList never translates, the GMO
+  SVG alone descends after a 72 px vertical pull, horizontal intent yields to
+  `PagerView` through manual direction-dominance activation, manual refresh state
+  stays separate from foreground refetch and pagination, and Reduce Motion removes
+  the indicator spin. Keep a visible 44 px `Actualizar feed` action and announce
+  success/failure from the shared refresh action.
 - **Section surfaces:** reading/information panels use `Card variant="section"`:
   square surface with only top/bottom separators and no lateral border. Keep
   `raised` for compact selectable/navigable tiles, forms and controls; keep full
@@ -221,10 +295,32 @@ the only place that decides where the user goes. Key invariants there:
   skeleton only for initial `isLoading` with no cached data; keep cached content
   during refetch and retain spinners for pagination, pull-to-refresh and mutations.
   The pulse must stop and become static when Reduce Motion is enabled.
-- **Settings honesty:** privacy and notification toggles were removed because they
-  had no server/native enforcement. Do not re-add local-only controls. Privacy needs
-  persisted columns plus RPC/RLS/feed enforcement; notifications need a real native
-  delivery path and contextual permission.
+- **Motion preference:** `useReduceMotion` treats the initial unknown state as
+  reduced. Never start an entrance or native-modal animation before the system
+  preference resolves.
+- **Sheet focus:** new `Sheet` call sites provide `returnFocusTarget` when opened
+  from a concrete control. Use `initialFocusRef` when its title is not the best
+  first screen-reader target.
+- **Personal profile:** own profile is a factual dashboard over one FlashList root:
+  compact rank strip, 72 px overlapping avatar, identity/summary, sticky tabs,
+  canonical `FeedItem` posts with pagination, session activity and achievements.
+  The three-dot menu owns Share Profile and Settings; settings remains the only
+  sign-out owner. Do not restore a profile gear, Account card, nested ScrollViews
+  or duplicated post cards.
+- **Reduce Motion in training:** active-workout phase transitions, set splashes,
+  rotating rest phrases, routine-editor entrances and repeating PR effects become
+  static; stop obsolete animations when state or preference changes.
+- **Profile goals:** `profiles.goals` is live and authoritative; `goals[0]` is
+  mirrored into legacy `goal`. `secondaryGoals` are the remaining optional
+  priorities, unique and excluding the primary; they never combine incompatible
+  prescriptions. `complete_signup(..., goals text[])` persists the full selection.
+  The custom-onboarding editor
+  must carry `origin=onboarding` and explicitly
+  request the Routines tab before returning to `/(tabs)`; do not depend on
+  `router.back()` after a replace.
+- **Settings honesty:** workout privacy is valid only with migration `0052` and its
+  full RLS/RPC enforcement. Notification controls remain absent until a real native
+  delivery path and contextual permission exist.
 
 ## Conventions
 
@@ -257,6 +353,13 @@ the only place that decides where the user goes. Key invariants there:
   `0044`/`0045`/`0046`;
   link/authenticate CLI, audit the full live schema and reconcile the complete
   ledger with `supabase migration repair` first.
+  Live continues through `20260727210212`/`20260727211100` (multi-goal system
+  and grants) and `20260727223657` (account deletion); their exact SQL is now
+  mirrored locally. `0051` preserves superset fields through the transactional
+  snapshot RPC and `0052` adds workout privacy; both remain repo-only until the
+  complete hosted ledger is reconciled. Never deploy the retired
+  `0053_profile_goals.sql` contract: live uses `profiles.goals`, not
+  `profiles.secondary_goals`.
 - The exercise hub is `/exercise/[id]`; it is an authenticated top-level route and
   must remain whitelisted in `app/_layout.tsx`. Keep it reachable from active workout
   and Progress Records without starting/replacing a workout.

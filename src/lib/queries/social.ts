@@ -6,7 +6,8 @@ import {
   type InfiniteData,
 } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
-import { type RankId } from '@/theme/tokens';
+import { RANKS, type RankId } from '@/theme/tokens';
+import { resolveUserRank } from '@/lib/rankMilestone';
 import {
   follow as followRepo,
   unfollow as unfollowRepo,
@@ -178,18 +179,23 @@ export function useLeaderboard(rankId: RankId | undefined) {
   return useQuery({
     queryKey: ['leaderboard', rankId] as const,
     queryFn: async (): Promise<LeaderboardEntry[]> => {
-      const { data, error } = await supabase
+      const rankIndex = RANKS.findIndex((rank) => rank.id === rankId);
+      const rank = RANKS[rankIndex];
+      const next = RANKS[rankIndex + 1];
+      let query = supabase
         .from('profiles')
         .select('id, username, display_name, current_rank, rank_points, avatar_url')
-        .eq('current_rank', rankId!)
+        .gte('rank_points', rank.min)
         .order('rank_points', { ascending: false })
         .limit(20);
+      if (next) query = query.lt('rank_points', next.min);
+      const { data, error } = await query;
       if (error) throw error;
       return ((data ?? []) as any[]).map((row) => ({
         id: row.id,
         username: row.username,
         displayName: row.display_name,
-        currentRank: row.current_rank as RankId,
+        currentRank: resolveUserRank(row.current_rank, row.rank_points),
         rankPoints: row.rank_points,
         avatarUrl: row.avatar_url ?? undefined,
       }));

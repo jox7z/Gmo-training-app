@@ -10,6 +10,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useReduceMotion } from './useReduceMotion';
 
 interface Props extends Omit<PressableProps, 'style'> {
   /** Escala objetivo al presionar (0 a 1). Por defecto 0.96. */
@@ -49,6 +50,7 @@ export function PressableScale({
   hitSlop,
   ...rest
 }: Props) {
+  const reduceMotion = useReduceMotion();
   const scale = useSharedValue(1);
   const opacity = useSharedValue(1);
 
@@ -59,8 +61,13 @@ export function PressableScale({
 
   const handlePressIn = (e: Parameters<NonNullable<PressableProps['onPressIn']>>[0]) => {
     // Spring rápido de compresión
-    scale.value = withSpring(pressScale, { damping: 18, stiffness: 320 });
-    opacity.value = withSpring(0.9, { damping: 18, stiffness: 320 });
+    if (reduceMotion) {
+      scale.value = 1;
+      opacity.value = 0.82;
+    } else {
+      scale.value = withSpring(pressScale, { damping: 18, stiffness: 320 });
+      opacity.value = withSpring(0.9, { damping: 18, stiffness: 320 });
+    }
 
     // Háptico configurable
     if (haptic !== false) {
@@ -74,8 +81,13 @@ export function PressableScale({
 
   const handlePressOut = (e: Parameters<NonNullable<PressableProps['onPressOut']>>[0]) => {
     // Spring de rebote al soltar
-    scale.value = withSpring(1, { damping: 18, stiffness: 320 });
-    opacity.value = withSpring(1, { damping: 18, stiffness: 320 });
+    if (reduceMotion) {
+      scale.value = 1;
+      opacity.value = 1;
+    } else {
+      scale.value = withSpring(1, { damping: 18, stiffness: 320 });
+      opacity.value = withSpring(1, { damping: 18, stiffness: 320 });
+    }
     onPressOut?.(e);
   };
 

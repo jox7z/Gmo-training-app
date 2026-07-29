@@ -104,7 +104,7 @@ export async function getCurrentUser(): Promise<{ id: string; email: string } | 
 export async function isProfileComplete(userId: string): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
   const { data, error } = await supabase.rpc('is_profile_complete', { uid: userId });
-  if (error) return false;
+  if (error) throw new AuthError('UNKNOWN', humanizeAuthError(error), error);
   return !!data;
 }
 
@@ -127,6 +127,7 @@ export interface CompleteSignupParams {
   unit?: 'kg' | 'lb';
   level?: string;
   goal?: string;
+  goals?: string[];
   weeklyGoalDays?: number;
 }
 
@@ -142,6 +143,7 @@ export async function completeSignup(params: CompleteSignupParams): Promise<void
     height_cm: params.heightCm ?? null,
     level: params.level ?? null,
     goal: params.goal ?? null,
+    goals: params.goals ?? null,
     weekly_goal_days: params.weeklyGoalDays ?? null,
   });
 

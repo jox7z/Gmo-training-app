@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, Modal, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -31,7 +37,10 @@ import { WorkoutHeader } from '@/components/workout/WorkoutHeader';
 import { SetProgressPills } from '@/components/workout/SetProgressPills';
 import { ExerciseHero } from '@/components/workout/ExerciseHero';
 import { RestRing } from '@/components/workout/RestRing';
-import { BigStepperInput } from '@/components/workout/BigStepperInput';
+import {
+  BigStepperInput,
+  type BigStepperInputHandle,
+} from '@/components/workout/BigStepperInput';
 import { PreviousSetCompact } from '@/components/workout/PreviousSetCompact';
 import { LivePrBanner } from '@/components/workout/LivePrBanner';
 import {
@@ -40,6 +49,8 @@ import {
 } from '@/lib/workoutValidation';
 import { PlateCalculatorModal } from '@/components/workout/PlateCalculatorModal';
 import { GmoMascot } from '@/components/GmoMascot';
+import { runHapticSafely } from '@/lib/haptics';
+import { useReduceMotion } from '@/components/ui/useReduceMotion';
 
 const REST_PHRASES = [
   '¡Una más!',
@@ -196,7 +207,7 @@ export default function ActiveWorkout() {
   const day = routine?.days.find((d) => d.id === selectedDayId) ?? routine?.days[0];
 
   const startWorkout = useWorkoutsStore((s) => s.startWorkout);
-  const updateSet = useWorkoutsStore((s) => s.updateSet);
+  const updateSetById = useWorkoutsStore((s) => s.updateSetById);
   const finishWorkout = useWorkoutsStore((s) => s.finishWorkout);
   const cancelWorkout = useWorkoutsStore((s) => s.cancelWorkout);
   const swapExercise = useWorkoutsStore((s) => s.swapExercise);
@@ -223,6 +234,7 @@ export default function ActiveWorkout() {
   const autofillWorkoutId = useRef<string | null>(null);
   const enteredSetIds = useRef(new Set<string>());
   const editedSetIds = useRef(new Set<string>());
+  const reduceMotion = useReduceMotion();
 
   // ---- Original transition: hero scales in from 0.88 + opacity, while a
   //      thin accent line sweeps width from 0→100% just before the hero
@@ -239,10 +251,16 @@ export default function ActiveWorkout() {
   const splashY       = useRef(new Animated.Value(28)).current;   // slide up
   const splashRing    = useRef(new Animated.Value(0)).current;    // ring expand 0→1
   const splashPulse   = useRef(new Animated.Value(1)).current;    // ring pulse
+  const splashAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
 
   // Energetic full-screen splash with a phrase. Reused when entering a set
   // from rest and when the user swaps the exercise mid-session.
-  const playSplash = (phrase: string) => {
+  const playSplash = useCallback((phrase: string) => {
+    splashAnimationRef.current?.stop();
+    if (reduceMotion) {
+      setShowSetSplash(false);
+      return;
+    }
     setSplashPhrase(phrase);
     // Reset all values
     splashScale.setValue(0.72);
@@ -251,9 +269,11 @@ export default function ActiveWorkout() {
     splashRing.setValue(0);
     splashPulse.setValue(1);
     setShowSetSplash(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    void runHapticSafely(() =>
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
+    );
 
-    Animated.sequence([
+    const animation = Animated.sequence([
       // Phase 1 (0–320ms): ring bursts out + phrase springs in with upward slide
       Animated.parallel([
         // Ring expands from 0 → full radius
@@ -301,19 +321,42 @@ export default function ActiveWorkout() {
         duration: 260,
         useNativeDriver: true,
       }),
-    ]).start(() => setShowSetSplash(false));
-  };
+    ]);
+    splashAnimationRef.current = animation;
+    animation.start(({ finished }) => {
+      if (finished) setShowSetSplash(false);
+    });
+  }, [
+    reduceMotion,
+    splashOpacity,
+    splashPulse,
+    splashRing,
+    splashScale,
+    splashY,
+  ]);
 
   useEffect(() => {
     const fromRest = prevPhaseRef.current === 'rest' && phase === 'set';
     prevPhaseRef.current = phase;
+
+    if (reduceMotion) {
+      heroScale.stopAnimation();
+      heroOpacity.stopAnimation();
+      accentProgress.stopAnimation();
+      splashAnimationRef.current?.stop();
+      heroScale.setValue(1);
+      heroOpacity.setValue(1);
+      accentProgress.setValue(0);
+      setShowSetSplash(false);
+      return;
+    }
 
     // Reset state for incoming phase
     heroScale.setValue(0.88);
     heroOpacity.setValue(0);
     accentProgress.setValue(0);
 
-    Animated.sequence([
+    const animation = Animated.sequence([
       // 1. accent bar sweeps across (80ms)
       Animated.timing(accentProgress, {
         toValue: 1,
@@ -334,14 +377,22 @@ export default function ActiveWorkout() {
           useNativeDriver: true,
         }),
       ]),
-    ]).start();
+    ]);
+    animation.start();
 
     // Show energetic splash when entering set from rest (not the very first set)
     if (fromRest) {
       playSplash(SET_SPLASH_PHRASES[Math.floor(Math.random() * SET_SPLASH_PHRASES.length)]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+    return () => animation.stop();
+  }, [
+    accentProgress,
+    heroOpacity,
+    heroScale,
+    phase,
+    playSplash,
+    reduceMotion,
+  ]);
 
   // Start warmup timer on mount
   useEffect(() => {
@@ -403,12 +454,12 @@ export default function ActiveWorkout() {
     if (!previous) return;
 
     if (set.reps !== previous.reps || set.weightKg !== previous.weightKg) {
-      updateSet(exIdx, setIdx, {
+      updateSetById(exercise.id, set.id, {
         reps: previous.reps,
         weightKg: previous.weightKg,
       });
     }
-  }, [active, exIdx, history, phase, setIdx, updateSet]);
+  }, [active, exIdx, history, phase, setIdx, updateSetById]);
 
   // Warmup ticker
   useEffect(() => {
@@ -569,18 +620,17 @@ export default function ActiveWorkout() {
 
   const handleSetDone = () => {
     // Capture duration; transition to log to review reps+weight
-    if (setStartedAt) {
+    if (setStartedAt && currentEx && currentSet) {
       const secs = Math.max(0, Math.round((Date.now() - setStartedAt) / 1000));
-      updateSet(exIdx, setIdx, { durationSeconds: secs });
+      updateSetById(currentEx.id, currentSet.id, { durationSeconds: secs });
     }
     setPhase('log');
   };
 
   const handleLogSave = () => {
-    const latestSet = useWorkoutsStore
-      .getState()
-      .active?.exercises[exIdx]?.sets[setIdx];
-    if (!latestSet) return;
+    const latestExercise = useWorkoutsStore.getState().active?.exercises[exIdx];
+    const latestSet = latestExercise?.sets[setIdx];
+    if (!latestExercise || !latestSet) return;
     const wasCompleted = latestSet.isCompleted;
     const hasInvalidDuration =
       latestSet.durationSeconds !== undefined &&
@@ -591,7 +641,9 @@ export default function ActiveWorkout() {
     if (hasInvalidDuration) {
       // `durationSeconds` no es editable en Log. Los snapshots antiguos que
       // contengan un valor imposible se sanea a "sin dato" para no bloquear.
-      updateSet(exIdx, setIdx, { durationSeconds: undefined });
+      updateSetById(latestExercise.id, latestSet.id, {
+        durationSeconds: undefined,
+      });
     }
     const setErrors = validateSetForCompletion(setToValidate);
     if (setErrors.length) {
@@ -621,20 +673,25 @@ export default function ActiveWorkout() {
       return;
     }
 
-    const isLivePr = active ? detectSetPR(history, active, exIdx, setIdx) : false;
-    if (isLivePr && currentSet && currentEx) {
+    const latestWorkout = useWorkoutsStore.getState().active;
+    const isLivePr = latestWorkout
+      ? detectSetPR(history, latestWorkout, exIdx, setIdx)
+      : false;
+    if (isLivePr) {
       setLivePr({
-        setId: currentSet.id,
-        exerciseName: currentEx.exerciseName,
-        weightKg: currentSet.weightKg,
-        reps: currentSet.reps,
+        setId: latestSet.id,
+        exerciseName: latestExercise.exerciseName,
+        weightKg: latestSet.weightKg,
+        reps: latestSet.reps,
       });
     } else {
       setLivePr(null);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void runHapticSafely(() =>
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+      );
     }
     const startedAt = Date.now();
-    updateSet(exIdx, setIdx, {
+    updateSetById(latestExercise.id, latestSet.id, {
       isCompleted: true,
       restStartedAt: new Date(startedAt).toISOString(),
       restAfterSeconds: undefined,
@@ -668,14 +725,14 @@ export default function ActiveWorkout() {
   };
 
   const captureRest = () => {
-    const restingSet = useWorkoutsStore
-      .getState()
-      .active?.exercises[exIdx]?.sets[setIdx];
+    const restingExercise =
+      useWorkoutsStore.getState().active?.exercises[exIdx];
+    const restingSet = restingExercise?.sets[setIdx];
     const storedStartedAt = parseRestStartedAt(restingSet?.restStartedAt);
-    if (storedStartedAt === null) return;
+    if (!restingExercise || !restingSet || storedStartedAt === null) return;
 
     const secs = Math.max(0, Math.round((Date.now() - storedStartedAt) / 1000));
-    updateSet(exIdx, setIdx, {
+    updateSetById(restingExercise.id, restingSet.id, {
       restAfterSeconds: secs,
       restStartedAt: undefined,
     });
@@ -709,7 +766,9 @@ export default function ActiveWorkout() {
     if (finished) {
       addWorkoutDay();
       addPoints(10);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      void runHapticSafely(() =>
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
+      );
       setSummaryWorkout(finished);
       setPhase('summary');
 
@@ -893,15 +952,17 @@ export default function ActiveWorkout() {
             previousSet={previousSet}
             onWeightChange={(v) => {
               editedSetIds.current.add(`${active.id}:${currentSet.id}`);
-              updateSet(exIdx, setIdx, { weightKg: fromDisplay(v, profile.unit) });
+              updateSetById(currentEx.id, currentSet.id, {
+                weightKg: fromDisplay(v, profile.unit),
+              });
             }}
             onPlateWeightApply={(weightKg) => {
               editedSetIds.current.add(`${active.id}:${currentSet.id}`);
-              updateSet(exIdx, setIdx, { weightKg });
+              updateSetById(currentEx.id, currentSet.id, { weightKg });
             }}
             onRepsChange={(v) => {
               editedSetIds.current.add(`${active.id}:${currentSet.id}`);
-              updateSet(exIdx, setIdx, { reps: v });
+              updateSetById(currentEx.id, currentSet.id, { reps: v });
             }}
             onSave={handleLogSave}
           />
@@ -1064,13 +1125,26 @@ export default function ActiveWorkout() {
 // Chip de día con "pop" elástico al quedar seleccionado.
 function DayChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const scale = useRef(new Animated.Value(1)).current;
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
     if (active) {
+      if (reduceMotion) {
+        scale.stopAnimation();
+        scale.setValue(1);
+        return;
+      }
       scale.setValue(0.9);
-      Animated.spring(scale, { toValue: 1, friction: 4, tension: 200, useNativeDriver: true }).start();
+      const animation = Animated.spring(scale, {
+        toValue: 1,
+        friction: 4,
+        tension: 200,
+        useNativeDriver: true,
+      });
+      animation.start();
+      return () => animation.stop();
     }
-  }, [active, scale]);
+  }, [active, reduceMotion, scale]);
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
@@ -1107,6 +1181,7 @@ function WarmupPhase({
   onDone: () => void;
 }) {
   const selDay = days.find((d) => d.id === selectedDayId) ?? days[0];
+  const reduceMotion = useReduceMotion();
 
   // El preview de ejercicios entra con fade + slide cada vez que cambia el día.
   const previewOpacity = useRef(new Animated.Value(1)).current;
@@ -1118,14 +1193,23 @@ function WarmupPhase({
       firstRender.current = false;
       return;
     }
+    if (reduceMotion) {
+      previewOpacity.stopAnimation();
+      previewY.stopAnimation();
+      previewOpacity.setValue(1);
+      previewY.setValue(0);
+      return;
+    }
     previewOpacity.setValue(0);
     previewY.setValue(14);
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(previewOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
       Animated.spring(previewY, { toValue: 0, friction: 6, tension: 140, useNativeDriver: true }),
-    ]).start();
-    Haptics.selectionAsync();
-  }, [selectedDayId, previewOpacity, previewY]);
+    ]);
+    animation.start();
+    void runHapticSafely(() => Haptics.selectionAsync());
+    return () => animation.stop();
+  }, [previewOpacity, previewY, reduceMotion, selectedDayId]);
 
   const previewExercises = selDay?.exercises.slice(0, 4) ?? [];
   const extraCount = Math.max(0, (selDay?.exercises.length ?? 0) - previewExercises.length);
@@ -1540,13 +1624,22 @@ function LogPhase({
 }) {
   const displayWeight = toDisplay(set.weightKg, unit);
   const [plateCalculatorOpen, setPlateCalculatorOpen] = useState(false);
+  const weightInputRef = useRef<BigStepperInputHandle>(null);
+  const repsInputRef = useRef<BigStepperInputHandle>(null);
   const supportsPlateCalculator =
     exerciseById(exerciseId)?.equipment === 'barbell';
+  const saveLatestDrafts = () => {
+    const weightValid = weightInputRef.current?.commit() ?? false;
+    const repsValid = repsInputRef.current?.commit() ?? false;
+    if (!weightValid || !repsValid) return;
+    Keyboard.dismiss();
+    onSave();
+  };
 
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={0}
     >
       {/* iOS: toolbar with "Listo" above decimal-pad */}
@@ -1563,7 +1656,12 @@ function LogPhase({
               paddingVertical: spacing.sm,
             }}
           >
-            <Pressable onPress={Keyboard.dismiss} hitSlop={8}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cerrar teclado"
+              onPress={Keyboard.dismiss}
+              hitSlop={8}
+            >
               <Text variant="subheading" tone="brand">
                 Listo
               </Text>
@@ -1575,22 +1673,31 @@ function LogPhase({
       {/* Contexto compacto: qué ejercicio y qué serie se está registrando */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <ExerciseThumb exerciseId={exerciseId} size={44} />
-        <Text variant="heading" style={{ flex: 1 }} numberOfLines={1}>
-          {exerciseName}
-        </Text>
-        <View
-          style={{
-            paddingHorizontal: spacing.md,
-            paddingVertical: 5,
-            borderRadius: radius.sm,
-            backgroundColor: colors.primary.muted,
-            borderWidth: 1,
-            borderColor: colors.primary.DEFAULT,
-          }}
-        >
-          <Text variant="caption" weight="bold" style={{ color: colors.primary.DEFAULT }} numeric>
-            Serie {setNumber}/{totalSets}
+        <View style={{ flex: 1, gap: spacing.xs, minWidth: 0 }}>
+          <Text variant="heading" numberOfLines={2}>
+            {exerciseName}
           </Text>
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              paddingHorizontal: spacing.md,
+              paddingVertical: 5,
+              borderRadius: radius.sm,
+              backgroundColor: colors.primary.muted,
+              borderWidth: 1,
+              borderColor: colors.primary.DEFAULT,
+            }}
+          >
+            <Text
+              variant="caption"
+              weight="bold"
+              maxFontSizeMultiplier={1.4}
+              style={{ color: colors.primary.DEFAULT }}
+              numeric
+            >
+              Serie {setNumber}/{totalSets}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -1612,10 +1719,13 @@ function LogPhase({
         showsVerticalScrollIndicator={false}
       >
         <BigStepperInput
+          ref={weightInputRef}
           label={unit.toUpperCase()}
           value={displayWeight}
           step={unit === 'kg' ? 2.5 : 5}
           decimals={unit === 'kg' ? 1 : 0}
+          min={0}
+          max={toDisplay(1000, unit)}
           onChange={onWeightChange}
           accessoryId={LOG_ACCESSORY_ID}
         />
@@ -1624,7 +1734,10 @@ function LogPhase({
             accessibilityRole="button"
             accessibilityLabel="Abrir calculadora de discos"
             accessibilityHint="Calcula los discos necesarios por cada lado de la barra"
-            onPress={() => setPlateCalculatorOpen(true)}
+            onPress={() => {
+              Keyboard.dismiss();
+              setPlateCalculatorOpen(true);
+            }}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -1664,16 +1777,25 @@ function LogPhase({
           </PressableScale>
         ) : null}
         <BigStepperInput
+          ref={repsInputRef}
           label="REPS"
           value={set.reps}
           step={1}
           decimals={0}
+          min={1}
+          max={999}
           onChange={onRepsChange}
           accessoryId={LOG_ACCESSORY_ID}
         />
       </ScrollView>
 
-      <Button title="Guardar serie" variant="primary" size="lg" fullWidth onPress={onSave} />
+      <Button
+        title="Guardar serie"
+        variant="primary"
+        size="lg"
+        fullWidth
+        onPress={saveLatestDrafts}
+      />
       <PlateCalculatorModal
         visible={plateCalculatorOpen}
         unit={unit}
@@ -1690,8 +1812,18 @@ function RestPhrase() {
   const phraseOpacity = useRef(new Animated.Value(1)).current;
   const phraseScale   = useRef(new Animated.Value(1)).current;
   const phraseY       = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReduceMotion();
 
   useEffect(() => {
+    if (reduceMotion) {
+      phraseOpacity.stopAnimation();
+      phraseScale.stopAnimation();
+      phraseY.stopAnimation();
+      phraseOpacity.setValue(1);
+      phraseScale.setValue(1);
+      phraseY.setValue(0);
+      return;
+    }
     const cycle = () => {
       // Exit: fade + shrink + slide down
       Animated.parallel([
@@ -1724,7 +1856,7 @@ function RestPhrase() {
 
     const t = setInterval(cycle, 4500);
     return () => clearInterval(t);
-  }, []);
+  }, [phraseOpacity, phraseScale, phraseY, reduceMotion]);
 
   return (
     <Animated.View
@@ -1864,6 +1996,7 @@ function Summary({
 }) {
   const insets = useSafeAreaInsets();
   const [publishing] = useState(false);
+  const reduceMotion = useReduceMotion();
 
   // Success animation: ring scales+pulses in
   const ringScale   = useRef(new Animated.Value(0.4)).current;
@@ -1872,6 +2005,17 @@ function Summary({
   const textOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      ringScale.stopAnimation();
+      ringOpacity.stopAnimation();
+      checkScale.stopAnimation();
+      textOpacity.stopAnimation();
+      ringScale.setValue(1);
+      ringOpacity.setValue(1);
+      checkScale.setValue(1);
+      textOpacity.setValue(1);
+      return;
+    }
     const anim = Animated.sequence([
       Animated.parallel([
         Animated.spring(ringScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
@@ -1882,8 +2026,13 @@ function Summary({
     ]);
     anim.start();
     return () => anim.stop();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [
+    checkScale,
+    reduceMotion,
+    ringOpacity,
+    ringScale,
+    textOpacity,
+  ]);
 
   const totalSets = workout.exercises.reduce(
     (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,

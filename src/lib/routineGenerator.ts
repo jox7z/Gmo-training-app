@@ -17,19 +17,16 @@ interface Input {
 
 interface Output {
   routine: Routine;
-  reasoning: string;
 }
 
 /**
- * Generador heurístico (offline). En producción, este resultado se enriquecería
- * con una llamada a la edge function `generate_routine` que añade variedad
- * y un texto de justificación generado por IA.
+ * Generador heurístico offline. Devuelve una estructura editable y factual,
+ * sin puntuarla ni explicar al usuario cómo debería progresar.
  */
 export function generateRoutine(input: Input): Output {
   const { level, goal, daysPerWeek } = input;
   const split = pickSplit(daysPerWeek);
   const days = buildDays(split, goal, level);
-  const reasoning = buildReasoning(input, split);
 
   const routine: Routine = {
     id: nid(),
@@ -37,12 +34,11 @@ export function generateRoutine(input: Input): Output {
     description: `Rutina generada para ${labelGoal(goal)} (${level}).`,
     splitType: split.id,
     isAiGenerated: true,
-    aiReasoning: reasoning,
     createdAt: new Date().toISOString(),
     days,
   };
 
-  return { routine, reasoning };
+  return { routine };
 }
 
 function pickSplit(days: number) {
@@ -133,7 +129,6 @@ export function routineOptions(input: { days: number; goal: Goal; level: Level }
       description: `Rutina para ${labelGoal(goal)} (${level}).`,
       splitType: split.id,
       isAiGenerated: true,
-      aiReasoning: buildReasoning({ level, goal, daysPerWeek: days, weightKg: 75, heightCm: 175 }, split),
       createdAt: new Date().toISOString(),
       days: routeDays,
     };
@@ -177,25 +172,4 @@ export function routineOptions(input: { days: number; goal: Goal; level: Level }
     makeOption({ id: 'ppl', label: 'Push / Pull / Legs', dayNames: ['Push A', 'Pull A', 'Legs A', 'Push B', 'Pull B', 'Legs B'] }),
     makeOption({ id: 'upper_lower_6', label: 'Upper/Lower ×3', dayNames: ['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Upper C', 'Lower C'] }),
   ];
-}
-
-function buildReasoning(input: Input, split: ReturnType<typeof pickSplit>): string {
-  const { goal, level, daysPerWeek } = input;
-  const why = goal === 'strength'
-    ? 'priorizamos pesos altos y descansos largos (3-5 min) con rangos de 4-6 reps.'
-    : goal === 'fat_loss'
-    ? 'usamos rangos altos de reps (12-15) con descansos cortos para mantener intensidad metabólica.'
-    : goal === 'general'
-    ? 'mantenemos rangos moderados (8-12) y volumen sostenible.'
-    : 'el rango óptimo para hipertrofia es 6-10 reps con volumen moderado-alto.';
-
-  const splitWhy = daysPerWeek <= 3
-    ? `Con ${daysPerWeek} días, Full Body maximiza la frecuencia por músculo (2-3x/semana).`
-    : daysPerWeek === 4
-    ? 'Upper/Lower te da 2 estímulos semanales por grupo muscular sin sobrecargar.'
-    : daysPerWeek <= 5
-    ? 'Una mezcla de PPL y Upper/Lower equilibra frecuencia y especialización.'
-    : 'PPL 6 días maximiza volumen por grupo muscular sin solapar fatiga (clásico para avanzados).';
-
-  return `Te recomiendo el split ${split.label} porque ${splitWhy} Para tu objetivo de ${labelGoal(goal)}, ${why} Como nivel ${level}, ajustamos el volumen para que sea progresivo y sostenible.`;
 }

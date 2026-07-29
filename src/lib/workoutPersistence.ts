@@ -1,4 +1,5 @@
 import type { SetEntry, Workout, WorkoutExercise } from '@/store/workouts';
+import { isWorkoutVisibility } from '@/lib/workoutVisibility';
 
 export interface WorkoutSnapshot {
   active: Workout | null;
@@ -17,6 +18,9 @@ function finiteNumber(value: unknown): value is number {
 function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function validDateString(value: unknown): value is string {
   return typeof value === 'string' && Number.isFinite(Date.parse(value));
@@ -76,7 +80,59 @@ function normalizeExercise(value: unknown): WorkoutExercise | null {
     muscleGroup: value.muscleGroup,
     sets,
     ...(optionalString(value.notes) ? { notes: value.notes as string } : {}),
+    ...(optionalString(value.supersetGroupId) &&
+    UUID_PATTERN.test(value.supersetGroupId as string)
+      ? { supersetGroupId: value.supersetGroupId as string }
+      : {}),
+    ...(typeof value.groupRestEnabled === 'boolean'
+      ? { groupRestEnabled: value.groupRestEnabled }
+      : {}),
   };
+}
+
+function normalizeSupersetGroups(
+  exercises: WorkoutExercise[],
+): WorkoutExercise[] {
+  const groups = new Map<string, number[]>();
+  for (let index = 0; index < exercises.length; index++) {
+    const groupId = exercises[index].supersetGroupId;
+    if (!groupId) continue;
+    const indices = groups.get(groupId) ?? [];
+    indices.push(index);
+    groups.set(groupId, indices);
+  }
+
+  const invalidGroups = new Set<string>();
+  for (const [groupId, indices] of groups) {
+    const contiguous =
+      indices[indices.length - 1] - indices[0] + 1 === indices.length;
+    const restModes = new Set(
+      indices.map((index) => exercises[index].groupRestEnabled ?? false),
+    );
+    if (
+      indices.length < 2 ||
+      indices.length > 4 ||
+      !contiguous ||
+      restModes.size !== 1
+    ) {
+      invalidGroups.add(groupId);
+    }
+  }
+
+  return exercises.map((exercise) => {
+    if (
+      !exercise.supersetGroupId ||
+      invalidGroups.has(exercise.supersetGroupId)
+    ) {
+      const {
+        supersetGroupId: _supersetGroupId,
+        groupRestEnabled: _groupRestEnabled,
+        ...plainExercise
+      } = exercise;
+      return plainExercise;
+    }
+    return exercise;
+  });
 }
 
 function normalizeWorkout(value: unknown): Workout | null {
@@ -89,10 +145,11 @@ function normalizeWorkout(value: unknown): Workout | null {
     return null;
   }
 
-  const exercises = value.exercises
+  const parsedExercises = value.exercises
     .map(normalizeExercise)
     .filter((exercise): exercise is WorkoutExercise => exercise !== null);
-  if (exercises.length !== value.exercises.length) return null;
+  if (parsedExercises.length !== value.exercises.length) return null;
+  const exercises = normalizeSupersetGroups(parsedExercises);
 
   const completedSets = exercises.flatMap((exercise) => exercise.sets).filter((set) => set.isCompleted);
   const totalReps = completedSets
@@ -124,6 +181,7 @@ function normalizeWorkout(value: unknown): Workout | null {
       ? { feeling }
       : {}),
     ...(typeof value.isPublished === 'boolean' ? { isPublished: value.isPublished } : {}),
+    ...(isWorkoutVisibility(value.visibility) ? { visibility: value.visibility } : {}),
     ...(optionalString(value.photoUri) ? { photoUri: value.photoUri as string } : {}),
   };
 }

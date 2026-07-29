@@ -4,11 +4,37 @@ import { RankId } from '@/theme/tokens';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { weeklyTrainingProgress } from '@/lib/weeklyStreak';
 import { useWorkoutsStore } from '@/store/workouts';
+import { useRoutinesStore } from '@/store/routines';
+import { useAchievementsStore } from '@/store/achievements';
+import {
+  DEFAULT_WORKOUT_VISIBILITY,
+  normalizeWorkoutVisibility,
+  type WorkoutVisibility,
+} from '@/lib/workoutVisibility';
 
 export type Unit = 'kg' | 'lb';
 export type Level = 'beginner' | 'intermediate' | 'advanced';
 export type Goal = 'strength' | 'hypertrophy' | 'fat_loss' | 'general';
 export type Sex = 'male' | 'female';
+
+export const GOALS: readonly Goal[] = [
+  'strength',
+  'hypertrophy',
+  'fat_loss',
+  'general',
+];
+
+export function isGoal(value: unknown): value is Goal {
+  return typeof value === 'string' && GOALS.includes(value as Goal);
+}
+
+export function normalizeSecondaryGoals(
+  primaryGoal: Goal,
+  values: unknown,
+): Goal[] {
+  if (!Array.isArray(values)) return [];
+  return [...new Set(values.filter(isGoal))].filter((goal) => goal !== primaryGoal);
+}
 
 export interface UserProfile {
   id: string;
@@ -28,8 +54,12 @@ export interface UserProfile {
   heightCm: number;
   sex: Sex;
   unit: Unit;
+  defaultWorkoutVisibility: WorkoutVisibility;
   level: Level;
   goal: Goal;
+  secondaryGoals: Goal[];
+  /** Retry local requerido mientras live aún no tenga `0053`. */
+  secondaryGoalsSyncPending?: boolean;
   weeklyGoalDays: number;
   rankPoints: number;
   currentRank: RankId;
@@ -54,10 +84,13 @@ interface AppState {
   addWorkoutDay: () => void;
   refreshWeeklyProgress: (now?: Date) => void;
   addPoints: (n: number) => void;
+  resetLocalData: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const STORAGE_KEY = 'gmo:app:v1';
+let persistQueue: Promise<void> = Promise.resolve();
+let storageGeneration = 0;
 
 function progressFromCurrentHistory(profile: UserProfile | null, now?: Date) {
   const { streakWeeks, daysThisWeek } = weeklyTrainingProgress(
@@ -90,8 +123,11 @@ const defaultProfile = (id = LOCAL_USER_ID): UserProfile => ({
   heightCm: 175,
   sex: 'male',
   unit: 'kg',
+  defaultWorkoutVisibility: DEFAULT_WORKOUT_VISIBILITY,
   level: 'intermediate',
   goal: 'hypertrophy',
+  secondaryGoals: [],
+  secondaryGoalsSyncPending: false,
   weeklyGoalDays: 4,
   rankPoints: 0,
   currentRank: 'rookie',
@@ -112,8 +148,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   daysThisWeek: 0,
 
   hydrate: async () => {
+    const generation = storageGeneration;
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
+      if (generation !== storageGeneration) return;
       if (raw) {
         const data = JSON.parse(raw);
         const profile = data.profile ? migrateProfile(data.profile) : null;
@@ -138,9 +176,10 @@ export const useAppStore = create<AppState>((set, get) => ({
           setTimeout(() => resolve(null), 2000),
         );
         const user = await Promise.race([userPromise, timeoutPromise]).catch(() => null);
+        if (generation !== storageGeneration) return;
         if (user) {
           const profile = get().profile;
-          if (profile && profile.id !== user.id) {
+          if (profile?.id === LOCAL_USER_ID) {
             const updated = { ...profile, id: user.id };
             set({ profile: updated });
             await persist({ ...get(), profile: updated });
@@ -165,7 +204,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   completeOnboarding: async () => {
+    const generation = storageGeneration;
     const userId = await getAuthUserId();
+    if (generation !== storageGeneration) return;
     const existing = get().profile;
 
     if (!existing) {
@@ -207,19 +248,34 @@ export const useAppStore = create<AppState>((set, get) => ({
     persist(get());
   },
 
-  signOut: async () => {
-    // 1. Wipe local state FIRST so any subscriber that re-reads the store
-    //    while we're awaiting supabase sees a coherent "logged out" state
-    //    instead of a half-state (profile present but session gone).
-    try { await AsyncStorage.removeItem(STORAGE_KEY); } catch {}
+  resetLocalData: async () => {
+    storageGeneration += 1;
     set({
       profile: null,
       onboarded: false,
       profileComplete: null,
       streakWeeks: 0,
       daysThisWeek: 0,
-      // keep hydrated=true; we don't want the splash loader to reappear
     });
+
+    persistQueue = persistQueue
+      .then(() => AsyncStorage.removeItem(STORAGE_KEY))
+      .catch((error) => {
+        console.warn('[Store] No se pudo limpiar el perfil local.', error);
+      });
+
+    await Promise.all([
+      persistQueue,
+      useWorkoutsStore.getState().reset(),
+      useRoutinesStore.getState().reset(),
+      useAchievementsStore.getState().reset(),
+    ]);
+  },
+
+  signOut: async () => {
+    // Limpiar todos los stores y sus colas de persistencia antes del signout
+    // remoto. El evento SIGNED_OUT repetirá un reset idempotente sin recursión.
+    await get().resetLocalData();
     // 2. Now sign out from Supabase. The onAuthStateChange listener in
     //    _layout will pick this up and trigger the redirect to /auth/login,
     //    by which time the store is already clean.
@@ -246,16 +302,31 @@ function migrateProfile(p: any): UserProfile {
   };
   delete profile.privacy;
   delete profile.notifications;
+  profile.defaultWorkoutVisibility = normalizeWorkoutVisibility(
+    profile.defaultWorkoutVisibility,
+  );
+  delete profile.defaultPostVisibility;
+  profile.goal = isGoal(profile.goal) ? profile.goal : def.goal;
+  profile.secondaryGoals = normalizeSecondaryGoals(
+    profile.goal,
+    profile.secondaryGoals,
+  );
+  profile.secondaryGoalsSyncPending =
+    profile.secondaryGoals.length > 0 &&
+    profile.secondaryGoalsSyncPending === true;
   if ((profile.currentRank as string) === 'legend') profile.currentRank = 'olympus';
   return profile;
 }
 
 async function persist(state: AppState) {
-  await AsyncStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      onboarded: state.onboarded,
-      profile: state.profile,
-    }),
-  );
+  const snapshot = JSON.stringify({
+    onboarded: state.onboarded,
+    profile: state.profile,
+  });
+  persistQueue = persistQueue
+    .then(() => AsyncStorage.setItem(STORAGE_KEY, snapshot))
+    .catch((error) => {
+      console.warn('[Store] No se pudo persistir el perfil local.', error);
+    });
+  await persistQueue;
 }

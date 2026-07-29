@@ -13,8 +13,10 @@ import { Badge } from '@/components/ui/Badge';
 import { FollowButton } from '@/components/FollowButton';
 import { Avatar } from '@/components/Avatar';
 import { Icon } from '@/components/Icon';
+import { RankEmblem } from '@/components/RankEmblem';
 import { Loader } from '@/components/ui/Loader';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
+import { resolveRankMilestone } from '@/lib/rankMilestone';
 import {
   useIsFollowing,
   useFollowers,
@@ -325,8 +327,18 @@ function Header({ title, onBack }: { title: string; onBack: () => void }) {
 }
 
 function PostCell({ post, size, onPress }: { post: Post; size: number; onPress: () => void }) {
+  const rankMilestone =
+    post.type === 'rank_up' ? resolveRankMilestone(post.metadata) : null;
+
   return (
     <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={
+        rankMilestone
+          ? `Publicación de nuevo rango ${rankMilestone.toRank.label}`
+          : post.title ?? post.caption ?? 'Abrir publicación'
+      }
+      accessibilityHint="Abre la publicación y sus comentarios"
       onPress={onPress}
       pressScale={0.96}
       haptic={false}
@@ -340,27 +352,58 @@ function PostCell({ post, size, onPress }: { post: Post; size: number; onPress: 
       {post.photoUrl ? (
         <Image source={{ uri: post.photoUrl }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
       ) : (
-        <View style={{ flex: 1, padding: spacing.md, justifyContent: 'space-between' }}>
-          <Icon
-            name={
-              post.type === 'pr' ? 'trophy'
-              : post.type === 'rank_up' ? 'lightning'
-              : post.type === 'streak' ? 'fire'
-              : post.type === 'achievement' ? 'target'
-              : 'dumbbell'
-            }
-            size={20}
-            color={
-              post.type === 'pr' ? colors.accent.DEFAULT
-              : post.type === 'rank_up' ? colors.primary.DEFAULT
-              : post.type === 'streak' ? colors.accent.DEFAULT
-              : post.type === 'achievement' ? colors.info.DEFAULT
-              : colors.primary.DEFAULT
-            }
-          />
-          <Text variant="caption" weight="semibold" numberOfLines={3}>
-            {post.title ?? post.caption ?? ''}
-          </Text>
+        <View
+          style={{
+            flex: 1,
+            padding: rankMilestone ? spacing.xs : spacing.md,
+            justifyContent: rankMilestone ? 'center' : 'space-between',
+          }}
+        >
+          {rankMilestone ? (
+            <View style={{ alignItems: 'center', gap: spacing.xs }}>
+              <RankEmblem
+                rankId={rankMilestone.toRank.id}
+                size={Math.min(54, size * 0.44)}
+                halo={false}
+                accessible={false}
+              />
+              <Text
+                variant="label"
+                weight="bold"
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.25}
+                style={{
+                  color: rankMilestone.toRank.color,
+                  textAlign: 'center',
+                }}
+              >
+                {rankMilestone.toRank.label}
+              </Text>
+            </View>
+          ) : (
+            <Icon
+              name={
+                post.type === 'pr' ? 'trophy'
+                : post.type === 'rank_up' ? 'medal'
+                : post.type === 'streak' ? 'fire'
+                : post.type === 'achievement' ? 'target'
+                : 'dumbbell'
+              }
+              size={20}
+              color={
+                post.type === 'pr' ? colors.accent.DEFAULT
+                : post.type === 'rank_up' ? colors.text.muted
+                : post.type === 'streak' ? colors.accent.DEFAULT
+                : post.type === 'achievement' ? colors.info.DEFAULT
+                : colors.primary.DEFAULT
+              }
+            />
+          )}
+          {!rankMilestone ? (
+            <Text variant="caption" weight="semibold" numberOfLines={3}>
+              {post.title ?? post.caption ?? ''}
+            </Text>
+          ) : null}
         </View>
       )}
     </PressableScale>

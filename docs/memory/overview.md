@@ -11,9 +11,20 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 - **Frontend:** React Native + Expo SDK 54, expo-router, TypeScript strict
 - **Estado:** Zustand + React Query
 - **Backend:** Supabase (Postgres + Auth + Storage + Edge Functions)
-- **AI:** `generate_routine` usa proveedores compartidos; no existe coach conversacional
+- **Generación:** estructura heurística local; sin reasoning, score ni coach
 - **Build/Distribución:** EAS Build (APK para preview, AAB para producción)
 - **Diseño:** Modo oscuro, tokens custom, iconografía SVG propia
+
+## Sistema visual y agentes
+
+- Dirección: `gym editorial industrial` para adultos jóvenes gym-first; negro,
+  crema GMO y rojo, métricas protagonistas, superficies rectas y social 4:5.
+- `gmo-visual-director` define brief/allowlist; `react-native-ui-engineer`
+  implementa presentación; `motion-performance-engineer` añade motion medido.
+- `mobile-visual-qa` y `react-native-performance-auditor` son read-only.
+- Agentes visuales consumen skills compartidas y no modifican auth, repos,
+  queries, stores, persistencia, Storage, privacidad ni Supabase.
+- `supabase-fullstack-engineer` entra solo cuando el cambio es cross-layer.
 
 ## Ambiente
 
@@ -21,7 +32,7 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   obligan a EAS Dev Client
 - **Pesos siempre en KG en BD** — conversión a LB es solo presentación
 - **Sin Supabase configurado, la app sigue funcionando** con stores
-  locales + heurística local de generación de rutinas
+  locales + estructura heurística local de rutinas
 - **Build de prueba:** `eas build --profile preview --platform android`
 
 ## Archivos clave del código
@@ -34,7 +45,13 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Generador rutinas | `src/lib/routineGenerator.ts` |
 | Motor de logros | `src/lib/achievements.ts` + `src/store/achievements.ts` |
 | Racha semanal | `src/lib/weeklyStreak.ts` |
-| Score optimización | `src/lib/optimizationScore.ts` |
+| Privacidad de workouts | `src/lib/workoutVisibility.ts` + migración `0052` |
+| Volumen muscular estimado | `src/lib/muscleVolume.ts` + `MuscleVolumeMap.tsx` |
+| Calendario mensual | `src/lib/trainingCalendar.ts` + `MonthlyTrainingCalendar.tsx` |
+| Hitos musculares | `src/lib/muscleMilestones.ts` + `MuscleMilestoneMap.tsx` |
+| Rangos sociales | `src/lib/rankMilestone.ts` + `RankEmblem.tsx` |
+| Editor numérico de series | `src/lib/numericInput.ts` + `BigStepperInput.tsx` |
+| Objetivos del perfil | `profiles.goals` ordenado + espejo legacy `goal` |
 | Iconografía | `src/components/Icon.tsx` |
 | Tokens diseño | `src/theme/tokens.ts` |
 | Progreso real por ejercicio | `src/lib/progressInsights.ts` + `exerciseProgressPicker.ts` + `ProgressInsightsSection.tsx` |
@@ -45,15 +62,16 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Puente de tabs externas | `src/store/mainTabs.ts` |
 | Mascota reutilizable | `src/components/GmoMascot.tsx` + `assets/brand/gmo-mascot.webp` |
 | Metadata exercise-dataset | `scripts/sync-exercises-dataset.mjs` + `src/data/exerciseDatasetDetails.generated.json` |
-| Schema y evolución BD | `supabase/migrations/0001_*.sql` → `0044_enrich_workout_post_metadata.sql` |
+| Schema y evolución BD | `supabase/migrations/` + ledger timestamped recuperado |
 
 ## Decisiones de producto vigentes
 
 - **Tabs principales:** Feed · Rutinas · Progreso · Perfil (4 tabs)
   - Home (Feed) es la red social tipo LinkedIn de logros
   - **Progreso** muestra solo tendencias reales por ejercicio y peso corporal
-  - **Perfil** concentra identidad social: avatar, rango, racha, seguidores,
-    achievements y compartir
+- **Perfil** concentra identidad social en un encabezado compacto: avatar, rango,
+  racha, seguidores, publicaciones paginadas, actividad y logros. Su menú de tres
+  puntos abre Compartir perfil o Ajustes; no existe bloque Cuenta duplicado.
 - **Trabajo factual:** carga × repeticiones permanece en ledgers de sesión y
   resúmenes sociales como `kg·rep`/`lb·rep`; no es tendencia seleccionable,
   récord comparativo, puntuación, diagnóstico ni total vitalicio
@@ -75,10 +93,22 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   mayor carga, reps o tiempo activo a través de varias sesiones; una línea plana
   o descendente es un resultado válido. No estima
   máximos, no prescribe un número de reps y no etiqueta una sesión como mejora.
+- **Mapa de volumen muscular:** editor y Rutinas muestran la semana planificada.
+  Usa series equivalentes estimadas (1 primaria, 0.5 secundaria), cinco bandas
+  de referencia y detalle por toque.
+  No es una medición exacta de estímulo, recuperación ni calidad global.
+- **GMO Rating transparente:** radial `/100` con cobertura, volumen, frecuencia y
+  estructura visibles. Se calcula localmente, no se guarda, no recomienda cambios
+  y no predice resultados.
+- **Calendario e hitos en Progreso:** calendario local fijo 6×7, lunes primero,
+  intensidad 0/1/2/3+ y ledger exacto por día. El mapa reutiliza los umbrales de
+  los cuatro tracks de fuerza de `ACHIEVEMENTS`; muestra carga, reps, fecha, sesión
+  y rol muscular, sin 1RM estimado ni comparación poblacional.
 - **Selección de progreso escalable:** una fila compacta abre el picker buscable
   de ejercicios realmente entrenados. Recientes muestra seis, Más entrenados
   ordena por sesiones y músculo/equipo filtran metadata local. Cada fila reutiliza
-  el WebP local del ejercicio mediante `expo-image`; IDs sin imagen/legacy usan
+  el WebP local del ejercicio mediante `expo-image`; el músculo se escoge en una
+  cuadrícula interna de dos columnas con opción Todos. IDs sin imagen/legacy usan
   dumbbell y siguen disponibles en Todos/búsqueda. El sheet mantiene altura fija
   aunque queden uno o cero resultados. No hay backend ni persistencia.
 - **Historial navegable:** tocar un punto de Progreso abre la sesión exacta. El
@@ -88,21 +118,34 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   con duración, series, reps, trabajo, músculos y ejercicios. La metadata remota
   se valida con fallback legacy; compartir fuera de la app incluye esas métricas.
   Una publicación exitosa marca el workout local y evita publicarlo otra vez.
+- **Privacidad por workout:** el contrato repo-only contempla Público, Seguidores
+  y Privado, pero el compositor expone solo Público hasta reconciliar y desplegar
+  `0052`. Legacy permanece público. `post-photos` sigue siendo un bucket público.
 - **Stream social edge-to-edge:** Feed, muro comunitario, discovery, preview y
   publicaciones propias ocupan todo el ancho móvil sin bordes/radios laterales;
   en tablet se centran a máximo 600 px. Texto y acciones conservan 16 px, fotos 4:5
   full-bleed y 44 px táctiles. El perfil público usa galería de 3 columnas con gaps
   de 1 px. Formularios, modales y superficies privadas continúan contenidos.
+- **Refresh fijo del Feed:** un gesto vertical de 72 px mueve solo el indicador
+  GMO; la FlashList no se arrastra y el gesto horizontal se entrega a `PagerView`.
+  Un control visible `Actualizar feed` ofrece la misma acción a teclado y lector.
 - **Secciones sin marco lateral:** paneles de Rutinas, Progreso, Perfil, Logros,
   workout activo, onboarding, evento y hub de ejercicio usan solo separadores
   superior/inferior. Tiles compactos, formularios y controles conservan su marco.
 - **Loading consistente:** Feed, conexiones, publicaciones propias y peso corporal
   reutilizan `Skeleton`/`SkeletonGroup` sin dependencia nueva ni múltiples loops
   por hueso. Refetch con cache y paginación no se sustituyen por skeleton.
-- **Backend live:** `0044_enrich_workout_post_metadata` (`20260722134052`),
+- **Backend live:** schema equivalente a `0044`–`0050`; `0044` (`20260722134052`),
   `0045_fix_workout_pr_history_cutoff` (`20260722135450`) y
   `0046_fix_workout_pr_total_order` (`20260722140530`) desplegadas;
   `publish_workout` conserva firma/ACL y usa orden temporal total para PR históricos.
+  después incluye `20260727210212`/`20260727211100` para
+  `profiles.goals` y `20260727223657` para borrado de cuenta. Su SQL exacto está
+  recuperado localmente. `0051`/`0052` permanecen repo-only hasta reconciliar el
+  ledger hosted completo.
+- **Bloqueador de rangos live:** `recalc_weekly_ranks()` sigue expuesta a
+  `PUBLIC`/`anon`/`authenticated`, no es idempotente y usa seis umbrales legacy.
+  No desplegar un parche aislado: primero reconciliar el ledger alojado completo.
 - **Detalle de ejercicio:** `/exercise/[id]` reúne Información, Historial y
   Récords y es accesible desde el workout y Progreso. Su CTA solicita el tab de
   Rutinas explícitamente al `PagerView`.
@@ -132,13 +175,17 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   publicar, comentar) usa optimistic update + haptics + micro
   animación de scale para sentirse como Instagram/Strava.
 - **Anti-spam:** máximo 2 workouts/día y mínimo 3h entre sesiones
-- **Score de optimización** vive en pestaña Routines
+- **Rutinas con GMO Rating explicable:** existe nota `/100` con cuatro componentes
+  visibles. No existen weak groups, consejo automático ni promesas.
+  El mapa de volumen conserva su referencia estimada y contribuciones.
+- **Onboarding flexible:** `profiles.goals` conserva la selección ordenada; el
+  primer objetivo estructura la rutina y los demás describen prioridades. La
+  rutina personalizada vuelve explícitamente a Rutinas después de guardar o cerrar.
 - **Media de ejercicios:** los WebP actuales siguen siendo public-domain y
   offline. `hasaneyldrm/exercises-dataset` se usa solo para 46 matches seguros
   de instrucciones; su media de Gym visual queda excluida por licencia.
 - **Personalización del perfil** consolidada en `app/profile/edit.tsx`
   (foto, nombre, username y bio). Sin pantallas duplicadas
   tipo "social" con info repetida.
-- **Configuración honesta:** se retiraron switches locales de privacidad y
-  notificaciones porque no controlaban RLS/feed ni entrega nativa. Solo vuelven
-  con persistencia y enforcement completos.
+- **Configuración honesta:** privacidad solo se activa cuando `0052` esté aplicada
+  con RLS/RPC completos. Notificaciones siguen fuera hasta entrega nativa real.

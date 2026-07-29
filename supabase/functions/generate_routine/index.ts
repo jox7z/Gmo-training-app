@@ -1,5 +1,5 @@
 // supabase/functions/generate_routine/index.ts
-// Genera una rutina personalizada combinando heurísticas + Gemini para el reasoning.
+// Genera una estructura de rutina editable sin score ni consejo automático.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
@@ -28,15 +28,7 @@ serve(async (req) => {
   const split = pickSplit(input.daysPerWeek);
   const days = buildDays(split, input);
 
-  const reasoningPrompt = `Explica en 3 frases por qué recomendarías un split ${split.label} a un atleta ${input.level} con objetivo ${input.goal} entrenando ${input.daysPerWeek} días/semana. Responde en español.`;
-  let reasoning = `Split ${split.label} elegido para ${input.daysPerWeek} días con objetivo ${input.goal}.`;
-  try {
-    reasoning = await geminiText(reasoningPrompt);
-  } catch (_) {
-    // sin IA, mantenemos texto por defecto
-  }
-
-  return json({ split: split.id, days, reasoning });
+  return json({ split: split.id, days });
 });
 
 function pickSplit(days: number) {
@@ -77,22 +69,6 @@ function dayExercises(name: string): string[] {
   if (k.includes('leg') || k.includes('lower')) return ['squat', 'romanian-deadlift', 'leg-press', 'leg-curl', 'standing-calf'];
   if (k.includes('upper')) return ['bench-press', 'barbell-row', 'overhead-press', 'pull-up', 'lateral-raise', 'biceps-curl'];
   return ['squat', 'bench-press', 'barbell-row', 'overhead-press', 'romanian-deadlift', 'plank'];
-}
-
-async function geminiText(prompt: string): Promise<string> {
-  const key = Deno.env.get('GEMINI_API_KEY');
-  if (!key) throw new Error('no GEMINI_API_KEY');
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }] }),
-    },
-  );
-  if (!res.ok) throw new Error(`gemini ${res.status}`);
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
 function cors() {

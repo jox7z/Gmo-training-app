@@ -1,11 +1,12 @@
 # Prompts activos
 
-> Última rotación: 2026-07-22.
-> Q2 social cerró con metadata factual, tarjeta compositor/Feed, share externo,
-> stream edge-to-edge, punto→sesión, orden temporal de PR live hasta `0046` y 66 tests puros en 11 suites. El historial vive
+> Última rotación: 2026-07-29.
+> C3 cerró celebración de rangos, refresh fijo, `GMO Rating`, calendario mensual,
+> hitos musculares, perfil compacto y editor numérico estable; 121 tests en
+> 20 suites. El historial vive
 > en `docs/memory/checklist.md`.
 
-## SPRINT Q2 — Smoke y observabilidad
+## SPRINT C3 — Logros reales, progreso por hitos y perfil compacto
 
 Objetivo: convertir los cambios ya construidos en una versión operativa
 verificada antes de añadir features grandes.
@@ -13,55 +14,55 @@ verificada antes de añadir features grandes.
 Todos los agentes empiezan con `CAVEMAN` y leen
 `.claude/skills/caveman.md`.
 
-### Q2-SMOKE — Lifecycle e identidad GMO
+### C3-SMOKE — Expo Go físico
 
 ```text
 CAVEMAN.
 Ownership: evidencia manual; código solo para bugs reproducibles.
 
-1. Background/reinicio durante descanso.
-2. Calculadora kg/lb en pantalla pequeña.
-3. Hub Información/Historial/Récords.
-4. Progreso: picker con miniaturas y fallback, muchos ejercicios/variantes,
-   búsqueda con/sin tildes, recientes/más entrenados, filtros músculo+equipo,
-   legacy y sheet fijo con muchos/uno/cero resultados; carga/reps/tiempo,
-   línea plana/descendente, peso separado y punto→sesión.
-   Trabajo solo en ledger/social factual, nunca como tendencia o récord comparativo.
-5. Compositor/Feed muestran la misma tarjeta factual; share nativo usa KG/LB correcto;
-   doble toque no duplica publicación y un workout stale cae al primer candidato válido.
-6. Retry Feed/Comunidad sin perder cache.
-7. Robot GMO en launcher, adaptive mask, splash, Feed, Rutinas y Summary.
-8. VoiceOver/TalkBack en tabs, gráfica, mascota decorativa y CTAs.
-9. Stream social en 360/390/430 px y tablet 768 px: posts manual/workout/PR/rank_up/
-   streak/achievement, fotos 4:5, 16 px internos, acciones 44 px, cero líneas/radios
-   laterales y mismo ancho en loading/contenido/vacío/paginación.
-10. Feed global, muro comunitario, Eventos/Comunidades, preview, posts propios y
-    galería pública de 3 columnas; publicar/reaccionar/comentar/compartir/eliminar.
-11. Secciones: cero bordes laterales en paneles de lectura; tiles compactos,
-    inputs, botones, formularios, modales y círculos conservan su geometría.
-12. Skeleton: carga inicial en Feed/conexiones/perfil/peso; refetch con cache no
-    parpadea; paginación/mutaciones conservan spinner; TalkBack anuncia una carga
-    por grupo y reduced-motion se verifica manualmente.
+1. Feed corto/largo/vacío: pull vertical mueve solo robot, swipe horizontal conserva
+   PagerView, botón Actualizar anuncia éxito/error y no mezcla foreground/paginación.
+2. Nueve ascensos en Feed, comunidad, posts propios y galería pública; `legend`
+   muestra Olympus y downgrade/metadata rota quedan neutrales.
+3. `GMO Rating`: 0/medio/100, cuatro segmentos, 360/390/430/768 y texto grande.
+4. Calendario: mes de seis filas, febrero bisiesto, hoy/futuros, mes anterior/siguiente,
+   un workout abre ledger y varios abren selector de sesión.
+5. Mapa frontal/trasero + selector buscable: 12 músculos, Con/Sin hitos, tildes,
+   teclado abierto, evidencia principal/secundaria y sesión exacta.
+6. Perfil compacto: identidad, tabs sticky, paginación, actividad, logros, menú
+   Compartir/Ajustes y ausencia de engranaje/Cuenta duplicada.
+7. Repetir `+/−`, escribir coma, límites 0/1000 kg y 1/999 reps, guardar, cambiar
+   ejercicio, background/reanudar y haptics no disponibles.
+8. Reduce Motion: feed indicator, PR, workout activo, editor de rutina, skeletons
+   y sheets quedan estáticos sin perder información.
+9. VoiceOver/TalkBack: acciones de post separadas, refresh visible, calendario,
+   selector, galería, actividad/logros y toolbar de teclado.
+10. Stream en 360/390/430/768: fotos 4:5, 16 px internos, targets 44 px y cero
+    bordes/radios laterales; mapa anatómico requiere validar taps pequeños.
 
 Gate: dispositivo + OS + resultado por caso + captura de cada fallo.
 ```
 
-### Q2-OBS — Sentry mínimo
+### C3-DB — Reconciliar ledger y cerrar rangos P0
 
 ```text
 CAVEMAN.
-Ownership: configuración Sentry, boundary global y documentación.
+Ownership: Supabase + evidencia. No features nuevas.
 
-1. Usa documentación oficial vigente para Expo SDK 54.
-2. No captures PII, captions, tokens ni payloads de workouts.
-3. Añade release/environment y error boundary global.
-4. Conserva Expo Go si el SDK lo permite; si exige dev build, documenta el gate.
-5. Mide impacto de bundle y dependencia.
+1. Backup de schema y `supabase_migrations.schema_migrations`.
+2. Auditar mapa completo archivos `0001`–`0050` contra hosted timestamps.
+3. Reconciliar ledger en una ventana única; nunca `db push --include-all`.
+4. Auditar/aplicar `0051` y `0052`; verificar los tres archivos timestamped ya
+   presentes live sin volver a ejecutarlos.
+5. Revocar `recalc_weekly_ranks()` a PUBLIC/anon/authenticated/service_role.
+6. Hacer el job idempotente y concurrente por semana; segunda ejecución = cero delta.
+7. Alinear nueve umbrales de `tokens.ts` y backfill sin celebraciones falsas.
+8. Ejecutar matriz owner/follower/stranger/anon y confirmar advisors.
 
-Gate: npm test + typecheck + lint + evento controlado visible en entorno no productivo.
+Gate: migration list limpio + SQL matrix + rollback plan + smoke Expo Go.
 ```
 
-### Q2-EFF — Limpieza medible
+### C3-EFF — Limpieza medible
 
 ```text
 CAVEMAN.
@@ -73,6 +74,26 @@ Ownership: inventario reproducible; cambios mecánicos de bajo riesgo.
 4. Ejecutar npm audit y separar runtime de dev-only; no usar audit fix ciego.
 
 Gate: antes/después con bytes, warnings y tests.
+```
+
+### VISUAL — Flujo móvil GMO
+
+```text
+CAVEMAN.
+Lee skills GMO móviles. Ownership estricto.
+
+1. codebase-explorer localiza contratos/consumidores.
+2. gmo-visual-director entrega concepto, estados, allowlist y aceptación.
+3. Si toca auth/repos/queries/stores/persistencia/media/Supabase: detener y
+   escalar boundary a supabase-fullstack-engineer.
+4. react-native-ui-engineer implementa presentación con tokens/primitivas.
+5. motion-performance-engineer entra solo con layout estable y motion útil.
+6. mobile-visual-qa prueba 360/390/430/768, estados y Reduce Motion.
+7. react-native-performance-auditor exige evidencia antes/después.
+8. build-verify ejecuta gates; code-quality-reviewer cierra bugs.
+
+Prohibido: copiar MotionSites, neon/glass genérico, targets <44 px, loops
+decorativos, `entering/layout` en FlashList, dependencias incompatibles con Expo Go.
 ```
 
 ## Definición de terminado

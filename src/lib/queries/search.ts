@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { RankId } from '@/theme/tokens';
+import { resolveUserRank } from '@/lib/rankMilestone';
 
 export interface SearchUserResult {
   id: string;
@@ -31,7 +32,7 @@ function toResult(row: DbSearchUserRow): SearchUserResult {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    currentRank: row.current_rank as RankId,
+    currentRank: resolveUserRank(row.current_rank, row.rank_points),
     rankPoints: row.rank_points,
     followersCount: row.followers_count,
     isFollowing: row.is_following,

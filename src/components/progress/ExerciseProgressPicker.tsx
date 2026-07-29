@@ -50,6 +50,7 @@ export function ExerciseProgressPicker({
 }: ExerciseProgressPickerProps) {
   const insets = useSafeAreaInsets();
   const [visible, setVisible] = useState(false);
+  const [view, setView] = useState<'results' | 'muscles'>('results');
   const [query, setQuery] = useState('');
   const [sortMode, setSortMode] = useState<ExerciseProgressSortMode>('recent');
   const [muscle, setMuscle] = useState<MuscleGroup | null>(null);
@@ -75,6 +76,7 @@ export function ExerciseProgressPicker({
   );
 
   const resetFilters = () => {
+    setView('results');
     setQuery('');
     setSortMode('recent');
     setMuscle(null);
@@ -85,6 +87,14 @@ export function ExerciseProgressPicker({
     Keyboard.dismiss();
     setVisible(false);
     resetFilters();
+  };
+
+  const requestClose = () => {
+    if (view === 'muscles') {
+      setView('results');
+      return;
+    }
+    close();
   };
 
   const select = (item: ExercisePerformance) => {
@@ -140,7 +150,7 @@ export function ExerciseProgressPicker({
         visible={visible}
         transparent
         animationType="slide"
-        onRequestClose={close}
+        onRequestClose={requestClose}
         statusBarTranslucent
       >
         <View style={styles.modalRoot} accessibilityViewIsModal>
@@ -214,105 +224,199 @@ export function ExerciseProgressPicker({
                 style={styles.sortControl}
               />
 
-              {availableMetadata.muscles.length > 0 ? (
-                <FilterRow label="Músculo">
-                  {availableMetadata.muscles.map((option) => (
-                    <Chip
-                      key={option.value}
-                      label={option.label}
-                      selected={muscle === option.value}
-                      onPress={() =>
-                        setMuscle((current) =>
-                          current === option.value ? null : option.value,
-                        )
-                      }
-                      accessibilityHint="Filtra los ejercicios por músculo"
-                      haptic={false}
-                    />
-                  ))}
-                </FilterRow>
-              ) : null}
-
-              {availableMetadata.equipment.length > 0 ? (
-                <FilterRow label="Equipo">
-                  {availableMetadata.equipment.map((option) => (
-                    <Chip
-                      key={option.value}
-                      label={option.label}
-                      selected={equipment === option.value}
-                      onPress={() =>
-                        setEquipment((current) =>
-                          current === option.value ? null : option.value,
-                        )
-                      }
-                      accessibilityHint="Filtra los ejercicios por equipo"
-                      haptic={false}
-                    />
-                  ))}
-                </FilterRow>
-              ) : null}
-
-              <FlatList
-                data={displayedItems}
-                style={styles.list}
-                keyExtractor={(item) => item.exerciseId}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="interactive"
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={[
-                  styles.listContent,
-                  displayedItems.length === 0 && styles.emptyListContent,
-                ]}
-                renderItem={({ item }) => {
-                  const metadata = getExerciseProgressItemMetadata(item.exerciseId);
-                  const isSelected = item.exerciseId === selectedId;
-
-                  return (
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityLabel={`${item.name}, ${metadata.muscleLabel}, ${metadata.equipmentLabel}, ${sessionLabel(item.sessions.length)}, última ${formatExerciseDate(item.latest.ms)}`}
-                      accessibilityHint="Selecciona este ejercicio"
-                      accessibilityState={{ selected: isSelected }}
-                      onPress={() => select(item)}
-                      haptic={false}
-                      pressScale={0.98}
-                      style={[styles.itemRow, isSelected && styles.itemRowSelected]}
-                    >
-                      <ExerciseThumbnail exerciseId={item.exerciseId} size={52} />
-                      <View style={styles.itemCopy}>
-                        <Text weight="bold" numberOfLines={1}>
-                          {item.name}
+              {view === 'results' ? (
+                <>
+                  {availableMetadata.muscles.length > 0 ? (
+                    <View style={styles.muscleFilter}>
+                      <Text variant="label" tone="muted">
+                        MÚSCULO
+                      </Text>
+                      <PressableScale
+                        accessibilityRole="button"
+                        accessibilityLabel={`Filtro de músculo: ${
+                          muscle === null
+                            ? 'Todos'
+                            : availableMetadata.muscles.find(
+                                (option) => option.value === muscle,
+                              )?.label ?? 'Todos'
+                        }`}
+                        accessibilityHint="Abre la lista de músculos"
+                        onPress={() => {
+                          Keyboard.dismiss();
+                          setView('muscles');
+                        }}
+                        haptic={false}
+                        pressScale={0.98}
+                        style={styles.muscleFilterButton}
+                      >
+                        <Text weight="semibold" style={styles.muscleFilterValue}>
+                          {muscle === null
+                            ? 'Todos'
+                            : availableMetadata.muscles.find(
+                                (option) => option.value === muscle,
+                              )?.label ?? 'Todos'}
                         </Text>
-                        <Text variant="caption" tone="secondary" numberOfLines={1}>
-                          {metadata.muscleLabel} · {metadata.equipmentLabel}
+                        <Text variant="caption" tone="muted">
+                          Elegir
                         </Text>
-                        <Text variant="caption" tone="muted" numberOfLines={1}>
-                          {sessionLabel(item.sessions.length)} · Última{' '}
-                          {formatExerciseDate(item.latest.ms)}
+                        <Icon
+                          name="chevron-right"
+                          size={spacing.lg}
+                          color={colors.text.secondary}
+                        />
+                      </PressableScale>
+                    </View>
+                  ) : null}
+
+                  {availableMetadata.equipment.length > 0 ? (
+                    <FilterRow label="Equipo">
+                      {availableMetadata.equipment.map((option) => (
+                        <Chip
+                          key={option.value}
+                          label={option.label}
+                          selected={equipment === option.value}
+                          onPress={() =>
+                            setEquipment((current) =>
+                              current === option.value ? null : option.value,
+                            )
+                          }
+                          accessibilityHint="Filtra los ejercicios por equipo"
+                          haptic={false}
+                        />
+                      ))}
+                    </FilterRow>
+                  ) : null}
+
+                  <FlatList
+                    data={displayedItems}
+                    style={styles.list}
+                    keyExtractor={(item) => item.exerciseId}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="interactive"
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={[
+                      styles.listContent,
+                      displayedItems.length === 0 && styles.emptyListContent,
+                    ]}
+                    renderItem={({ item }) => {
+                      const metadata = getExerciseProgressItemMetadata(item.exerciseId);
+                      const isSelected = item.exerciseId === selectedId;
+
+                      return (
+                        <PressableScale
+                          accessibilityRole="button"
+                          accessibilityLabel={`${item.name}, ${metadata.muscleLabel}, ${metadata.equipmentLabel}, ${sessionLabel(item.sessions.length)}, última ${formatExerciseDate(item.latest.ms)}`}
+                          accessibilityHint="Selecciona este ejercicio"
+                          accessibilityState={{ selected: isSelected }}
+                          onPress={() => select(item)}
+                          haptic={false}
+                          pressScale={0.98}
+                          style={[styles.itemRow, isSelected && styles.itemRowSelected]}
+                        >
+                          <ExerciseThumbnail exerciseId={item.exerciseId} size={52} />
+                          <View style={styles.itemCopy}>
+                            <Text weight="bold" numberOfLines={1}>
+                              {item.name}
+                            </Text>
+                            <Text variant="caption" tone="secondary" numberOfLines={1}>
+                              {metadata.muscleLabel} · {metadata.equipmentLabel}
+                            </Text>
+                            <Text variant="caption" tone="muted" numberOfLines={1}>
+                              {sessionLabel(item.sessions.length)} · Última{' '}
+                              {formatExerciseDate(item.latest.ms)}
+                            </Text>
+                          </View>
+                          {isSelected ? (
+                            <View style={styles.check}>
+                              <Icon
+                                name="check"
+                                size={spacing.lg}
+                                color={colors.primary.DEFAULT}
+                              />
+                            </View>
+                          ) : null}
+                        </PressableScale>
+                      );
+                    }}
+                    ListEmptyComponent={
+                      <View style={styles.emptyState}>
+                        <Icon name="search" size={spacing.xl} color={colors.text.muted} />
+                        <Text weight="bold">Sin resultados</Text>
+                        <Text variant="caption" tone="muted" style={styles.emptyText}>
+                          Prueba otro nombre o quita alguno de los filtros.
                         </Text>
                       </View>
-                      {isSelected ? (
-                        <View style={styles.check}>
-                          <Icon
-                            name="check"
-                            size={spacing.lg}
-                            color={colors.primary.DEFAULT}
-                          />
-                        </View>
-                      ) : null}
-                    </PressableScale>
-                  );
-                }}
-                ListEmptyComponent={
-                  <View style={styles.emptyState}>
-                    <Icon name="search" size={spacing.xl} color={colors.text.muted} />
-                    <Text weight="bold">Sin resultados</Text>
-                    <Text variant="caption" tone="muted" style={styles.emptyText}>
-                      Prueba otro nombre o quita alguno de los filtros.
-                    </Text>
+                    }
+                  />
+                </>
+              ) : (
+                <View style={styles.musclePicker}>
+                  <View style={styles.musclePickerHeader}>
+                    <IconButton
+                      name="chevron-left"
+                      accessibilityLabel="Volver a resultados"
+                      onPress={() => setView('results')}
+                      variant="surface"
+                      size="sm"
+                      haptic={false}
+                    />
+                    <View style={styles.musclePickerCopy}>
+                      <Text weight="bold">Elegir músculo</Text>
+                      <Text variant="caption" tone="muted">
+                        Muestra solo ejercicios de ese grupo
+                      </Text>
+                    </View>
                   </View>
-                }
-              />
+                  <FlatList
+                    data={[
+                      { value: null, label: 'Todos' },
+                      ...availableMetadata.muscles,
+                    ]}
+                    numColumns={2}
+                    keyExtractor={(option) => option.value ?? 'all'}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                    columnWrapperStyle={styles.muscleGridRow}
+                    contentContainerStyle={styles.muscleGrid}
+                    renderItem={({ item: option }) => {
+                      const isSelected = muscle === option.value;
+                      return (
+                        <PressableScale
+                          accessibilityRole="button"
+                          accessibilityLabel={option.label}
+                          accessibilityHint="Aplica este filtro y vuelve a los resultados"
+                          accessibilityState={{ selected: isSelected }}
+                          onPress={() => {
+                            setMuscle(option.value);
+                            setView('results');
+                          }}
+                          haptic={false}
+                          pressScale={0.98}
+                          style={[
+                            styles.muscleOption,
+                            isSelected && styles.muscleOptionSelected,
+                          ]}
+                        >
+                          <Text
+                            weight="semibold"
+                            numberOfLines={2}
+                            style={styles.muscleOptionLabel}
+                          >
+                            {option.label}
+                          </Text>
+                          {isSelected ? (
+                            <Icon
+                              name="check"
+                              size={spacing.lg}
+                              color={colors.primary.DEFAULT}
+                            />
+                          ) : null}
+                        </PressableScale>
+                      );
+                    }}
+                  />
+                </View>
+              )}
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -469,6 +573,25 @@ const styles = StyleSheet.create({
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
   },
+  muscleFilter: {
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  muscleFilterButton: {
+    alignItems: 'center',
+    backgroundColor: colors.bg.elevated,
+    borderColor: colors.borderStrong,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.md,
+  },
+  muscleFilterValue: {
+    flex: 1,
+  },
   filterGroup: {
     marginTop: spacing.md,
   },
@@ -489,6 +612,46 @@ const styles = StyleSheet.create({
   list: {
     flexGrow: 1,
     flexShrink: 1,
+  },
+  musclePicker: {
+    flex: 1,
+    marginTop: spacing.md,
+  },
+  musclePickerHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  musclePickerCopy: {
+    flex: 1,
+    gap: spacing.xs,
+  },
+  muscleGrid: {
+    gap: spacing.sm,
+    padding: spacing.lg,
+  },
+  muscleGridRow: {
+    gap: spacing.sm,
+  },
+  muscleOption: {
+    alignItems: 'center',
+    backgroundColor: colors.bg.elevated,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 52,
+    paddingHorizontal: spacing.md,
+  },
+  muscleOptionSelected: {
+    backgroundColor: colors.primary.muted,
+    borderColor: colors.primary.DEFAULT,
+  },
+  muscleOptionLabel: {
+    flex: 1,
   },
   emptyListContent: {
     flexGrow: 1,

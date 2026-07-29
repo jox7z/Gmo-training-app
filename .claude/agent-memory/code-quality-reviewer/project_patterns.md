@@ -34,7 +34,9 @@ metadata:
   timestamps cannot erase or duplicate a historical PR.
 - Workout hydration validates full workout/exercise/set structure and dates before
   setting Zustand state. Keep persistence failures observable instead of swallowing them.
-- Privacy/notification switches must not exist as local-only decoration.
+- Workout privacy belongs to `workouts.visibility`, legacy defaults public, and
+  settings persist server-first. Verify RLS plus every SECURITY DEFINER social RPC.
+  Restricted media cannot use public `post-photos`.
 - Work uses `kg·rep`/`lb·rep`; plain `kg`/`lb` is reserved for load.
 - Mixed bodyweight/loaded exercise windows use reps so zero external load is not
   rendered as a false performance collapse.
@@ -50,6 +52,25 @@ metadata:
 - Stream copy/actions use 16px horizontal padding; photos use 4:5 full-bleed; post gaps are 8px.
 - Public profile gallery is 3 columns, 1px gaps, zero outer margin/radius/border.
 - Never attach `entering`/`layout` to recycled `FeedItem` rows.
+
+## Personal dashboard
+- Own profile uses one FlashList root with sticky tabs.
+- Own posts render canonical `FeedItem` and paginate through `useUserPosts`.
+- Feed mutations patch both global feed and every `userPosts` cache.
+- Activity/logros stay factual; Settings owns sign-out.
+- Routine score is allowed only through `routineQualityScore.ts`: deterministic
+  0–100 coverage/volume/frequency/structure, visible breakdown and disclaimer.
+  Reject persistence, hidden weights, weak-group verdicts and automatic advice.
+- Logout/account switches must clear profile, workouts, routines, achievements and
+  Query cache. Review auth timeout paths so uncertainty never deletes local data;
+  a late valid initial session must still win.
+
+## Muscle-volume map
+- `src/lib/muscleVolume.ts` is the single calculator for planned/current-week volume.
+- It reports estimated equivalent sets: primary 1, secondary 0.5, optional catalog overrides.
+- Shared `MuscleVolumeMap` owns grey/yellow/lime/green/red bands and tap detail.
+- Grey regions never open detail; deltoids group three catalog muscles without last-color wins.
+- Require the estimation disclaimer. Reject recovery claims and guaranteed growth.
 
 ## Section and skeleton primitives
 - `Card variant="section"` is for information panels: radius 0, top/bottom borders only.

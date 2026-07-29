@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { RankId } from '@/theme/tokens';
+import { resolveUserRank } from '@/lib/rankMilestone';
 
 export type CommunityRole   = 'owner' | 'moderator' | 'member';
 export type CommunityStatus = 'pending' | 'active';
@@ -81,7 +82,7 @@ function toMember(row: DbMemberRow): CommunityMember {
     username:    row.username,
     displayName: row.display_name,
     avatarUrl:   row.avatar_url ?? undefined,
-    currentRank: row.current_rank as RankId,
+    currentRank: resolveUserRank(row.current_rank),
     role:        row.role   as CommunityRole,
     status:      row.status as CommunityStatus,
     joinedAt:    row.joined_at,

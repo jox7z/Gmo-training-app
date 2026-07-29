@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { RankId } from '@/theme/tokens';
+import { resolveUserRank } from '@/lib/rankMilestone';
 
 export interface DiscoverAthlete {
   id: string;
@@ -45,7 +46,7 @@ function toDiscover(row: DbDiscoverRow): DiscoverAthlete {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    currentRank: row.current_rank as RankId,
+    currentRank: resolveUserRank(row.current_rank, row.rank_points),
     rankPoints: row.rank_points,
     weeklyGoalDays: row.weekly_goal_days,
     isFollowing: row.is_following,
@@ -57,7 +58,7 @@ function toFollowProfile(row: DbFollowRow): FollowProfile {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    currentRank: row.current_rank as RankId,
+    currentRank: resolveUserRank(row.current_rank, row.rank_points),
     rankPoints: row.rank_points ?? 0,
     isFollowing: row.is_following,
   };
@@ -120,7 +121,7 @@ export async function listGlobalLeaderboard(limit = 50): Promise<GlobalRankEntry
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    currentRank: row.current_rank as RankId,
+    currentRank: resolveUserRank(row.current_rank, row.rank_points),
     rankPoints: row.rank_points,
     avatarUrl: row.avatar_url ?? undefined,
     isFollowing: row.is_following,

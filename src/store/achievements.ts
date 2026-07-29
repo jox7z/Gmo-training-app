@@ -38,6 +38,8 @@ interface AchievementsState {
 }
 
 const KEY = 'gmo:achievements:v1';
+let persistQueue: Promise<void> = Promise.resolve();
+let storageGeneration = 0;
 
 export const useAchievementsStore = create<AchievementsState>((set, get) => ({
   hydrated: false,
@@ -45,8 +47,10 @@ export const useAchievementsStore = create<AchievementsState>((set, get) => ({
   seeded: false,
 
   hydrate: async () => {
+    const generation = storageGeneration;
     try {
       const raw = await AsyncStorage.getItem(KEY);
+      if (generation !== storageGeneration) return;
       if (raw) {
         set(migrateAchievementSnapshot(JSON.parse(raw)));
       }
@@ -89,20 +93,26 @@ export const useAchievementsStore = create<AchievementsState>((set, get) => ({
   unlockedAt: (tierId) => get().unlocked[tierId],
 
   reset: async () => {
-    set({ unlocked: {}, seeded: false });
-    try {
-      await AsyncStorage.removeItem(KEY);
-    } catch {}
+    storageGeneration += 1;
+    set({ unlocked: {}, seeded: false, hydrated: true });
+    persistQueue = persistQueue
+      .then(() => AsyncStorage.removeItem(KEY))
+      .catch((error) => {
+        console.warn('[Achievements] reset failed', error);
+      });
+    await persistQueue;
   },
 }));
 
 function persist(state: AchievementsState) {
-  AsyncStorage.setItem(
-    KEY,
-    JSON.stringify({
-      version: ACHIEVEMENTS_STORAGE_VERSION,
-      unlocked: state.unlocked,
-      seeded: state.seeded,
-    }),
-  ).catch(() => {});
+  const snapshot = JSON.stringify({
+    version: ACHIEVEMENTS_STORAGE_VERSION,
+    unlocked: state.unlocked,
+    seeded: state.seeded,
+  });
+  persistQueue = persistQueue
+    .then(() => AsyncStorage.setItem(KEY, snapshot))
+    .catch((error) => {
+      console.warn('[Achievements] persist failed', error);
+    });
 }

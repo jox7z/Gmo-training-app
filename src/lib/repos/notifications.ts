@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { RankId } from '@/theme/tokens';
+import { resolveUserRank } from '@/lib/rankMilestone';
 
 // =====================================================
 // Types
@@ -72,7 +73,7 @@ function toNotification(row: DbNotificationRow): Notification {
           username: row.actor_username ?? '',
           displayName: row.actor_name ?? '',
           avatarUrl: row.actor_avatar ?? undefined,
-          currentRank: (row.actor_rank ?? 'rookie') as RankId,
+          currentRank: resolveUserRank(row.actor_rank),
         }
       : undefined,
     postTitle: row.post_title ?? undefined,

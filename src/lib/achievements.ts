@@ -37,6 +37,8 @@ export interface AchievementTier {
 export interface AchievementDef {
   /** Id del track (no del nivel). */
   id: string;
+  /** Ejercicio fuente cuando el track mide un levantamiento concreto. */
+  exerciseId?: string;
   category: AchievementCategory;
   title: string;
   /** Frase corta de qué mide el track. */
@@ -140,6 +142,7 @@ function strengthTrack(
 ): AchievementDef {
   return {
     id: `strength-${exerciseId}`,
+    exerciseId,
     category: 'strength',
     title,
     description: 'Peso máximo en una serie',

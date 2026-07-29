@@ -26,7 +26,6 @@ export interface Routine {
   splitType: string;
   days: RoutineDay[];
   isAiGenerated?: boolean;
-  aiReasoning?: string;
   createdAt: string;
 }
 
@@ -34,6 +33,7 @@ interface State {
   routines: Routine[];
   activeRoutineId: string | null;
   hydrate: () => Promise<void>;
+  reset: () => Promise<void>;
   upsertRoutine: (r: Routine) => void;
   deleteRoutine: (id: string) => void;
   duplicateRoutine: (id: string) => Routine | undefined;
@@ -41,9 +41,28 @@ interface State {
 }
 
 const KEY = 'gmo:routines:v1';
+let persistQueue: Promise<void> = Promise.resolve();
+let storageGeneration = 0;
+
+function persistSnapshot(routines: Routine[], activeRoutineId: string | null) {
+  const snapshot = JSON.stringify({ routines, activeRoutineId });
+  persistQueue = persistQueue
+    .then(() => AsyncStorage.setItem(KEY, snapshot))
+    .catch((error) => {
+      console.warn('[Routines] No se pudo persistir la rutina.', error);
+    });
+}
 
 export function nid() {
   return uuidv4();
+}
+
+function withoutLegacyReasoning(
+  routine: Routine & { aiReasoning?: unknown },
+): Routine {
+  const migrated = { ...routine };
+  delete migrated.aiReasoning;
+  return migrated;
 }
 
 export const useRoutinesStore = create<State>((set, get) => ({
@@ -51,13 +70,17 @@ export const useRoutinesStore = create<State>((set, get) => ({
   activeRoutineId: null,
 
   hydrate: async () => {
+    const generation = storageGeneration;
     const raw = await AsyncStorage.getItem(KEY);
+    if (generation !== storageGeneration) return;
     let routines: Routine[] = [];
     let activeRoutineId: string | null = null;
 
     if (raw) {
       const data = JSON.parse(raw);
-      routines = (data.routines ?? []).filter((r: Routine) => r.id !== 'seed-ppl');
+      routines = (data.routines ?? [])
+        .filter((r: Routine) => r.id !== 'seed-ppl')
+        .map(withoutLegacyReasoning);
       activeRoutineId = data.activeRoutineId ?? null;
     }
 
@@ -68,7 +91,18 @@ export const useRoutinesStore = create<State>((set, get) => ({
 
     set({ routines, activeRoutineId });
     // Re-persist migrated result so seed never reappears
-    AsyncStorage.setItem(KEY, JSON.stringify({ routines, activeRoutineId })).catch(() => {});
+    persistSnapshot(routines, activeRoutineId);
+  },
+
+  reset: async () => {
+    storageGeneration += 1;
+    set({ routines: [], activeRoutineId: null });
+    persistQueue = persistQueue
+      .then(() => AsyncStorage.removeItem(KEY))
+      .catch((error) => {
+        console.warn('[Routines] No se pudo limpiar la rutina local.', error);
+      });
+    await persistQueue;
   },
 
   upsertRoutine: (r) => {
@@ -79,13 +113,13 @@ export const useRoutinesStore = create<State>((set, get) => ({
       ? get().routines.map((x) => (x.id === r.id ? r : x))
       : [r];
     set({ routines, activeRoutineId: r.id });
-    AsyncStorage.setItem(KEY, JSON.stringify({ routines, activeRoutineId: r.id })).catch(() => {});
+    persistSnapshot(routines, r.id);
   },
 
   deleteRoutine: (id) => {
     const routines = get().routines.filter((r) => r.id !== id);
     set({ routines });
-    AsyncStorage.setItem(KEY, JSON.stringify({ routines, activeRoutineId: get().activeRoutineId })).catch(() => {});
+    persistSnapshot(routines, get().activeRoutineId);
   },
 
   duplicateRoutine: (id) => {
@@ -98,6 +132,6 @@ export const useRoutinesStore = create<State>((set, get) => ({
 
   setActiveRoutine: (id) => {
     set({ activeRoutineId: id });
-    AsyncStorage.setItem(KEY, JSON.stringify({ routines: get().routines, activeRoutineId: id })).catch(() => {});
+    persistSnapshot(get().routines, id);
   },
 }));

@@ -41,6 +41,8 @@
 
 - Workout/rutinas/perfil local viven en Zustand + AsyncStorage aunque no exista
   sesión. Las mutaciones del workout se escriben con cola serializada.
+- Logout y cambio de cuenta vacían perfil, workouts, rutinas, logros y Query
+  cache mediante resets serializados; nunca se mezcla historial entre usuarios.
 - `SetEntry.restStartedAt` es metadata local de workflow: reanuda el descanso
   con tiempo real tras background/remount y nunca se mapea a Supabase.
 - Antes de finalizar, `src/lib/workoutValidation.ts` valida series completas.
@@ -56,8 +58,24 @@
   social factual desde series efectivas plausibles. `0045` limita la comparación
   de PR a workouts anteriores a la sesión publicada. `0046` completa el orden con
   `created_at` e `id` para que timestamps iguales tengan un único baseline.
+  El schema live ya incluye `0047`–`0050`. `0051` conserva
+  `superset_group_id`/`group_rest_enabled` sin abandonar la RPC transaccional.
 - `src/lib/{workoutCompare,progressInsights,exerciseProgressPicker,exerciseDetails,plateCalculator,workoutPostMetadata,postSharing,workoutPersistence}.ts`
   son lógica pura; las pantallas no duplican sus cálculos.
+- `src/lib/muscleVolume.ts` agrega series equivalentes por músculo para rutinas
+  planificadas: 1 primaria, 0.5 secundaria y overrides opcionales del catálogo.
+  `MuscleVolumeMap` se usa en editor/Rutinas; ya no representa Progreso.
+- `src/lib/routineQualityScore.ts` deriva un score local 0–100: cobertura 35%,
+  volumen 30%, frecuencia 20% y estructura 15%. `RoutineQualityCard` lo presenta
+  como `GMO Rating`, radial segmentado, desglose 2×2 y un disclaimer; no se
+  persiste ni genera consejos.
+- `src/lib/trainingCalendar.ts` construye 42 días civiles locales, lunes primero,
+  agrupa sesiones 0/1/2/3+ y conserva los workouts exactos para el ledger.
+- `src/lib/muscleMilestones.ts` reutiliza los cuatro tracks de fuerza de
+  `ACHIEVEMENTS`. Selecciona evidencia determinista por carga, reps, fecha e IDs;
+  un músculo secundario recibe un nivel menos. No duplica umbrales ni estima 1RM.
+- `src/lib/rankMilestone.ts` normaliza `legend → olympus`, resuelve promociones
+  sociales válidas y deriva rangos visibles desde puntos cuando están disponibles.
 - `ExerciseProgressPicker` recibe el resultado local de `buildExercisePerformance`.
   Su helper ordena copias, busca sin diacríticos y cruza metadata del catálogo para
   filtros; no muta historial, no lista ejercicios nunca entrenados y no toca Supabase.
@@ -84,13 +102,30 @@
   único pulso por grupo y sus huesos son decorativos para accesibilidad. Solo
   reemplaza carga inicial sin datos; cache durante refetch, paginación, refresh y
   mutaciones conservan sus estados específicos. `AccessibilityInfo` detiene el
-  pulso y deja una opacidad estática cuando Reduce Motion está activo.
-- `workouts.markWorkoutPublished()` y la reconciliación monotónica de
+  pulso y deja una opacidad estática cuando Reduce Motion está activo; el estado
+  desconocido inicial también es estático.
+- `workouts.markWorkoutPublished(id, visibility)` y la reconciliación monotónica de
   `mergeHistory()` mantienen el estado local alineado con la publicación remota.
 - La hidratación del historial valida el shape persistido y conserva un estado
   seguro ante JSON corrupto; los fallos de escritura se registran para diagnóstico.
-- No hay controles de privacidad/notificaciones en UI mientras no exista
-  enforcement completo en servidor/módulo nativo.
+  Cada cambio válido de serie se encola; `updateSetById` valida IDs/campos y evita
+  serializar el historial en el hilo del tap antes de entrar a la cola.
+- `0052` modela privacidad en `workouts.visibility`; `profiles` solo guarda el
+  default. RLS y RPCs sociales deben usar la misma regla. El bucket de fotos sigue
+  público, por eso publicaciones restringidas no aceptan media.
+- El perfil propio usa una sola FlashList, encabezado compacto, tabs sticky y
+  `FeedItem` canónico. Actividad/logros son hechos locales; el menú de tres puntos
+  abre Compartir/Ajustes y Settings posee el único sign-out.
+- El score de rutina es transparente y no prescriptivo; no incluye weak groups,
+  recuperación ni consejos. El mapa de volumen estimado sigue factual e interactivo.
+- En Progreso, el selector de hitos es buscable y separa `Con hitos`/`Sin hitos`
+  sobre los 12 músculos. El mapa es un atajo visual, no el único target; la hoja
+  conserva geometría al filtrar, se eleva sobre el teclado, enfoca la búsqueda y
+  devuelve el foco al selector.
+- Live persiste la selección ordenada en `profiles.goals`; `goals[0]` se refleja
+  en `goal` para clientes legacy. `secondaryGoals` representa el resto de
+  prioridades normalizadas. El editor abierto desde onboarding vuelve
+  explícitamente al tab Rutinas.
 - `src/lib/weeklyStreak.ts` deriva días y racha desde historial +
   `weeklyGoalDays`: semana local lunes–domingo, días únicos y gracia para la
   semana actual incompleta. Store, logros y UI consumen esa misma fuente; el
@@ -98,6 +133,14 @@
 - El payload v2 de `gmo:achievements:v1` elimina solo tiers `streak-*` heredados
   y los re-siembra en silencio con la regla nueva; conserva fechas de otros logros.
 - Los contratos puros viven en `src/lib/__tests__/` y usan Jest + `jest-expo`.
+- El Feed usa `StaticPullToRefresh`: el gesto mueve solo `GmoRefreshIndicator`;
+  la FlashList mantiene offset, la activación manual cede intención horizontal
+  al `PagerView`, un control visible comparte acción/anuncios accesibles y
+  foreground/paginación no comparten el estado manual.
+- Riesgo live P0: `public.recalc_weekly_ranks()` es `SECURITY DEFINER`, ejecutable
+  desde Data API y no idempotente; además usa seis tiers legacy. La remediación
+  exige reconciliar el ledger, revocar ACLs, deduplicar por semana y alinear nueve
+  umbrales antes de cualquier despliegue.
 - `/exercise/[id]` es ruta autenticada top-level y debe estar en
   `inAllowedAuthedRoute`.
 - Los CTAs externos al `PagerView` solicitan su destino con
@@ -118,40 +161,34 @@
 Todos los roles usan Caveman permanentemente desde
 `.claude/skills/caveman.md`: acción primero, ownership estricto, sin relleno.
 
-Tres agentes especializados con scope estricto, más un revisor:
+El routing se decide por impacto, no por una cadena fija:
 
-### 🗄️ Agente Supabase
-- **Toca:** solo `supabase/`
-- **Hace:** schema, RLS, RPCs, triggers, índices, edge functions
-- **Prohibido:** tocar cualquier `.ts` / `.tsx`
-- **Identidad completa:** `skills/agents/supabase.md`
+| Agente | Ownership |
+|---|---|
+| `codebase-explorer` | Localizar contratos y consumidores; read-only |
+| `gmo-visual-director` | Brief, jerarquía, estados, allowlist; read-only |
+| `react-native-ui-engineer` | Presentación Expo/RN dentro de allowlist |
+| `motion-performance-engineer` | Reanimated, gestos, haptics y motion medido |
+| `mobile-visual-qa` | Screenshots, estados, dispositivos y accesibilidad; read-only |
+| `react-native-performance-auditor` | FPS/renders/imágenes/bundle; read-only |
+| `supabase-fullstack-engineer` | Auth, repos, queries, stores, Supabase y privacidad |
+| `build-verify` | Gates automatizados; nunca declara smoke físico |
+| `code-quality-reviewer` | Bugs, seguridad, lifecycle y arquitectura; read-only |
 
-### ⚙️ Agente Backend
-- **Toca:** solo `src/lib/`
-- **Hace:** capa de auth, repos, hooks de React Query, storage helpers
-- **Prohibido:** tocar JSX, componentes, pantallas
-- **Identidad completa:** `skills/agents/backend.md`
-
-### 🎨 Agente Frontend
-- **Toca:** `app/`, `src/components/`, `src/theme/`
-- **Hace:** pantallas, componentes UI, navegación, estilos
-- **Prohibido:** llamar `supabase.*` directo, modificar SQL
-- **Identidad completa:** `skills/agents/frontend.md`
-
-### 🦴 Agente Revisor (caveman)
-- **Toca:** nada (solo lectura)
-- **Hace:** señala bugs, sobre-ingeniería, duplicación, inconsistencias
-- **Prohibido:** escribir código de fix
-- **Identidad completa:** `skills/agents/reviewer.md`
+Skills reutilizables contienen reglas compartidas; los agentes no las copian:
+`gmo-domain-guardrails`, `gmo-mobile-product-design`,
+`gmo-fitness-social-art-direction`, `gmo-motion-language`,
+`mobile-visual-accessibility`, `react-native-performance`,
+`mobile-visual-qa` y `gmo-mobile-assets`.
 
 ## Orden de ejecución
 
-Por feature siempre: **Supabase → Backend → Frontend → Revisor**.
-
-- BD primero porque es la fuente de verdad
-- Backend depende del schema
-- Frontend depende de los hooks
-- Revisor al final de cada sprint para evitar deuda acumulada
+- **Visual puro:** explorer → director → UI → motion si aporta → QA visual →
+  auditor de rendimiento → build → reviewer.
+- **Cross-layer:** explorer → Supabase fullstack define contrato seguro → UI →
+  QA/build/reviewer.
+- Visuales no editan `supabase/**`, auth, repos, queries, stores, Query keys,
+  persistencia, buckets ni privacidad. Escalan con payload de boundary.
 
 ## Cuándo romper las reglas
 

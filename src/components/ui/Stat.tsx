@@ -29,6 +29,7 @@ interface Props {
   layout?: 'label-first' | 'value-first';
   onPress?: () => void;
   accessibilityHint?: string;
+  labelNumberOfLines?: number;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -64,6 +65,7 @@ export function Stat({
   layout = 'label-first',
   onPress,
   accessibilityHint,
+  labelNumberOfLines = 1,
   style,
 }: Props) {
   const valueTone = TONE_MAP[tone];
@@ -76,6 +78,7 @@ export function Stat({
         alignItems: 'center',
         gap: spacing.xs,
         justifyContent: centered ? 'center' : 'flex-start',
+        minWidth: 0,
       }}
     >
       {icon ? (
@@ -85,7 +88,12 @@ export function Stat({
           color={tone === 'default' ? colors.text.muted : colors.text.secondary}
         />
       ) : null}
-      <Text variant={LABEL_VARIANT[size]} tone="muted" numberOfLines={1}>
+      <Text
+        variant={LABEL_VARIANT[size]}
+        tone="muted"
+        numberOfLines={labelNumberOfLines}
+        style={{ flexShrink: 1, textAlign: centered ? 'center' : 'left' }}
+      >
         {label}
       </Text>
     </View>

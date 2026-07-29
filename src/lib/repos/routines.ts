@@ -10,7 +10,6 @@ export async function saveRoutine(userId: string, r: Routine): Promise<void> {
       description: r.description ?? null,
       split_type: r.splitType,
       is_ai_generated: r.isAiGenerated ?? false,
-      ai_reasoning: r.aiReasoning ?? null,
     },
     { onConflict: 'id' },
   );
@@ -65,7 +64,6 @@ export async function getRoutines(userId: string): Promise<Routine[]> {
     description: row.description ?? undefined,
     splitType: row.split_type,
     isAiGenerated: row.is_ai_generated,
-    aiReasoning: row.ai_reasoning ?? undefined,
     createdAt: row.created_at,
     days: (row.routine_days as any[])
       .sort((a: any, b: any) => a.day_index - b.day_index)

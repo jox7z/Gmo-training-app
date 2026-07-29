@@ -33,6 +33,12 @@ export interface Exercise {
    * Se omite en ejercicios de aislamiento (sin sinergistas relevantes).
    */
   secondary?: MuscleGroup[];
+  /**
+   * Ajustes fraccionales puntuales por músculo y serie.
+   * Las claves presentes reemplazan la contribución derivada (1 primaria,
+   * 0.5 secundaria); un valor 0 elimina esa contribución.
+   */
+  volumeContributions?: Partial<Record<MuscleGroup, number>>;
   equipment: Equipment;
   isCompound: boolean;
   instructions: string;

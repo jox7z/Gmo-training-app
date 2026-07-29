@@ -37,6 +37,7 @@ import { EXERCISES } from '@/data/exercises';
 import { useToast } from '@/components/ui/Toast';
 import { buildWorkoutPostMetadata } from '@/lib/workoutPostMetadata';
 import { fromDisplay } from '@/lib/units';
+import type { WorkoutVisibility } from '@/lib/workoutVisibility';
 
 type Mode = 'manual' | 'workout' | 'pr' | 'streak';
 const MAX_CAPTION = 500;
@@ -405,6 +406,7 @@ function WorkoutComposer({
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const visibility: WorkoutVisibility = 'public';
   const publish = usePublishWorkout();
   const markWorkoutPublished = useWorkoutsStore((state) => state.markWorkoutPublished);
 
@@ -445,9 +447,14 @@ function WorkoutComposer({
     !overLimit &&
     !submitting &&
     !publish.isPending &&
-    !uploading;
+    !uploading &&
+    !(photoUri && visibility !== 'public');
 
   const pickPhoto = async () => {
+    if (visibility !== 'public') {
+      onError('Las fotos requieren visibilidad Pública por ahora.');
+      return;
+    }
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) { onError('Necesitamos permiso para acceder a tus fotos.'); return; }
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.6, allowsEditing: false });
@@ -476,8 +483,9 @@ function WorkoutComposer({
         title: title.trim(),
         caption: caption.trim() || undefined,
         photoUrl,
+        visibility,
       });
-      markWorkoutPublished(workout.id);
+      markWorkoutPublished(workout.id, visibility);
       onSuccess('Entreno compartido');
     } catch (error) {
       onError(error instanceof Error ? error.message : 'No se pudo publicar');
@@ -613,12 +621,40 @@ function WorkoutComposer({
       ) : (
         <Pressable
           onPress={pickPhoto}
+          disabled={visibility !== 'public'}
           style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, marginTop: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.bg.elevated, borderStyle: 'dashed' }, pressed && { opacity: 0.7 }]}
         >
           <Icon name="image" size={18} color={colors.text.muted} />
-          <Text weight="semibold" tone="secondary">Adjuntar foto (opcional)</Text>
+          <Text weight="semibold" tone="secondary">
+            {visibility === 'public'
+              ? 'Adjuntar foto (opcional)'
+              : 'Fotos disponibles solo en Público'}
+          </Text>
         </Pressable>
       )}
+
+      <View style={{ marginTop: spacing.lg }}>
+        <Text variant="label" tone="secondary" style={{ marginBottom: spacing.sm }}>
+          Quién puede verlo
+        </Text>
+        <View
+          accessible
+          accessibilityLabel="Visibilidad pública"
+          style={{
+            minHeight: 44,
+            justifyContent: 'center',
+            borderTopWidth: 1,
+            borderBottomWidth: 1,
+            borderColor: colors.border,
+          }}
+        >
+          <Text weight="semibold">Público</Text>
+          <Text variant="caption" tone="muted">
+            Seguidores y Privado se activarán cuando el servidor aplique su
+            protección completa.
+          </Text>
+        </View>
+      </View>
 
       <Button
         title={uploading ? 'Subiendo foto…' : 'Publicar entreno'}

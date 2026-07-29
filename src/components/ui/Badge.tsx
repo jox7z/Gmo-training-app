@@ -14,6 +14,8 @@ interface Props {
   tone?: Tone;
   /** Refuerza el estado con un glifo, para no depender solo del color. */
   icon?: IconName;
+  /** Texto blanco para badges pequeños sobre superficies de color. */
+  highContrast?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -27,8 +29,15 @@ const toneMap: Record<Tone, { bg: string; fg: string; border: string }> = {
   warning: { bg: colors.warningSoft, fg: colors.warning, border: colors.warningSoft },
 };
 
-export function Badge({ label, tone = 'muted', icon, style }: Props) {
+export function Badge({
+  label,
+  tone = 'muted',
+  icon,
+  highContrast = false,
+  style,
+}: Props) {
   const c = toneMap[tone];
+  const foreground = highContrast ? colors.text.primary : c.fg;
   return (
     <View
       style={[
@@ -47,8 +56,8 @@ export function Badge({ label, tone = 'muted', icon, style }: Props) {
         style,
       ]}
     >
-      {icon ? <Icon name={icon} size={spacing.md} color={c.fg} /> : null}
-      <Text variant="label" style={{ color: c.fg }}>
+      {icon ? <Icon name={icon} size={spacing.md} color={foreground} /> : null}
+      <Text variant="label" style={{ color: foreground }}>
         {label}
       </Text>
     </View>

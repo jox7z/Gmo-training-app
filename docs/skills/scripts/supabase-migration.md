@@ -56,9 +56,8 @@ supabase db push
 
 ## Cuándo aplicar
 
-- En cuanto el agente Supabase entregue una migration nueva
-- **Antes** de que el agente Backend empiece — si no, las RPCs no
-  existen y el Backend va a fallar
+- Cuando `supabase-fullstack-engineer` entregue una migration nueva
+- Antes del handoff UI si el contrato depende de RPCs ya desplegadas
 - En desarrollo: aplica al proyecto de Supabase de dev
 - En producción: aplica con cuidado, idealmente en horario de bajo tráfico
 

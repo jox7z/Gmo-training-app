@@ -6,7 +6,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { StreakRing } from '@/components/StreakRing';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -30,6 +29,8 @@ import {
 } from '@/lib/queries/body';
 import { useToast } from '@/components/ui/Toast';
 import { ProgressInsightsSection } from '@/components/progress/ProgressInsightsSection';
+import { MonthlyTrainingCalendar } from '@/components/progress/MonthlyTrainingCalendar';
+import { MuscleMilestoneMap } from '@/components/progress/MuscleMilestoneMap';
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
@@ -76,22 +77,21 @@ export default function ProgressScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary.DEFAULT} />
         }
       >
-        <Card variant="section" padding="lg">
-          <Text variant="label" tone="secondary" style={{ marginBottom: spacing.md }}>
-            SEMANA EN CURSO
-          </Text>
-          <View style={{ alignItems: 'center' }}>
-            <StreakRing
-              weeks={streakWeeks}
-              daysThisWeek={daysThisWeek}
-              weeklyGoal={profile?.weeklyGoalDays ?? 4}
-              size={148}
-            />
-          </View>
-        </Card>
+        <MonthlyTrainingCalendar
+          history={history}
+          streakWeeks={streakWeeks}
+          daysThisWeek={daysThisWeek}
+          weeklyGoalDays={profile?.weeklyGoalDays ?? 4}
+        />
 
         <ProgressInsightsSection
           history={history}
+          unit={profile?.unit ?? 'kg'}
+        />
+
+        <MuscleMilestoneMap
+          history={history}
+          gender={profile?.sex ?? 'male'}
           unit={profile?.unit ?? 'kg'}
         />
 

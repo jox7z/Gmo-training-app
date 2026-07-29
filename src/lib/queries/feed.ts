@@ -4,6 +4,8 @@ import {
   useQuery,
   useQueryClient,
   type InfiniteData,
+  type QueryClient,
+  type QueryKey,
 } from '@tanstack/react-query';
 import {
   listFeed,
@@ -25,6 +27,7 @@ import {
 } from '@/lib/repos/posts';
 import { listDiscover } from '@/lib/repos/social';
 import { profileCountersKey } from '@/lib/queries/profile';
+import type { WorkoutVisibility } from '@/lib/workoutVisibility';
 
 // Re-export social hooks from their new home so existing JSX imports
 // (`@/lib/queries/feed`) keep working without changes.
@@ -48,6 +51,25 @@ export const feedKeys = {
 };
 
 type FeedCache = InfiniteData<FeedPage, string | undefined>;
+type CacheSnapshot = [QueryKey, FeedCache | undefined];
+
+function patchPostCaches(
+  qc: QueryClient,
+  updater: (data: FeedCache | undefined) => FeedCache | undefined,
+): void {
+  qc.setQueryData<FeedCache>(feedKeys.list(), updater);
+  qc.setQueriesData<FeedCache>({ queryKey: ['userPosts'] }, updater);
+}
+
+function userPostsSnapshots(qc: QueryClient): CacheSnapshot[] {
+  return qc.getQueriesData<FeedCache>({ queryKey: ['userPosts'] });
+}
+
+function restoreUserPosts(qc: QueryClient, snapshots: CacheSnapshot[]): void {
+  for (const [key, data] of snapshots) {
+    qc.setQueryData(key, data);
+  }
+}
 
 export function useFeed() {
   return useInfiniteQuery<
@@ -90,6 +112,7 @@ interface ToggleReactionVars {
 
 interface ToggleReactionContext {
   previous?: FeedCache;
+  previousUserPosts: CacheSnapshot[];
 }
 
 export function applyReactionToggle(
@@ -124,17 +147,23 @@ export function useToggleReaction() {
   return useMutation<boolean, Error, ToggleReactionVars, ToggleReactionContext>({
     mutationFn: ({ postId, reaction }) => toggleReaction(postId, reaction),
     onMutate: async ({ postId, reaction }) => {
-      await qc.cancelQueries({ queryKey: feedKeys.list() });
+      await Promise.all([
+        qc.cancelQueries({ queryKey: feedKeys.list() }),
+        qc.cancelQueries({ queryKey: ['userPosts'] }),
+      ]);
       const previous = qc.getQueryData<FeedCache>(feedKeys.list());
-      qc.setQueryData<FeedCache>(feedKeys.list(), (old) =>
-        applyReactionToggle(old, postId, reaction),
+      const previousUserPosts = userPostsSnapshots(qc);
+      patchPostCaches(
+        qc,
+        (old) => applyReactionToggle(old, postId, reaction),
       );
-      return { previous };
+      return { previous, previousUserPosts };
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.previous) {
         qc.setQueryData(feedKeys.list(), ctx.previous);
       }
+      if (ctx) restoreUserPosts(qc, ctx.previousUserPosts);
     },
     // No refetch inmediato: el update optimista ya refleja el toggle y el
     // RPC devuelve el mismo resultado. Invalidar con refetch activo
@@ -142,6 +171,8 @@ export function useToggleReaction() {
     // Marcamos stale sin refetch; el próximo pull-to-refresh reconcilia.
     onSettled: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'none' });
     },
   });
 }
@@ -151,12 +182,14 @@ interface PublishWorkoutVars {
   title: string;
   caption?: string;
   photoUrl?: string;
+  visibility: WorkoutVisibility;
 }
 
 export function usePublishWorkout() {
   const qc = useQueryClient();
   return useMutation<string, Error, PublishWorkoutVars>({
-    mutationFn: ({ workoutId, title, caption, photoUrl }) => publishWorkout(workoutId, title, caption, photoUrl),
+    mutationFn: ({ workoutId, title, caption, photoUrl, visibility }) =>
+      publishWorkout(workoutId, title, caption, photoUrl, visibility),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });
@@ -218,6 +251,7 @@ export function useDeletePost() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: feedKeys.list() });
       qc.invalidateQueries({ queryKey: profileCountersKey });
+      qc.invalidateQueries({ queryKey: ['userPosts'] });
     },
   });
 }
@@ -262,7 +296,8 @@ export function useAddComment() {
     },
     onSettled: (_data, _err, { postId }) => {
       qc.invalidateQueries({ queryKey: feedKeys.comments(postId) });
-      qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'none' });
     },
   });
 }
@@ -297,13 +332,15 @@ export function useDeleteComment() {
     },
     onSettled: (_data, _err, { postId }) => {
       qc.invalidateQueries({ queryKey: feedKeys.comments(postId) });
-      qc.invalidateQueries({ queryKey: feedKeys.list() });
+      qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'none' });
     },
   });
 }
 
 interface IncrementShareContext {
   previous?: FeedCache;
+  previousUserPosts: CacheSnapshot[];
 }
 
 function bumpShareCount(
@@ -324,11 +361,11 @@ function bumpShareCount(
 }
 
 function bumpCommentCount(
-  qc: ReturnType<typeof useQueryClient>,
+  qc: QueryClient,
   postId: string,
   delta: number,
 ): void {
-  qc.setQueryData<FeedCache>(feedKeys.list(), (old) => {
+  patchPostCaches(qc, (old) => {
     if (!old) return old;
     return {
       ...old,
@@ -347,15 +384,24 @@ export function useIncrementShare() {
   return useMutation<number, Error, string, IncrementShareContext>({
     mutationFn: (postId) => incrementShare(postId),
     onMutate: async (postId) => {
-      await qc.cancelQueries({ queryKey: feedKeys.list() });
+      await Promise.all([
+        qc.cancelQueries({ queryKey: feedKeys.list() }),
+        qc.cancelQueries({ queryKey: ['userPosts'] }),
+      ]);
       const previous = qc.getQueryData<FeedCache>(feedKeys.list());
-      qc.setQueryData<FeedCache>(feedKeys.list(), (old) => bumpShareCount(old, postId, +1));
-      return { previous };
+      const previousUserPosts = userPostsSnapshots(qc);
+      patchPostCaches(qc, (old) => bumpShareCount(old, postId, +1));
+      return { previous, previousUserPosts };
     },
     onError: (_err, _postId, ctx) => {
       if (ctx?.previous) {
         qc.setQueryData(feedKeys.list(), ctx.previous);
       }
+      if (ctx) restoreUserPosts(qc, ctx.previousUserPosts);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: feedKeys.list(), refetchType: 'none' });
+      qc.invalidateQueries({ queryKey: ['userPosts'], refetchType: 'none' });
     },
   });
 }

@@ -1,6 +1,6 @@
 ---
 name: feedback-communication
-description: Communication style: no preambles, no farewells, direct action, do not narrate what you are about to do
+description: "Communication style: no preambles, no farewells, direct action, do not narrate what you are about to do"
 metadata:
   type: feedback
 ---

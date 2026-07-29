@@ -7,19 +7,58 @@ import { Text } from '@/components/ui/Text';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { PressableScale } from '@/components/ui/PressableScale';
 import { Icon, IconName } from '@/components/Icon';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useAppStore, Goal, Level, Unit, Sex, LOCAL_USER_ID } from '@/store/app';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { completeSignup, getCurrentUser, checkUsernameAvailable, AuthError, AuthErrorCode } from '@/lib/auth';
-import { upsertProfile } from '@/lib/repos/profile';
+import { updateProfileGoals, upsertProfile } from '@/lib/repos/profile';
 import { isUsernameValid } from '@/lib/passwordPolicy';
 import { famousRoutineOptions } from '@/data/routineTemplates';
 import { useRoutinesStore } from '@/store/routines';
 import { saveRoutine } from '@/lib/repos/routines';
+import { DEFAULT_WORKOUT_VISIBILITY } from '@/lib/workoutVisibility';
 
 const STEPS = ['welcome', 'profile', 'level', 'goal', 'frequency', 'routine', 'final'] as const;
 type Step = (typeof STEPS)[number];
+
+const GOAL_OPTIONS: {
+  value: Goal;
+  label: string;
+  description: string;
+  icon: IconName;
+  color: string;
+}[] = [
+  {
+    value: 'hypertrophy',
+    label: 'Hipertrofia',
+    description: 'Ganar masa muscular y tamaño.',
+    icon: 'muscle',
+    color: colors.primary.DEFAULT,
+  },
+  {
+    value: 'strength',
+    label: 'Fuerza',
+    description: 'Levantar más peso y mejorar fuerza.',
+    icon: 'lightning',
+    color: '#FFD700',
+  },
+  {
+    value: 'fat_loss',
+    label: 'Pérdida de grasa',
+    description: 'Reducir grasa sin dejar de entrenar.',
+    icon: 'fire',
+    color: colors.accent.DEFAULT,
+  },
+  {
+    value: 'general',
+    label: 'Salud general',
+    description: 'Mantenerme activo y en forma.',
+    icon: 'target',
+    color: colors.success,
+  },
+];
 
 export default function Onboarding() {
   const router = useRouter();
@@ -39,6 +78,7 @@ export default function Onboarding() {
   const [unit, setUnit] = useState<Unit>('kg');
   const [level, setLevel] = useState<Level>('intermediate');
   const [goal, setGoal] = useState<Goal>('hypertrophy');
+  const [secondaryGoals, setSecondaryGoals] = useState<Goal[]>([]);
   const [days, setDays] = useState(4);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,6 +126,18 @@ export default function Onboarding() {
   const idx = STEPS.indexOf(step);
   const next = () => setStep(STEPS[Math.min(STEPS.length - 1, idx + 1)]);
   const back = () => setStep(STEPS[Math.max(0, idx - 1)]);
+  const selectPrimaryGoal = (nextGoal: Goal) => {
+    setGoal(nextGoal);
+    setSecondaryGoals((current) => current.filter((item) => item !== nextGoal));
+  };
+  const toggleSecondaryGoal = (nextGoal: Goal) => {
+    if (nextGoal === goal) return;
+    setSecondaryGoals((current) =>
+      current.includes(nextGoal)
+        ? current.filter((item) => item !== nextGoal)
+        : [...current, nextGoal],
+    );
+  };
 
   const finish = async () => {
     setError(null);
@@ -116,8 +168,11 @@ export default function Onboarding() {
         weightKg: parseFloat(weight) || 75,
         heightCm: parseFloat(height) || 175,
         unit,
+        defaultWorkoutVisibility: DEFAULT_WORKOUT_VISIBILITY,
         level,
         goal,
+        secondaryGoals,
+        secondaryGoalsSyncPending: false,
         weeklyGoalDays: days,
         rankPoints: 0,
         currentRank: 'rookie' as const,
@@ -136,11 +191,19 @@ export default function Onboarding() {
             unit: profileData.unit,
             level: profileData.level,
             goal: profileData.goal,
+            goals: [profileData.goal, ...profileData.secondaryGoals],
             weeklyGoalDays: profileData.weeklyGoalDays,
           });
-          // Save email (and all profile fields) via direct upsert so the
-          // profiles table row created by complete_signup also gets the email.
+          // Sincroniza los campos públicos restantes después del RPC.
           await upsertProfile(profileData);
+          const goalsResult = await updateProfileGoals(
+            userId,
+            profileData.goal,
+            profileData.secondaryGoals,
+          );
+          profileData.secondaryGoalsSyncPending =
+            profileData.secondaryGoals.length > 0 &&
+            !goalsResult.secondaryGoalsPersisted;
         } catch (e) {
           if (e instanceof AuthError && e.code === AuthErrorCode.USERNAME_TAKEN) {
             setError('Ese username ya está tomado. Elige otro.');
@@ -159,7 +222,10 @@ export default function Onboarding() {
         // El usuario llega al editor (id='new') y crea su rutina desde cero.
         await completeOnboarding();
         setProfileComplete(true);
-        router.replace({ pathname: '/routine/[id]', params: { id: 'new' } });
+        router.replace({
+          pathname: '/routine/[id]',
+          params: { id: 'new', origin: 'onboarding' },
+        });
       } else {
         // Plantilla famosa seleccionada: crear rutina y navegar a tabs.
         const chosenOption = options[selectedRoutineIdx] ?? options[0];
@@ -294,7 +360,7 @@ export default function Onboarding() {
         )}
 
         {step === 'level' && (
-          <Section title="¿Cuál es tu nivel?" subtitle="Sé honesto, ajustaremos las recomendaciones">
+          <Section title="¿Cuál es tu nivel?" subtitle="Usaremos este dato al crear la estructura">
             <ChoiceCard
               selected={level === 'beginner'}
               onPress={() => setLevel('beginner')}
@@ -323,11 +389,45 @@ export default function Onboarding() {
         )}
 
         {step === 'goal' && (
-          <Section title="¿Cuál es tu objetivo?" subtitle="Elige el principal — luego puedes cambiarlo">
-            <ChoiceCard selected={goal === 'hypertrophy'} onPress={() => setGoal('hypertrophy')} icon="muscle" iconColor={colors.primary.DEFAULT} title="Hipertrofia" desc="Ganar masa muscular y tamaño." />
-            <ChoiceCard selected={goal === 'strength'} onPress={() => setGoal('strength')} icon="lightning" iconColor="#FFD700" title="Fuerza" desc="Levantar más peso, ser más fuerte." />
-            <ChoiceCard selected={goal === 'fat_loss'} onPress={() => setGoal('fat_loss')} icon="fire" iconColor={colors.accent.DEFAULT} title="Pérdida de grasa" desc="Definir y reducir % de grasa." />
-            <ChoiceCard selected={goal === 'general'} onPress={() => setGoal('general')} icon="target" iconColor={colors.success} title="Salud general" desc="Mantenerme activo y en forma." />
+          <Section
+            title="¿Qué quieres conseguir?"
+            subtitle="Elige un objetivo principal y todas las prioridades secundarias que quieras"
+          >
+            <Text variant="label" tone="secondary" style={{ marginBottom: spacing.sm }}>
+              OBJETIVO PRINCIPAL
+            </Text>
+            {GOAL_OPTIONS.map((option) => (
+              <ChoiceCard
+                key={option.value}
+                selected={goal === option.value}
+                onPress={() => selectPrimaryGoal(option.value)}
+                icon={option.icon}
+                iconColor={option.color}
+                title={option.label}
+                desc={option.description}
+              />
+            ))}
+
+            <Text
+              variant="label"
+              tone="secondary"
+              style={{ marginTop: spacing.md, marginBottom: spacing.sm }}
+            >
+              TAMBIÉN ME INTERESA
+            </Text>
+            <Text variant="caption" tone="muted" style={{ marginBottom: spacing.md }}>
+              No cambia la estructura principal de la rutina.
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {GOAL_OPTIONS.filter((option) => option.value !== goal).map((option) => (
+                <GoalChip
+                  key={option.value}
+                  label={option.label}
+                  selected={secondaryGoals.includes(option.value)}
+                  onPress={() => toggleSecondaryGoal(option.value)}
+                />
+              ))}
+            </View>
           </Section>
         )}
 
@@ -404,6 +504,21 @@ export default function Onboarding() {
               <Text variant="body" tone="secondary" style={{ marginTop: spacing.sm }}>
                 Empezarás en rango <Text tone="accent" weight="bold">Bronze</Text> con meta de{' '}
                 <Text weight="bold">{days} días/semana</Text>.
+              </Text>
+              <Text variant="caption" tone="muted" style={{ marginTop: spacing.md }}>
+                Objetivo principal:{' '}
+                <Text weight="bold">
+                  {GOAL_OPTIONS.find((option) => option.value === goal)?.label}
+                </Text>
+                {secondaryGoals.length > 0
+                  ? ` · También: ${secondaryGoals
+                      .map(
+                        (item) =>
+                          GOAL_OPTIONS.find((option) => option.value === item)?.label,
+                      )
+                      .filter(Boolean)
+                      .join(', ')}`
+                  : ''}
               </Text>
             </Card>
             <Card variant="section" padding="lg" style={{ marginTop: spacing.md }}>
@@ -592,6 +707,45 @@ function ChoiceCard({
         />
       </Card>
     </Pressable>
+  );
+}
+
+function GoalChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <PressableScale
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      onPress={onPress}
+      pressScale={0.97}
+      haptic={false}
+      style={{
+        minHeight: 44,
+        paddingHorizontal: spacing.md,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: radius.sm,
+        borderWidth: 1,
+        borderColor: selected ? colors.primary.DEFAULT : colors.border,
+        backgroundColor: selected ? colors.primary.muted : colors.bg.elevated,
+      }}
+    >
+      <Text
+        variant="caption"
+        weight="bold"
+        style={{ color: selected ? colors.primary.DEFAULT : colors.text.secondary }}
+      >
+        {selected ? '✓ ' : ''}
+        {label}
+      </Text>
+    </PressableScale>
   );
 }
 

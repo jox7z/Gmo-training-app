@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { RankId } from '@/theme/tokens';
+import { resolveUserRank } from '@/lib/rankMilestone';
 
 export type EventKind = 'challenge' | 'meetup';
 export type EventFilter = 'all' | 'challenge' | 'meetup' | 'mine' | 'joined';
@@ -96,7 +97,7 @@ function toParticipant(row: DbParticipantRow): EventParticipant {
     id: row.id,
     username: row.username,
     displayName: row.display_name,
-    currentRank: row.current_rank as RankId,
+    currentRank: resolveUserRank(row.current_rank),
     avatarUrl: row.avatar_url ?? undefined,
     score: Number(row.score) || 0,
     joinedAt: row.joined_at,
@@ -246,7 +247,7 @@ function toEventComment(row: DbEventCommentRow): EventComment {
       username: row.username,
       displayName: row.display_name,
       avatarUrl: row.avatar_url ?? undefined,
-      currentRank: row.current_rank as RankId,
+      currentRank: resolveUserRank(row.current_rank),
     },
   };
 }

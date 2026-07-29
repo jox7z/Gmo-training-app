@@ -1,6 +1,6 @@
 # Checklist de avance
 
-> Fuente viva del estado del proyecto. Última actualización: 2026-07-24.
+> Fuente viva del estado del proyecto. Última actualización: 2026-07-29.
 > No marcar un bloque como completado sin `npm test`, `npm run typecheck`,
 > `npm run lint` y revisión de calidad. El smoke visual en Expo sigue siendo manual.
 
@@ -9,14 +9,142 @@
 | Capa | Estado | Evidencia actual |
 |---|---|---|
 | Auth y onboarding | ✅ | Gating central en `app/_layout.tsx` con RPC `is_profile_complete` y timeouts |
-| Supabase | ✅ Producción | Migraciones `0001`→`0046`; RPC atómica, publicación monotónica y PR históricos con orden total |
+| Supabase | 🟡 Ledger bloqueado | Live llega a `20260727223657`; SQL timestamped recuperado localmente. `0051`/`0052` siguen repo-only |
 | Workout core | 🟡 pre-release | Flujo competitivo y sync remoto listos; falta smoke físico end-to-end |
-| Rutinas | ✅ | CRUD local/remoto, templates y generador con fallback offline |
+| Rutinas | ✅ factual | CRUD, templates, mapa por series equivalentes y GMO Rating descriptivo; sin consejo automático |
 | Social | ✅ factual | Stream edge-to-edge, comentarios, follow y tarjeta workout con metadata real + share externo |
-| Progreso | ✅ honesto | Tendencia real, peso corporal separado y punto→sesión; sin estimaciones ni veredictos |
+| Progreso | ✅ honesto | Tendencia real, calendario mensual, hitos por cargas reales, peso separado y punto→sesión |
 | Gamificación | ✅ | Racha derivada por meta, 9 rangos, logros, eventos y comunidades |
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
-| Calidad técnica | 🟡 | 66 tests puros en 11 suites; faltan Sentry, analytics y smoke automatizado |
+| Calidad técnica | 🟡 | 121 tests puros en 20 suites, typecheck/lint limpios; falta smoke físico |
+
+## Recuperación completa del working tree — 2026-07-29
+
+- [x] Recuperadas 285 ediciones exactas desde transcripciones Codex del
+      2026-07-26 al 2026-07-28
+- [x] Restaurados C3: celebración de rango, refresh fijo, GMO Rating radial,
+      calendario 6×7, mapa/selector de hitos, perfil compacto y editor numérico
+- [x] Restaurados contratos anteriores: volumen muscular, objetivos múltiples,
+      privacidad repo-only, auth multi-cuenta y agentes Caveman
+- [x] `profiles.goals` y `complete_signup(..., goals text[])` alineados con live
+- [x] SQL live ausente recuperado como `20260727210212`,
+      `20260727211100` y `20260727223657`
+- [x] Contrato retirado `0053_profile_goals.sql` eliminado
+- [x] `npm test -- --runInBand` — 20 suites / 121 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 0 warnings
+- [x] Export Android final — 2059 módulos / HBC 6,19 MB
+- [ ] Smoke físico Expo Go
+- [x] Revisión final `code-quality-reviewer` — cableado de Progreso y privacidad corregidos
+
+Riesgos:
+
+- `0051`/`0052` no están live y no se deben desplegar antes de reconciliar el
+  ledger completo.
+- El advisor live reporta 64 funciones `SECURITY DEFINER` ejecutables por `anon`;
+  requiere auditoría ACL separada.
+- No hay Edge Functions desplegadas; `generate_routine` local no está activo live.
+
+Siguiente paso: commit de recuperación y smoke físico Expo Go sobre
+Feed/Rutinas/Progreso/Perfil.
+
+## Sprint en verificación — agentes visuales móviles (2026-07-26)
+
+Objetivo: convertir `.claude` en un sistema especializado para dirección,
+implementación, motion, QA y rendimiento de una app gym/social juvenil.
+
+### Implementación
+
+- [x] Caveman reducido a estilo, ownership y definición de terminado
+- [x] Guardrails de dominio extraídos a skill propia
+- [x] `frontend-design` limitado a web; Expo/RN redirigido al sistema móvil
+- [x] Skills de producto móvil, arte gym/social, motion, accesibilidad, performance,
+  QA visual y assets
+- [x] Agentes de director visual, UI RN, motion, QA visual y performance
+- [x] Agentes existentes recortados y sin boilerplate/MCP UUID obsoleto
+- [x] Boundary visual→Supabase y routing por impacto documentados
+- [x] AGENTS, CLAUDE, prompts, arquitectura, overview y roadmaps sincronizados
+
+### Verificación
+
+- [x] Frontmatter/nombres/referencias — 9 agentes, 10 skills, 9 referencias válidas
+- [x] Dry-run de Feed, timer, fotos privadas y Perfil — routing/boundary PASS
+- [x] `npm test -- --runInBand` — 13 suites / 85 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores; 1 warning previo en `app/workout/active.tsx:1727`
+- [x] Revisión `code-quality-reviewer` — ownership, permisos read-only, memoria y
+  docs legacy corregidos
+
+### Riesgo restante
+
+- Los agentes Markdown no controlan un dispositivo físico por sí solos.
+- QA visual mantiene screenshots y smoke Expo Go como evidencia manual.
+- Ningún cambio visual de producto fue incluido en este sprint.
+- El dry-run de Perfil detectó deuda presentacional/accesible; queda para el
+  primer piloto, sin mezclarla con este sprint de tooling.
+
+### Siguiente paso ejecutable
+
+1. Usar Perfil como primera pantalla piloto.
+2. Corregir orden identidad→tabs sticky, semántica de tabs e iconos accesibles
+   dentro de una allowlist visual.
+3. Comparar screenshots 360/390/430/768 antes de extender el sistema.
+
+## Sprint en verificación — estabilidad pre-release + dashboard + privacidad (2026-07-26)
+
+Objetivo: cerrar deuda que rompe confianza antes de añadir features.
+
+### Implementación
+
+- [x] Checkpoint Git `3c6f69a`
+- [x] Rescate selectivo `0047`–`0050`; sin merge de `oneRepMax` ni repos de sync regresivos
+- [x] `0039` restaurada desde contrato live
+- [x] `0051` conserva supersets dentro de `sync_workout_snapshot` transaccional
+- [x] Perfil propio: FlashList única, tabs sticky, FeedItem canónico, paginación y cache coherente
+- [x] Rutinas: score `/100`, weak groups y consejos eliminados
+- [x] Mapa muscular de volumen restaurado como series equivalentes estimadas solo en editor/Rutinas
+- [x] Cinco bandas gris/amarillo/lima/verde/rojo + toque factual por ejercicio
+- [x] Objetivo principal + secundarios múltiples en onboarding
+- [x] Objetivos pendientes aislados por cuenta; sesión inicial sin reconciliación duplicada
+- [x] Logout y cambio A→B limpian perfil, historial, rutinas, logros y Query cache
+- [x] Rutina personalizada retorna explícitamente al tab Rutinas
+- [x] `profiles.goals` live persiste principal + secundarios
+- [x] Generador estructural sin reasoning, proveedor ni copy prescriptivo
+- [x] Superseries legacy inválidas se disuelven al hidratar; swap no rompe contigüidad
+- [x] Rollback social revierte deltas sin borrar mutaciones concurrentes
+- [x] Contrato repo-only de privacidad conservado; el compositor muestra solo Público hasta desplegar RLS/RPC
+- [x] Fotos bloqueadas para Seguidores/Privado mientras `post-photos` sea público
+- [x] Cliente legacy conserva publicación Pública si `0052` aún no está desplegada
+- [x] AGENTS, CLAUDE, Caveman, agentes, overview, arquitectura y roadmaps sincronizados
+- [ ] Reconciliar ledger hosted completo y aplicar `0051`/`0052`
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 13 suites / 85 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 1 warning preexistente
+- [x] Bundle Android — 2034 módulos / HBC 6,05 MB
+- [x] `npm run exercises:audit` — 1324 fuente / 46 matches / 0 media importada
+- [x] Revisión final `code-quality-reviewer` — limpia tras corregir auth y aislamiento A→B
+- [ ] Smoke físico Expo Go: 360/390/430/768 px, lifecycle, perfil, publicación y privacidad
+- [ ] Matriz SQL owner/follower/stranger/anon después de desplegar `0052`
+- [ ] Smoke SQL de `profiles.goals`: orden, duplicados y cliente legacy
+
+### Riesgo restante
+
+- `0051`/`0052` no deben desplegarse antes de reconciliar el ledger hosted completo.
+- Seguidores/Privado fallan de forma explícita contra el backend actual; Público usa RPC legacy.
+- El bucket público impide privacidad real de fotos; media restringida permanece bloqueada.
+- El contrato live de objetivos es `profiles.goals`; no restaurar
+  `profiles.secondary_goals`.
+- Las bandas del mapa son referencia estimada; no miden esfuerzo, recuperación o crecimiento real.
+
+### Siguiente paso ejecutable
+
+1. Respaldar schema + ledger hosted, reconciliar la historia completa en una ventana única.
+2. Aplicar `0051`/`0052` y ejecutar matrices SQL.
+3. Smoke Expo Go: mapa interactivo, onboarding múltiple y rutina personalizada.
+4. Completar smoke físico general en 360/390/430/768 px.
 
 ## Recuperación — GMUP + consistencia visual (2026-07-29)
 
@@ -355,7 +483,7 @@ base reutilizable sin añadir dependencias ni romper Expo Go.
 - [x] Estancamiento y caída permanecen visibles sin corregirse ni calificarse
 - [x] Comparación redundante “última vs anterior” retirada
 - [x] Peso corporal separado del rendimiento de ejercicios
-- [x] Racha, rangos, leaderboard y mapa muscular retirados de Progreso; viven en sus superficies propias
+- [x] Racha, rangos, leaderboard y volumen semanal retirados de Progreso; calendario + hitos usan evidencia factual
 - [x] Datos legacy fuera de 1–999 reps o 0–1000 kg excluidos con predicado compartido
 - [x] Trabajo usa unidad explícita `kg·rep`/`lb·rep`; carga conserva `kg`/`lb`
 - [x] Tendencia mixta con lastre/peso corporal cambia a reps comparables
@@ -453,7 +581,7 @@ base reutilizable sin añadir dependencias ni romper Expo Go.
 ### 4. C2 — progreso moderno
 
 - [x] Charts con ejes, tooltip, selector de rango y drill-down a la sesión real
-- [x] Mapa muscular en Rutinas; retirado de Progreso para evitar duplicación
+- [x] Score y mapa prescriptivo retirados; mapa factual de volumen compartido restaurado
 - [x] Detalle de ejercicio: Información · Historial · Records
 - [x] Tarjeta factual workout + share externo de texto
 - [ ] Imágenes shareables de PR/racha/mes + mapa muscular con privacidad real
@@ -466,7 +594,7 @@ base reutilizable sin añadir dependencias ni romper Expo Go.
 
 ## Deuda conocida
 
-- [ ] Generador de rutinas puede usar heurística local cuando falla/no se configura la edge function
+- [x] Generador estructural local sin reasoning ni dependencia de proveedor
 - [x] Racha local derivada de historial + meta semanal
 - [ ] Cambio KG↔LB en workout activo puede redondear inputs
 - [x] Templates confirman antes de reemplazar la rutina activa
