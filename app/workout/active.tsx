@@ -1,10 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, Modal, FlatList } from 'react-native';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -12,9 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Screen } from '@/components/ui/Screen';
 import { Text } from '@/components/ui/Text';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Stat } from '@/components/ui/Stat';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { colors, spacing, radius } from '@/theme/tokens';
 import { useRoutinesStore, RoutineDay } from '@/store/routines';
@@ -51,24 +43,18 @@ import { PlateCalculatorModal } from '@/components/workout/PlateCalculatorModal'
 import { GmoMascot } from '@/components/GmoMascot';
 import { runHapticSafely } from '@/lib/haptics';
 import { useReduceMotion } from '@/components/ui/useReduceMotion';
+import { RestMascotCoach } from '@/components/workout/RestMascotCoach';
+import { WorkoutMetric } from '@/components/workout/WorkoutMetric';
+import { duration as motionDuration, spring as motionSpring } from '@/theme/motion';
 
 const REST_PHRASES = [
-  '¡Una más!',
-  'Vas increíble',
-  'El descanso también entrena',
-  'Respira y vuelve más fuerte',
-  'Esto es lo que te hace diferente',
+  'Buen trabajo. Sigue así.',
+  'Respira. La siguiente es tuya.',
+  'Mantén el ritmo.',
+  'Serie registrada.',
 ];
 
-const SET_SPLASH_PHRASES = [
-  '¡Vamos! Siguiente serie',
-  'A darlo todo',
-  '¡Siguiente serie!',
-  '¡Tú puedes!',
-  'Máximo esfuerzo',
-];
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 type Phase = 'warmup' | 'set' | 'log' | 'rest' | 'summary';
 
@@ -219,9 +205,6 @@ export default function ActiveWorkout() {
   const [unlockQueue, setUnlockQueue] = useState<UnlockedAchievement[]>([]);
   const [exIdx, setExIdx] = useState(initialResumePosition?.exIdx ?? 0);
   const [setIdx, setSetIdx] = useState(initialResumePosition?.setIdx ?? 0);
-  const [showSetSplash, setShowSetSplash] = useState(false);
-  const [splashPhrase, setSplashPhrase] = useState('');
-  const prevPhaseRef = useRef<Phase>('warmup');
   const [restStartedAt, setRestStartedAt] = useState<number | null>(null);
   const [restElapsed, setRestElapsed] = useState(0);
   const [setStartedAt, setSetStartedAt] = useState<number | null>(null);
@@ -236,161 +219,42 @@ export default function ActiveWorkout() {
   const editedSetIds = useRef(new Set<string>());
   const reduceMotion = useReduceMotion();
 
-  // ---- Original transition: hero scales in from 0.88 + opacity, while a
-  //      thin accent line sweeps width from 0→100% just before the hero
-  //      settles. Runs on every phase change. useNativeDriver-safe: scale,
-  //      opacity (hero) + width is JS-driven but kept off the hot path.
+  // Transición breve de fase. Sin sweep, halo ni splash.
   const heroScale   = useRef(new Animated.Value(1)).current;
   const heroOpacity = useRef(new Animated.Value(1)).current;
-  // accent bar width expressed as 0→1 (we multiply by screen width in style)
-  const accentProgress = useRef(new Animated.Value(0)).current;
-
-  // Splash overlay animation values
-  const splashScale   = useRef(new Animated.Value(0.72)).current;
-  const splashOpacity = useRef(new Animated.Value(0)).current;
-  const splashY       = useRef(new Animated.Value(28)).current;   // slide up
-  const splashRing    = useRef(new Animated.Value(0)).current;    // ring expand 0→1
-  const splashPulse   = useRef(new Animated.Value(1)).current;    // ring pulse
-  const splashAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
-
-  // Energetic full-screen splash with a phrase. Reused when entering a set
-  // from rest and when the user swaps the exercise mid-session.
-  const playSplash = useCallback((phrase: string) => {
-    splashAnimationRef.current?.stop();
-    if (reduceMotion) {
-      setShowSetSplash(false);
-      return;
-    }
-    setSplashPhrase(phrase);
-    // Reset all values
-    splashScale.setValue(0.72);
-    splashOpacity.setValue(0);
-    splashY.setValue(28);
-    splashRing.setValue(0);
-    splashPulse.setValue(1);
-    setShowSetSplash(true);
-    void runHapticSafely(() =>
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
-    );
-
-    const animation = Animated.sequence([
-      // Phase 1 (0–320ms): ring bursts out + phrase springs in with upward slide
-      Animated.parallel([
-        // Ring expands from 0 → full radius
-        Animated.timing(splashRing, {
-          toValue: 1,
-          duration: 320,
-          useNativeDriver: true,
-        }),
-        // Phrase: spring overshoot (scale) + slide up + fade in
-        Animated.spring(splashScale, {
-          toValue: 1,
-          friction: 4,
-          tension: 160,
-          useNativeDriver: true,
-        }),
-        Animated.timing(splashY, {
-          toValue: 0,
-          duration: 280,
-          useNativeDriver: true,
-        }),
-        Animated.timing(splashOpacity, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Phase 2 (320–520ms): ring pulses once — scale up 1→1.12→1
-      Animated.sequence([
-        Animated.timing(splashPulse, {
-          toValue: 1.12,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-        Animated.timing(splashPulse, {
-          toValue: 1,
-          duration: 100,
-          useNativeDriver: true,
-        }),
-      ]),
-      // Phase 3: hold at full opacity
-      Animated.delay(480),
-      // Phase 4: fade out everything
-      Animated.timing(splashOpacity, {
-        toValue: 0,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-    ]);
-    splashAnimationRef.current = animation;
-    animation.start(({ finished }) => {
-      if (finished) setShowSetSplash(false);
-    });
-  }, [
-    reduceMotion,
-    splashOpacity,
-    splashPulse,
-    splashRing,
-    splashScale,
-    splashY,
-  ]);
 
   useEffect(() => {
-    const fromRest = prevPhaseRef.current === 'rest' && phase === 'set';
-    prevPhaseRef.current = phase;
-
     if (reduceMotion) {
       heroScale.stopAnimation();
       heroOpacity.stopAnimation();
-      accentProgress.stopAnimation();
-      splashAnimationRef.current?.stop();
       heroScale.setValue(1);
       heroOpacity.setValue(1);
-      accentProgress.setValue(0);
-      setShowSetSplash(false);
       return;
     }
 
-    // Reset state for incoming phase
-    heroScale.setValue(0.88);
+    heroScale.setValue(0.98);
     heroOpacity.setValue(0);
-    accentProgress.setValue(0);
 
-    const animation = Animated.sequence([
-      // 1. accent bar sweeps across (80ms)
-      Animated.timing(accentProgress, {
+    const animation = Animated.parallel([
+      Animated.spring(heroScale, {
         toValue: 1,
-        duration: 80,
-        useNativeDriver: false, // width cannot use native driver
+        damping: motionSpring.enter.damping,
+        stiffness: motionSpring.enter.stiffness,
+        mass: motionSpring.enter.mass,
+        useNativeDriver: true,
       }),
-      // 2. hero scales+fades in (280ms spring feel)
-      Animated.parallel([
-        Animated.spring(heroScale, {
-          toValue: 1,
-          friction: 7,
-          tension: 120,
-          useNativeDriver: true,
-        }),
-        Animated.timing(heroOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]),
+      Animated.timing(heroOpacity, {
+        toValue: 1,
+        duration: motionDuration.fast,
+        useNativeDriver: true,
+      }),
     ]);
     animation.start();
-
-    // Show energetic splash when entering set from rest (not the very first set)
-    if (fromRest) {
-      playSplash(SET_SPLASH_PHRASES[Math.floor(Math.random() * SET_SPLASH_PHRASES.length)]);
-    }
     return () => animation.stop();
   }, [
-    accentProgress,
     heroOpacity,
     heroScale,
     phase,
-    playSplash,
     reduceMotion,
   ]);
 
@@ -702,16 +566,13 @@ export default function ActiveWorkout() {
   };
 
   // Cambia el ejercicio actual SOLO para esta sesión (máquina ocupada, etc.).
-  // La rutina guardada no se modifica. El splash a pantalla completa cubre el
-  // cambio de contenido, así que no hace falta re-disparar la transición del hero.
+  // La rutina guardada no se modifica.
   const handleSwapSelect = (newExerciseId: string) => {
     setSwapOpen(false);
     setLivePr(null);
     const newIdx = swapExercise(exIdx, newExerciseId);
     setExIdx(newIdx);
     setSetIdx(0);
-    const name = exerciseById(newExerciseId)?.name ?? 'el nuevo ejercicio';
-    playSplash(`¡Vamos con ${name}!`);
   };
 
   const advancePosition = () => {
@@ -839,10 +700,10 @@ export default function ActiveWorkout() {
 
   // Next button label for rest screen
   const nextLabel = isLastSet
-    ? 'Ya descansé · Terminar workout'
+    ? 'Finalizar'
     : exIdx < totalEx - 1 && setIdx === (currentEx?.sets.length ?? 1) - 1
-      ? 'Ya descansé · Siguiente ejercicio'
-      : 'Ya descansé · Siguiente serie';
+      ? 'Siguiente ejercicio'
+      : 'Siguiente serie';
 
   // ---- header context text ----
   let headerContext = routine?.name ?? active?.routineName ?? 'Entrenamiento';
@@ -887,23 +748,16 @@ export default function ActiveWorkout() {
         />
       </View>
 
-      {/* Accent sweep bar — driven by accentProgress (0→1) */}
-      <Animated.View
-        style={{
-          height: 1,
-          backgroundColor: colors.primary.DEFAULT,
-          width: accentProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }),
-          opacity: accentProgress.interpolate({ inputRange: [0, 0.8, 1], outputRange: [1, 1, 0] }),
-          marginBottom: 1,
-        }}
-      />
-      {/* Static border below the sweep */}
       <View style={{ height: 1, backgroundColor: colors.border }} />
 
       {/* Phase content — centred, fills remaining space */}
       <Animated.View
         style={{
           flex: 1,
+          width: '100%',
+          maxWidth: 600,
+          alignSelf: 'center',
+          minHeight: 0,
           opacity: heroOpacity,
           transform: [{ scale: heroScale }],
           paddingHorizontal: spacing.lg,
@@ -982,131 +836,6 @@ export default function ActiveWorkout() {
           />
         )}
       </Animated.View>
-
-      {/* Energetic set-start splash overlay */}
-      {showSetSplash && (
-        <Pressable
-          onPress={() => {
-            Animated.timing(splashOpacity, {
-              toValue: 0,
-              duration: 180,
-              useNativeDriver: true,
-            }).start(() => setShowSetSplash(false));
-          }}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: SCREEN_WIDTH,
-            height: SCREEN_HEIGHT,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {/* Full-screen dark backdrop */}
-          <Animated.View
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              width: SCREEN_WIDTH,
-              height: SCREEN_HEIGHT,
-              backgroundColor: colors.bg.base,
-              opacity: splashOpacity,
-            }}
-          />
-
-          {/* Expanding accent ring burst — behind the text */}
-          <Animated.View
-            style={{
-              position: 'absolute',
-              width: SCREEN_WIDTH * 0.9,
-              height: SCREEN_WIDTH * 0.9,
-              borderRadius: SCREEN_WIDTH * 0.45,
-              borderWidth: 1.5,
-              borderColor: colors.primary.DEFAULT,
-              // ring grows from invisible dot to full size
-              transform: [
-                {
-                  scale: splashRing.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.08, 1],
-                  }),
-                },
-                { scale: splashPulse },
-              ],
-              opacity: splashRing.interpolate({
-                inputRange: [0, 0.15, 0.75, 1],
-                outputRange: [0, 0.7, 0.35, 0.2],
-              }),
-              shadowColor: colors.primary.DEFAULT,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 0.6,
-              shadowRadius: 24,
-            }}
-          />
-          {/* Inner tighter ring for depth */}
-          <Animated.View
-            style={{
-              position: 'absolute',
-              width: SCREEN_WIDTH * 0.55,
-              height: SCREEN_WIDTH * 0.55,
-              borderRadius: SCREEN_WIDTH * 0.275,
-              borderWidth: 1,
-              borderColor: colors.primary.DEFAULT,
-              transform: [
-                {
-                  scale: splashRing.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.1, 1],
-                  }),
-                },
-                { scale: splashPulse },
-              ],
-              opacity: splashRing.interpolate({
-                inputRange: [0, 0.2, 0.8, 1],
-                outputRange: [0, 0.9, 0.5, 0.3],
-              }),
-            }}
-          />
-
-          {/* Phrase: spring-overshoots in with upward slide */}
-          <Animated.View
-            style={{
-              opacity: splashOpacity,
-              transform: [
-                { scale: splashScale },
-                { translateY: splashY },
-              ],
-              alignItems: 'center',
-              paddingHorizontal: spacing.xl,
-            }}
-          >
-            <Text
-              variant="metric"
-              style={{
-                textAlign: 'center',
-              }}
-            >
-              {splashPhrase}
-            </Text>
-            {/* Red accent pill beneath the phrase */}
-            <View
-              style={{
-                width: 48,
-                height: 3,
-                backgroundColor: colors.primary.DEFAULT,
-                marginTop: spacing.md,
-                borderRadius: radius.sm,
-                shadowColor: colors.primary.DEFAULT,
-                shadowOffset: { width: 0, height: 0 },
-                shadowOpacity: 0.8,
-                shadowRadius: 6,
-              }}
-            />
-          </Animated.View>
-        </Pressable>
-      )}
 
       {/* Cambio de ejercicio solo para esta sesión */}
       <SwapExerciseModal
@@ -1219,13 +948,14 @@ function WarmupPhase({
       {/* Selector de día — por si hoy toca improvisar */}
       <View>
         <Text
-          variant="eyebrow"
+          variant="caption"
+          weight="semibold"
           tone="muted"
           style={{
             marginBottom: spacing.md,
           }}
         >
-          DÍA DE HOY
+          Hoy
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -1246,24 +976,25 @@ function WarmupPhase({
         )}
       </View>
 
-      {/* Tarjeta central: cronómetro de calentamiento + preview del día */}
+      {/* Cronómetro y preview abiertos: el espacio crea la jerarquía. */}
       <View style={{ flex: 1, justifyContent: 'center', paddingVertical: spacing.lg }}>
-        <Card variant="section" padding="xl">
+        <View style={{ paddingVertical: spacing.xl }}>
           <Text
-            variant="eyebrow"
+            variant="caption"
+            weight="semibold"
             tone="muted"
             style={{
               textAlign: 'center',
               marginBottom: spacing.sm,
             }}
           >
-            CALENTAMIENTO
+            Calentamiento
           </Text>
           <Text
             variant="metricLg"
             numeric
             style={{
-              color: colors.text.secondary,
+              color: colors.text.primary,
               textAlign: 'center',
             }}
           >
@@ -1297,10 +1028,10 @@ function WarmupPhase({
               </Text>
             )}
           </Animated.View>
-        </Card>
+        </View>
       </View>
 
-      <Button title="Terminé de calentar" variant="primary" size="lg" fullWidth onPress={onDone} />
+      <Button title="Empezar" variant="primary" size="lg" fullWidth onPress={onDone} />
     </>
   );
 }
@@ -1337,14 +1068,13 @@ function SetPhase({
       {/* Arriba: serie actual + pills de progreso */}
       <View>
         <Text
-          variant="eyebrow"
-          tone="brand"
+          variant="heading"
           style={{
             textAlign: 'center',
             marginBottom: spacing.md,
           }}
         >
-          SERIE {setNumber}/{totalSets}
+          Serie {setNumber} de {totalSets}
         </Text>
         <SetProgressPills total={totalSets} current={setNumber - 1} completedCount={completedCount} />
         <View style={{ marginTop: spacing.md }}>
@@ -1371,30 +1101,12 @@ function SetPhase({
           />
         </PressableScale>
 
-        {/* Chip ancho del cronómetro de la serie */}
-        <View
-          style={{
-            backgroundColor: colors.bg.elevated,
-            borderRadius: radius.xl,
-            borderWidth: 1,
-            borderColor: colors.border,
-            padding: spacing.lg,
-            alignItems: 'center',
-          }}
-        >
-          <Text
-            variant="timer"
-            numeric
-            style={{
-              textAlign: 'center',
-            }}
-          >
-            {formatClock(elapsed)}
-          </Text>
-          <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs, letterSpacing: 1 }}>
-            tiempo en la serie
-          </Text>
-        </View>
+        <WorkoutMetric
+          label="Tiempo"
+          value={formatClock(elapsed)}
+          align="center"
+          prominent
+        />
 
         {/* ¿Máquina ocupada? Cambia el ejercicio solo por hoy */}
         <PressableScale
@@ -1410,12 +1122,9 @@ function SetPhase({
             alignItems: 'center',
             alignSelf: 'center',
             gap: spacing.sm,
+            minHeight: 44,
             paddingVertical: spacing.sm,
             paddingHorizontal: spacing.lg,
-            borderRadius: radius.sm,
-            borderWidth: 1,
-            borderColor: colors.border,
-            backgroundColor: colors.bg.elevated,
           }}
         >
           <Icon name="swap" size={14} color={colors.text.secondary} />
@@ -1425,7 +1134,7 @@ function SetPhase({
         </PressableScale>
       </View>
 
-      <Button title="Terminé la serie" variant="primary" size="lg" fullWidth onPress={onDone} />
+      <Button title="Registrar" variant="primary" size="lg" fullWidth onPress={onDone} />
     </>
   );
 }
@@ -1536,8 +1245,17 @@ function SwapExerciseModal({
               const sameMuscle = current && item.muscle === current.muscle;
               return (
                 <Pressable onPress={() => onSelect(item.id)}>
-                  <Card padding="md" style={{ marginBottom: spacing.sm }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      minHeight: 64,
+                      paddingVertical: spacing.sm,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    }}
+                  >
                       <View
                         style={{
                           width: 48,
@@ -1573,18 +1291,15 @@ function SwapExerciseModal({
                             paddingHorizontal: spacing.sm,
                             paddingVertical: 3,
                             borderRadius: radius.sm,
-                            backgroundColor: colors.primary.muted,
-                            borderWidth: 1,
-                            borderColor: colors.primary.DEFAULT,
+                            backgroundColor: colors.bg.raised,
                           }}
                         >
-                          <Text variant="caption" weight="bold" style={{ color: colors.primary.DEFAULT }}>
+                          <Text variant="caption" weight="semibold" tone="secondary">
                             Equivalente
                           </Text>
                         </View>
                       )}
-                    </View>
-                  </Card>
+                  </View>
                 </Pressable>
               );
             }}
@@ -1677,27 +1392,14 @@ function LogPhase({
           <Text variant="heading" numberOfLines={2}>
             {exerciseName}
           </Text>
-          <View
-            style={{
-              alignSelf: 'flex-start',
-              paddingHorizontal: spacing.md,
-              paddingVertical: 5,
-              borderRadius: radius.sm,
-              backgroundColor: colors.primary.muted,
-              borderWidth: 1,
-              borderColor: colors.primary.DEFAULT,
-            }}
+          <Text
+            variant="caption"
+            tone="secondary"
+            maxFontSizeMultiplier={1.4}
+            numeric
           >
-            <Text
-              variant="caption"
-              weight="bold"
-              maxFontSizeMultiplier={1.4}
-              style={{ color: colors.primary.DEFAULT }}
-              numeric
-            >
-              Serie {setNumber}/{totalSets}
-            </Text>
-          </View>
+            Serie {setNumber} de {totalSets}
+          </Text>
         </View>
       </View>
 
@@ -1720,7 +1422,7 @@ function LogPhase({
       >
         <BigStepperInput
           ref={weightInputRef}
-          label={unit.toUpperCase()}
+          label={`Peso · ${unit}`}
           value={displayWeight}
           step={unit === 'kg' ? 2.5 : 5}
           decimals={unit === 'kg' ? 1 : 0}
@@ -1742,11 +1444,12 @@ function LogPhase({
               flexDirection: 'row',
               alignItems: 'center',
               gap: spacing.md,
-              padding: spacing.lg,
-              borderRadius: radius.xl,
-              borderWidth: 1,
-              borderColor: colors.primary.glow,
-              backgroundColor: colors.primary.muted,
+              minHeight: 44,
+              paddingHorizontal: spacing.sm,
+              paddingVertical: spacing.md,
+              borderTopWidth: 1,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
             }}
           >
             <View
@@ -1759,11 +1462,11 @@ function LogPhase({
                 backgroundColor: colors.bg.elevated,
               }}
             >
-              <Icon name="barbell" size={spacing.xl} color={colors.primary.DEFAULT} />
+              <Icon name="barbell" size={spacing.xl} color={colors.text.secondary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text variant="subheading" weight="bold">
-                Calculadora de discos
+                Discos
               </Text>
               <Text variant="caption" tone="secondary">
                 Mira qué cargar por cada lado
@@ -1772,13 +1475,13 @@ function LogPhase({
             <Icon
               name="chevron-right"
               size={spacing.lg}
-              color={colors.primary.DEFAULT}
+              color={colors.text.secondary}
             />
           </PressableScale>
         ) : null}
         <BigStepperInput
           ref={repsInputRef}
-          label="REPS"
+          label="Reps"
           value={set.reps}
           step={1}
           decimals={0}
@@ -1790,7 +1493,7 @@ function LogPhase({
       </ScrollView>
 
       <Button
-        title="Guardar serie"
+        title="Guardar"
         variant="primary"
         size="lg"
         fullWidth
@@ -1804,79 +1507,6 @@ function LogPhase({
         onApplyWeightKg={onPlateWeightApply}
       />
     </KeyboardAvoidingView>
-  );
-}
-
-function RestPhrase() {
-  const [phraseIdx, setPhraseIdx] = useState(0);
-  const phraseOpacity = useRef(new Animated.Value(1)).current;
-  const phraseScale   = useRef(new Animated.Value(1)).current;
-  const phraseY       = useRef(new Animated.Value(0)).current;
-  const reduceMotion = useReduceMotion();
-
-  useEffect(() => {
-    if (reduceMotion) {
-      phraseOpacity.stopAnimation();
-      phraseScale.stopAnimation();
-      phraseY.stopAnimation();
-      phraseOpacity.setValue(1);
-      phraseScale.setValue(1);
-      phraseY.setValue(0);
-      return;
-    }
-    const cycle = () => {
-      // Exit: fade + shrink + slide down
-      Animated.parallel([
-        Animated.timing(phraseOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-        Animated.timing(phraseScale,   { toValue: 0.82, duration: 300, useNativeDriver: true }),
-        Animated.timing(phraseY,       { toValue: 12, duration: 300, useNativeDriver: true }),
-      ]).start(() => {
-        setPhraseIdx((i) => (i + 1) % REST_PHRASES.length);
-        // Reset position for entrance
-        phraseY.setValue(-16);
-        phraseScale.setValue(0.9);
-        // Entrance: spring overshoot + slide up from below + fade in
-        Animated.parallel([
-          Animated.timing(phraseOpacity, { toValue: 1, duration: 320, useNativeDriver: true }),
-          Animated.spring(phraseScale, {
-            toValue: 1,
-            friction: 5,
-            tension: 120,
-            useNativeDriver: true,
-          }),
-          Animated.spring(phraseY, {
-            toValue: 0,
-            friction: 6,
-            tension: 130,
-            useNativeDriver: true,
-          }),
-        ]).start();
-      });
-    };
-
-    const t = setInterval(cycle, 4500);
-    return () => clearInterval(t);
-  }, [phraseOpacity, phraseScale, phraseY, reduceMotion]);
-
-  return (
-    <Animated.View
-      style={{
-        opacity: phraseOpacity,
-        transform: [{ scale: phraseScale }, { translateY: phraseY }],
-        marginTop: spacing.lg,
-        alignItems: 'center',
-      }}
-    >
-      <Text
-        variant="subheading"
-        tone="secondary"
-        style={{
-          textAlign: 'center',
-        }}
-      >
-        {REST_PHRASES[phraseIdx]}
-      </Text>
-    </Animated.View>
   );
 }
 
@@ -1907,20 +1537,24 @@ function RestPhase({
   const pillsTotal = next ? next.totalSets : currentExercise.sets.length;
   const pillsCurrent = next ? next.setNumber - 1 : currentSetIdx;
   const pillsCompleted = pillsEx.sets.filter((s) => s.isCompleted).length;
+  const phrase =
+    REST_PHRASES[
+      (currentSetIdx + currentExercise.exerciseId.length) % REST_PHRASES.length
+    ];
 
   return (
     <>
       {/* Arriba: label + pills de la serie que viene */}
       <View>
         <Text
-          variant="eyebrow"
+          variant="heading"
           tone="muted"
           style={{
             textAlign: 'center',
             marginBottom: spacing.md,
           }}
         >
-          DESCANSO
+          Descanso
         </Text>
         <SetProgressPills total={pillsTotal} current={pillsCurrent} completedCount={pillsCompleted} />
         {livePr && (
@@ -1937,19 +1571,35 @@ function RestPhase({
         )}
       </View>
 
-      {/* Centro: anillo de descanso + tarjeta de lo que sigue */}
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md }}>
-        <RestRing elapsed={elapsed} size={Math.min(260, SCREEN_HEIGHT * 0.3)} />
-        <Text
-          variant="caption"
-          tone="muted"
-          style={{ marginTop: spacing.md, textAlign: 'center', maxWidth: 260 }}
-        >
-          Descansa hasta sentirte completamente recuperado (2–5 min)
-        </Text>
+      <ScrollView
+        style={{ flex: 1, alignSelf: 'stretch', minHeight: 0 }}
+        contentContainerStyle={{
+          flexGrow: 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: spacing.sm,
+        }}
+        showsVerticalScrollIndicator={false}
+      >
+        <RestMascotCoach
+          phrase={phrase}
+          mascotSize={Math.max(88, Math.min(96, SCREEN_HEIGHT * 0.11))}
+          style={{ paddingVertical: spacing.sm }}
+        />
+        <RestRing
+          elapsed={elapsed}
+          size={Math.max(152, Math.min(200, SCREEN_HEIGHT * 0.23))}
+        />
 
-        {/* Qué toca después del descanso */}
-        <Card variant="section" padding="md" style={{ alignSelf: 'stretch', marginTop: spacing.lg }}>
+        <View
+          style={{
+            alignSelf: 'stretch',
+            marginTop: spacing.lg,
+            paddingTop: spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+          }}
+        >
           {next ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
               <ExerciseThumb exerciseId={next.exercise.exerciseId} size={44} />
@@ -1962,19 +1612,16 @@ function RestPhase({
                 </Text>
               </View>
               <Text variant="caption" tone="secondary" numeric>
-                Serie {next.setNumber}/{next.totalSets}
+                Serie {next.setNumber} de {next.totalSets}
               </Text>
             </View>
           ) : (
             <Text weight="semibold" style={{ textAlign: 'center' }}>
-              ¡Último set, a cerrar fuerte!
+              Entreno listo para cerrar
             </Text>
           )}
-        </Card>
-
-        {/* Rotating motivational phrase — lively, cycles every ~4.5s */}
-        <RestPhrase />
-      </View>
+        </View>
+      </ScrollView>
 
       <Button title={nextLabel} variant="primary" size="lg" fullWidth onPress={onConfirm} />
     </>
@@ -2082,7 +1729,7 @@ function Summary({
                 textAlign: 'center',
               }}
             >
-              ¡Bien hecho!
+              Entreno guardado
             </Text>
             <Text variant="heading" tone="muted" numeric style={{ marginTop: spacing.sm }}>
               {duration}
@@ -2093,30 +1740,49 @@ function Summary({
           </Animated.View>
         </View>
 
-        {/* ---- Global stats ---- */}
-        <Card variant="section" padding="xl" style={{ marginBottom: spacing.lg }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: spacing.xl,
+            paddingVertical: spacing.xl,
+            borderTopWidth: 1,
+            borderBottomWidth: 1,
+            borderColor: colors.border,
+            marginBottom: spacing.lg,
+          }}
+        >
             <View style={{ flex: 1, minWidth: 80 }}>
-              <Stat label="Sets" value={totalSets} unit="" tone="info" />
+              <WorkoutMetric label="Series" value={totalSets} compact />
             </View>
             <View style={{ flex: 1, minWidth: 80 }}>
-              <Stat label="Reps" value={workout.totalReps} unit="" />
+              <WorkoutMetric label="Reps" value={workout.totalReps} compact />
             </View>
             {workout.avgRestSeconds !== undefined && (
               <View style={{ flex: 1, minWidth: 80 }}>
-                <Stat label="Desc. prom" value={Math.round(workout.avgRestSeconds)} unit="s" />
+                <WorkoutMetric
+                  label="Descanso medio"
+                  value={Math.round(workout.avgRestSeconds)}
+                  unit="s"
+                  compact
+                />
               </View>
             )}
-          </View>
-
-        </Card>
+        </View>
 
         {/* ---- Per-exercise detail ---- */}
         {workout.exercises.map((ex) => {
           const completedSets = ex.sets.filter((s) => s.isCompleted && !s.isWarmup);
 
           return (
-            <Card key={ex.id} variant="section" padding="md" style={{ marginBottom: spacing.sm }}>
+            <View
+              key={ex.id}
+              style={{
+                paddingVertical: spacing.md,
+                borderBottomWidth: 1,
+                borderBottomColor: colors.border,
+              }}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                 <Text weight="bold" style={{ flex: 1 }} numberOfLines={1}>
                   {ex.exerciseName}
@@ -2134,7 +1800,7 @@ function Summary({
                   </Text>
                 ))}
               </View>
-            </Card>
+            </View>
           );
         })}
 

@@ -51,6 +51,8 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Hitos musculares | `src/lib/muscleMilestones.ts` + `MuscleMilestoneMap.tsx` |
 | Rangos sociales | `src/lib/rankMilestone.ts` + `RankEmblem.tsx` |
 | Editor numérico de series | `src/lib/numericInput.ts` + `BigStepperInput.tsx` |
+| Métricas del workout | `WorkoutMetric.tsx` + `RestRing.tsx` |
+| Compañero de descanso | `RestMascotCoach.tsx` + `GmoMascot.tsx` |
 | Objetivos del perfil | `profiles.goals` ordenado + espejo legacy `goal` |
 | Iconografía | `src/components/Icon.tsx` |
 | Tokens diseño | `src/theme/tokens.ts` |
@@ -89,6 +91,12 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 - **Logging competitivo:** cada serie puede mostrar/autorrellenar su equivalente
   previo sin pisar ediciones; los PR aparecen en vivo y los ejercicios con barra
   ofrecen calculadora de discos.
+- **Ritmo visual del workout:** peso, reps, tiempo y resumen reutilizan
+  `WorkoutMetric`: dato principal en crema y metadata secundaria sin marcos
+  completos. El rojo queda para el CTA de fase, PR y estados relevantes; progreso
+  normal es neutral. Cada descanso monta `RestMascotCoach` con una frase estable y
+  entrada finita; Reduce Motion lo deja estático. `RestRing` muestra tiempo
+  transcurrido sin decir si el usuario está recuperado ni recomendar minutos.
 - **Progreso honesto:** usa únicamente series efectivas completadas. Permite ver
   mayor carga, reps o tiempo activo a través de varias sesiones; una línea plana
   o descendente es un resultado válido. No estima

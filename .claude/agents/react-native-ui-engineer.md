@@ -64,4 +64,15 @@ visual_work_blocked:
   keyboard-safe. The body map is never the only target.
 - Render routine quality only as compact `GMO Rating`.
 
+## Active workout visual contract
+
+- Build hierarchy with open space and `WorkoutMetric`, not nested bordered cards.
+- Weight and reps share one control geometry. Values dominate labels and units.
+- Keep normal progress cream/neutral. Red belongs to the phase CTA, records and
+  explicit relevant states.
+- Every rest phase renders `RestMascotCoach`; the timer remains factual and never
+  claims recovery or prescribes minutes.
+- Keep only the exercise-photo scrim gradient. Do not restore ordinary glow,
+  pulsing pills, rotating rest copy or the full-screen set splash.
+
 Return changed files, consumed contracts, verification and remaining physical checks.

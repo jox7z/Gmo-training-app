@@ -1,14 +1,15 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { formatWeight } from '@/lib/units';
 import type { Unit } from '@/store/app';
-import { colors, radius, shadow, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
+import { enter, exit } from '@/theme/motion';
 
 interface Props {
   exerciseName: string;
@@ -31,18 +32,20 @@ export function LivePrBanner({
 
   return (
     <Animated.View
-      entering={FadeInDown.springify().damping(16)}
-      exiting={FadeOutUp.duration(180)}
+      entering={enter()}
+      exiting={exit()}
       style={{
-        borderRadius: radius.xl,
-        borderWidth: 1,
+        borderTopWidth: 1,
+        borderBottomWidth: 1,
         borderColor: colors.metal.gold.DEFAULT,
-        backgroundColor: colors.bg.card,
-        ...shadow.glowAccent,
+        backgroundColor: colors.bg.elevated,
       }}
     >
       <PressableScale
         onPress={onDismiss}
+        accessibilityRole="button"
+        accessibilityLabel={`Cerrar aviso de récord personal en ${exerciseName}`}
+        accessibilityHint="Oculta este aviso"
         haptic={Haptics.ImpactFeedbackStyle.Light}
         pressScale={0.98}
         style={{
@@ -50,7 +53,7 @@ export function LivePrBanner({
           alignItems: 'center',
           gap: spacing.md,
           padding: spacing.md,
-          borderRadius: radius.xl,
+          borderRadius: radius.sm,
         }}
       >
         <View

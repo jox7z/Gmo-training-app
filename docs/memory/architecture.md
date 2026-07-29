@@ -62,6 +62,11 @@
   `superset_group_id`/`group_rest_enabled` sin abandonar la RPC transaccional.
 - `src/lib/{workoutCompare,progressInsights,exerciseProgressPicker,exerciseDetails,plateCalculator,workoutPostMetadata,postSharing,workoutPersistence}.ts`
   son lógica pura; las pantallas no duplican sus cálculos.
+- La presentación del workout activo usa `WorkoutMetric` para peso, reps, tiempo
+  y estadísticas, sin tocar persistencia. `RestMascotCoach` monta la mascota
+  compartida una vez por fase de descanso y ejecuta solo una entrada finita en UI
+  thread; Reduce Motion salta directamente al estado final. `RestRing` es factual,
+  sin umbral de recuperación, gradiente ni prescripción.
 - `src/lib/muscleVolume.ts` agrega series equivalentes por músculo para rutinas
   planificadas: 1 primaria, 0.5 secundaria y overrides opcionales del catálogo.
   `MuscleVolumeMap` se usa en editor/Rutinas; ya no representa Progreso.

@@ -5,7 +5,8 @@ description: Design or implement GMO Training native motion and feedback. Use fo
 
 # GMO motion language
 
-Target Reanimated 4 in Expo SDK 54 on the local development build (Expo Go is retired). Motion must explain state, preserve continuity, or confirm direct manipulation.
+Target Reanimated 4 in Expo SDK 54 and preserve Expo Go compatibility. Motion
+must explain state, preserve continuity, or confirm direct manipulation.
 
 ## Language
 
@@ -38,8 +39,9 @@ Target Reanimated 4 in Expo SDK 54 on the local development build (Expo Go is re
   the first frame of every cold start. Chain `ReduceMotion.System` instead, which
   is what the `motion.ts` helpers already do.
 - Stop skeleton pulses and decorative loops. Remove parallax, repeated bounce, and large spatial travel.
-- Active-workout phase sweeps, set splashes, rest phrases, summary entrances,
-  routine-editor entrances and PR autoplay/glow must become static.
+- Active-workout phase transitions, the finite `RestMascotCoach` entrance,
+  summary entrances, routine-editor entrances and PR autoplay must become static.
+  Set splashes, rotating rest phrases, pulsing progress and PR glow are retired.
 - Keep essential progress and completion feedback perceivable without depending on animation.
 
 ## Verify

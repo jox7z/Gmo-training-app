@@ -54,6 +54,13 @@ IDs estables. Gates automáticos pasan; smoke físico sigue pendiente.
 **Recuperación 2026-07-29:** C3 fue reconstruido desde 285 ediciones exactas,
 volvió a 20 suites/121 tests y mantiene typecheck/lint limpios.
 
+**Delta workout visual 2026-07-29:** el registro activo adopta ritmo abierto:
+menos contenedores/bordes, datos principales dominantes, progreso neutro y rojo
+reservado al CTA/PR/estado. `WorkoutMetric` unifica peso, reps, tiempo y resumen.
+Cada descanso muestra al robot GMO con una entrada finita y frase estable;
+`RestRing` deja de afirmar recuperación o prescribir minutos. Se retiraron splash,
+glow, gradiente de descanso, pulso y copy rotatorio.
+
 **Delta agentes visuales 2026-07-26:** dirección `gym editorial industrial` para
 adultos jóvenes gym-first. MotionSites aporta composición/coreografía, nunca
 cursores/WebGL/scroll web; Hevy aporta logging+progreso+social; Nike aporta lenguaje
@@ -199,8 +206,10 @@ ni tipografía custom.
 Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 
 1. **AchievementUnlockModal** — confeti coreografiado, anillo expansivo, rebote, brillo. Si C4 introduce fast-confetti, debe **reemplazar partículas manteniendo la coreografía** (secuencia, timing, haptics).
-2. **Summary del workout** (mascota + registro factual) y **RestRing** con ventana de recuperación verde. No reintroducir tarjetas comparativas ni deltas automáticos.
-3. **SetProgressPills** y micro-interacciones con haptics extendidos (`PressableScale`).
+2. **Summary del workout** (mascota + registro factual) y **RestRing** como tiempo
+   transcurrido neutral. No afirmar recuperación ni reintroducir comparativas.
+3. **SetProgressPills** estable y neutral; sin loop decorativo. Haptics solo en
+   acciones mediante `PressableScale`.
 4. **Botones 3D chunky** (`Button` con edge/pressTravel) — identidad propia; no sustituir por botones planos de ninguna librería.
 5. **Tab bar con blur** (expo-blur) y pull-to-refresh consistente.
 6. **Racha semanal** basada en objetivo (`weekly_goal_days`) — validada como el diseño correcto por Hevy y Strava; no convertirla en racha diaria.

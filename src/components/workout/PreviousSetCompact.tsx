@@ -1,11 +1,11 @@
 import { View } from 'react-native';
 
-import { Icon } from '@/components/Icon';
 import { Text } from '@/components/ui/Text';
+import { WorkoutMetric } from '@/components/workout/WorkoutMetric';
 import type { PreviousSetValue } from '@/lib/workoutCompare';
 import { formatWeight } from '@/lib/units';
 import type { Unit } from '@/store/app';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 
 interface Props {
   value: PreviousSetValue | null;
@@ -16,44 +16,39 @@ export function PreviousSetCompact({ value, unit }: Props) {
   return (
     <View
       style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.sm,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        borderRadius: radius.lg,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.bg.elevated,
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
       }}
     >
-      <View
-        style={{
-          width: spacing['2xl'],
-          height: spacing['2xl'],
-          borderRadius: radius.sm,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: colors.info.soft,
-        }}
-      >
-        <Icon name="clock" size={16} color={colors.info.DEFAULT} />
-      </View>
-
-      <View style={{ flex: 1 }}>
-        <Text variant="label" tone="muted">
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md }}>
+        <Text variant="caption" tone="muted">
           Anterior
         </Text>
-        <Text variant="caption" weight="semibold" tone={value ? 'secondary' : 'muted'} numeric>
-          {value
-            ? `${formatWeight(value.weightKg, unit)} × ${value.reps} reps`
-            : 'Sin registro comparable'}
-        </Text>
+        {value?.usedFallback ? (
+          <Text variant="caption" tone="muted">
+            Última disponible
+          </Text>
+        ) : null}
       </View>
-
-      {value?.usedFallback && (
-        <Text variant="caption" tone="muted">
-          Última disponible
+      {value ? (
+        <View style={{ flexDirection: 'row', gap: spacing['2xl'], marginTop: spacing.sm }}>
+          <WorkoutMetric
+            label="Peso"
+            value={formatWeight(value.weightKg, unit)}
+            compact
+            style={{ flex: 1 }}
+          />
+          <WorkoutMetric
+            label="Reps"
+            value={value.reps}
+            compact
+            style={{ flex: 1 }}
+          />
+        </View>
+      ) : (
+        <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs }}>
+          Sin registro comparable
         </Text>
       )}
     </View>

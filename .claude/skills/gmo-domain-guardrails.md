@@ -24,6 +24,12 @@ Read `AGENTS.md` and the touched source before editing. Keep Spanish UI copy.
 - Parse set drafts through `numericInput.ts`, commit them before completion, and
   mutate only through stable exercise-entry/set IDs. Stale or invalid patches
   return `false`; optional haptics never decide whether data persists.
+- Active workout facts use the open `WorkoutMetric` hierarchy. Keep ordinary
+  progress neutral, one red phase CTA, and red/ember only for records or explicit
+  states. Every rest phase renders `RestMascotCoach` once with stable copy and
+  finite motion; Reduce Motion is static. `RestRing` reports elapsed time only.
+  Never infer recovery, prescribe rest minutes, rotate phrases, pulse progress or
+  restore the full-screen set splash.
 - Give `ExerciseProgressPicker` only trained exercises. Preserve legacy IDs, local selection, and complete-list search. Apply sheet behavior from `gmo-mobile-product-design` and image behavior from `gmo-mobile-assets`.
 
 ## State and navigation

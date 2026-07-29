@@ -94,13 +94,15 @@ metadata:
 - `style` prop is applied to the outer Pressable, NOT the face — callers using `style={{ flex: 1 }}` will flex the Pressable container but the face won't stretch unless it has `alignSelf: stretch` or `flex: 1` internally. This is a known hitbox/layout quirk.
 - depth token: `{ edge: 4, edgeLg: 5, pressTravel: 4 }`.
 
-## Redesign: Workout session components (added 2026-06-09)
+## Redesign: Workout session components (updated 2026-07-29)
 - Phase machine: warmup → set → log → rest → (loop) → summary
 - `getNextPosition()` is a pure replica of `advancePosition()` logic. Must stay in sync.
 - `swapExercise(exIdx, newId)` returns new index (may shift if completed sets exist). `handleSwapSelect` uses the returned index correctly.
-- `playSplash(phrase)`: extracted helper, closes over stable Animated.Value refs — safe.
-- RestRing: strokeDashoffset uses `useNativeDriver: false` — correct, SVG props not supported by native driver.
-- SetProgressPills: Animated.loop with `loop.stop()` cleanup — no leak.
+- `WorkoutMetric` owns the open hierarchy for weight, reps, timers and summary facts.
+- `RestMascotCoach` mounts once per rest with a finite UI-thread entrance; no loop.
+- `RestRing` renders a declarative SVG offset per tick; no Animated JS work or recovery verdict.
+- `SetProgressPills` is static and neutral; no pulse loop.
+- Full-screen set splash and rotating rest phrases are retired.
 - `usedExerciseIds` memoized off `active?.exercises` — stable reference pattern, correct.
 
 ## Instagram: OAuth removed, manual only (updated 2026-06-12)

@@ -3,7 +3,8 @@
 > Última rotación: 2026-07-29.
 > C3 cerró celebración de rangos, refresh fijo, `GMO Rating`, calendario mensual,
 > hitos musculares, perfil compacto y editor numérico estable; 121 tests en
-> 20 suites. El historial vive
+> 20 suites. El workout activo ahora usa métricas abiertas y robot en cada
+> descanso, sin splash ni prescripción de recuperación. El historial vive
 > en `docs/memory/checklist.md`.
 
 ## SPRINT C3 — Logros reales, progreso por hitos y perfil compacto
@@ -33,11 +34,13 @@ Ownership: evidencia manual; código solo para bugs reproducibles.
    Compartir/Ajustes y ausencia de engranaje/Cuenta duplicada.
 7. Repetir `+/−`, escribir coma, límites 0/1000 kg y 1/999 reps, guardar, cambiar
    ejercicio, background/reanudar y haptics no disponibles.
-8. Reduce Motion: feed indicator, PR, workout activo, editor de rutina, skeletons
-   y sheets quedan estáticos sin perder información.
-9. VoiceOver/TalkBack: acciones de post separadas, refresh visible, calendario,
+8. Workout activo: peso/reps comparten geometría, progreso normal no usa rojo,
+   GMO aparece en cada descanso, frase no rota y el timer no prescribe minutos.
+9. Reduce Motion: feed indicator, PR, robot de descanso, transiciones, editor de
+   rutina, skeletons y sheets quedan estáticos sin perder información.
+10. VoiceOver/TalkBack: acciones de post separadas, refresh visible, calendario,
    selector, galería, actividad/logros y toolbar de teclado.
-10. Stream en 360/390/430/768: fotos 4:5, 16 px internos, targets 44 px y cero
+11. Stream en 360/390/430/768: fotos 4:5, 16 px internos, targets 44 px y cero
     bordes/radios laterales; mapa anatómico requiere validar taps pequeños.
 
 Gate: dispositivo + OS + resultado por caso + captura de cada fallo.

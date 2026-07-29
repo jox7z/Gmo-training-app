@@ -160,6 +160,15 @@ the only place that decides where the user goes. Key invariants there:
   return `false` without throwing. Commit both drafts before completing a set,
   serialize every valid mutation through the persistence queue, and keep haptic
   rejection non-fatal.
+- **Active workout visual rhythm:** use `WorkoutMetric` as the open, borderless
+  hierarchy for weight, reps, elapsed rest and progress facts. Values dominate;
+  labels/units remain secondary. Normal progress is cream/neutral, never red.
+  Reserve primary red for the phase CTA and explicit records/relevant states.
+  Every `rest` phase renders `RestMascotCoach` once with one stable phrase and a
+  finite entrance; Reduce Motion is static. `RestRing` reports elapsed time only:
+  never infer recovery or prescribe a duration. Do not restore rotating phrases,
+  pulsing progress, full-screen set splashes, decorative glow or ordinary
+  gradients; the exercise-photo scrim is the only functional gradient here.
 - **Routine quality score:** `src/lib/routineQualityScore.ts` is the only source.
   It returns a deterministic 0–100 score from coverage (35%), volume (30%),
   frequency (20%) and structure (15%), rendered through `RoutineQualityCard`.
@@ -307,9 +316,10 @@ the only place that decides where the user goes. Key invariants there:
   The three-dot menu owns Share Profile and Settings; settings remains the only
   sign-out owner. Do not restore a profile gear, Account card, nested ScrollViews
   or duplicated post cards.
-- **Reduce Motion in training:** active-workout phase transitions, set splashes,
-  rotating rest phrases, routine-editor entrances and repeating PR effects become
-  static; stop obsolete animations when state or preference changes.
+- **Reduce Motion in training:** active-workout phase transitions, the finite
+  rest-mascot entrance, routine-editor entrances and repeating PR effects become
+  static; stop obsolete animations when state or preference changes. Set splashes,
+  rotating rest phrases and pulsing progress are retired.
 - **Profile goals:** `profiles.goals` is live and authoritative; `goals[0]` is
   mirrored into legacy `goal`. `secondaryGoals` are the remaining optional
   priorities, unique and excluding the primary; they never combine incompatible

@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
-import { Card } from '@/components/ui/Card';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
 import { runHapticSafely } from '@/lib/haptics';
@@ -25,7 +24,7 @@ import {
   parseNumericInput,
   stepNumericValue,
 } from '@/lib/numericInput';
-import { colors, fontSize, spacing } from '@/theme/tokens';
+import { colors, fontSize, radius, spacing } from '@/theme/tokens';
 
 interface Props {
   label: string;
@@ -69,9 +68,7 @@ function StepperButton({
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: colors.bg.elevated,
-        borderWidth: 1,
-        borderColor: colors.accent.DEFAULT,
+        backgroundColor: colors.bg.raised,
         alignItems: 'center',
         justifyContent: 'center',
         opacity: disabled ? 0.42 : 1,
@@ -188,19 +185,25 @@ export const BigStepperInput = forwardRef<BigStepperInputHandle, Props>(
     const increaseDisabled = draftValue >= max;
 
     return (
-      <Card
-        variant="raised"
-        padding="xl"
-        style={{ alignSelf: 'center', maxWidth: 520, width: '100%' }}
+      <View
+        style={{
+          alignSelf: 'center',
+          maxWidth: 520,
+          width: '100%',
+          borderRadius: radius.md,
+          backgroundColor: colors.bg.elevated,
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.xl,
+        }}
       >
         <Text
           numberOfLines={2}
           maxFontSizeMultiplier={1.5}
           style={{
             fontSize: fontSize.sm,
-            fontWeight: '700',
+            fontWeight: '600',
             color: colors.text.muted,
-            letterSpacing: 3,
+            letterSpacing: 0.2,
             textAlign: 'center',
             marginBottom: spacing.md,
           }}
@@ -276,7 +279,7 @@ export const BigStepperInput = forwardRef<BigStepperInputHandle, Props>(
             Introduce un número válido
           </Text>
         ) : null}
-      </Card>
+      </View>
     );
   },
 );

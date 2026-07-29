@@ -18,6 +18,38 @@
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
 | Calidad técnica | 🟡 | 121 tests puros en 20 suites, typecheck/lint limpios; falta smoke físico |
 
+## Sprint en cierre — Workout abierto + GMO en descanso (2026-07-29)
+
+### Implementación
+
+- [x] `WorkoutMetric` compartido para peso, reps, tiempo y resumen
+- [x] `BigStepperInput` sin `Card raised`; peso/reps conservan geometría idéntica
+- [x] Progreso normal crema/neutral; rojo reservado al CTA, PR y estados relevantes
+- [x] Robot GMO montado después de cada serie mediante `RestMascotCoach`
+- [x] Frase estable y entrada finita; Reduce Motion renderiza estado estático
+- [x] `RestRing` factual, sin gradiente, juicio de recuperación ni rango 2–5 min
+- [x] Splash, glow, copy rotatorio y pulso continuo retirados del workout ordinario
+- [x] Descanso desplazable en pantallas cortas con CTA fijo; columna tablet 600 px
+- [x] Timer ajustable, pills de hasta 20 series y cierre de PR accesibles
+- [x] AGENTS, CLAUDE, agentes/skills, overview, arquitectura, roadmaps y prompts sincronizados
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 20 suites / 121 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 0 warnings
+- [x] Export Android — 2062 módulos / HBC 6,19 MB
+- [x] QA visual estático — overflow, texto grande, 20 series, PR y Reduce Motion cerrados
+- [x] Auditoría de rendimiento — RestRing sin animación JS; mascota UI-thread finita
+- [x] Revisión final `code-quality-reviewer` — sin hallazgos accionables
+- [ ] Smoke físico Expo Go — 360/390/430/768, landscape, texto grande y descanso restaurado
+
+Riesgo restante: el workout conserva dos ticks de estado por segundo durante
+serie/descanso. Es comportamiento previo; medir commits/FPS con React Profiler en
+dispositivo antes de justificar una refactorización de relojes.
+
+Siguiente paso: smoke físico del workout en Expo Go y registrar capturas/fallos.
+
 ## Recuperación completa del working tree — 2026-07-29
 
 - [x] Recuperadas 285 ediciones exactas desde transcripciones Codex del
@@ -45,8 +77,7 @@ Riesgos:
   requiere auditoría ACL separada.
 - No hay Edge Functions desplegadas; `generate_routine` local no está activo live.
 
-Siguiente paso: commit de recuperación y smoke físico Expo Go sobre
-Feed/Rutinas/Progreso/Perfil.
+Siguiente paso histórico: smoke físico Expo Go sobre Feed/Rutinas/Progreso/Perfil.
 
 ## Sprint en verificación — agentes visuales móviles (2026-07-26)
 

@@ -15,8 +15,8 @@ interface Props {
 }
 
 /**
- * Tarjeta hero del ejercicio: imagen a sangre con gradiente inferior para
- * legibilidad y el nombre grande encima. Fallback a icono si no hay imagen.
+ * Imagen hero del ejercicio con un único scrim funcional para legibilidad.
+ * Sin borde decorativo ni brillo.
  */
 export function ExerciseHero({ exerciseId, name, subtitle, style }: Props) {
   const img = exerciseImage(exerciseId);
@@ -25,10 +25,8 @@ export function ExerciseHero({ exerciseId, name, subtitle, style }: Props) {
     <View
       style={[
         {
-          borderRadius: radius['3xl'],
+          borderRadius: radius.lg,
           overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: colors.accent.DEFAULT,
           backgroundColor: colors.bg.elevated,
           minHeight: 160,
         },
@@ -51,7 +49,7 @@ export function ExerciseHero({ exerciseId, name, subtitle, style }: Props) {
         </View>
       )}
 
-      {/* Gradiente transparente → casi negro en la mitad inferior */}
+      {/* Único gradiente funcional: lectura del nombre sobre la foto. */}
       <LinearGradient
         colors={['transparent', 'rgba(11,11,11,0.94)']}
         style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '55%' }}

@@ -1,6 +1,6 @@
 # Roadmap — Gmo Training App
 
-> **Fecha base:** 2026-07-07 · **Última revisión:** 2026-07-28 · **Base:** v0.1.0, rama `feat/initial-app-foundation`
+> **Fecha base:** 2026-07-07 · **Última revisión:** 2026-07-29 · **Base:** v0.1.0, rama `feat/initial-app-foundation`
 >
 > **Leyenda de prioridad:** P0 (crítico) · P1 (importante) · P2 (deseable)
 > **Leyenda de esfuerzo:** S (<1/2 día) · M (1–3 días) · L (1+ semana)
@@ -94,6 +94,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | ✅ Dashboard personal | P1 | M | Perfil compacto con FlashList única, tabs sticky, FeedItem canónico, actividad factual, logros y menú Compartir/Ajustes. |
 | ✅ Mapa + GMO Rating | P1 | M | Editor/Rutinas muestran radial transparente de cobertura, volumen, frecuencia y estructura; Progreso usa calendario + hitos, no volumen. |
 | 🟡 Sprint C3 — hitos/perfil/crash | P0 | M | Código y gates completos: rangos reales, refresh fijo, calendario, hitos, selector, perfil compacto y editor estable. Falta smoke físico Expo Go. |
+| 🟡 Workout visual abierto | P1 | S | Peso/reps/tiempo comparten `WorkoutMetric`; progreso neutral, CTA rojo único y robot GMO en cada descanso. Falta smoke físico 360/390/430/768. |
 | 🔴 Bloqueador rangos live | P0 | M–L | `recalc_weekly_ranks()` es ejecutable desde Data API, no idempotente y usa seis tiers legacy. Reconciliar ledger antes de migrar, revocar ACLs y alinear nueve tiers. |
 | ✅ Objetivos múltiples | P1 | S | Live usa `profiles.goals`; principal en `goals[0]`, secundarios opcionales y retorno estable desde rutina personalizada. |
 
@@ -186,6 +187,11 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   `GMO Rating`, calendario mensual, mapa de hitos con evidencia, selector muscular
   buscable, perfil compacto y editor de series por IDs. Gates: 20 suites/121 tests,
   typecheck/lint limpios y export Android; smoke físico pendiente.
+- **Workout visual abierto (2026-07-29):** menos tarjetas/bordes y efectos;
+  `WorkoutMetric` repite la jerarquía de peso, reps, descanso y resumen. El rojo
+  queda en CTA/PR/estados, progreso normal usa crema. GMO aparece en cada descanso
+  con una única entrada accesible; no hay splash, frases rotatorias ni prescripción
+  de recuperación.
 - **Bloqueador backend P0 — rangos semanales:** reconciliar ledger alojado; cerrar
   `recalc_weekly_ranks()` al Data API; garantizar idempotencia/concurrencia por
   semana; migrar a los 9 umbrales canónicos; backfill sin celebraciones falsas.

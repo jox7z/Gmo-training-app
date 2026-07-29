@@ -31,8 +31,10 @@ Read completely before acting:
 - Never attach `entering` or `layout` to FlashList items.
 - Never run decorative infinite loops or JS timers per row.
 - Feed pull moves only `GmoRefreshIndicator`; never translate FlashList content.
-- Under Reduce Motion, stop active-workout splashes/transitions, rest phrase
-  cycling, routine entrances and PR autoplay/glow.
+- Active-workout rest uses one finite `RestMascotCoach` entrance, then remains
+  static. There is no set splash, rotating rest phrase or pulsing progress.
+- Under Reduce Motion, mascot and phase transitions render directly at their
+  final state; routine entrances and PR autoplay also remain static.
 - Never change business state, navigation gates, persistence or backend contracts.
 - Never add native dependency incompatible with Expo Go without escalation.
 

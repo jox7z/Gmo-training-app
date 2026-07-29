@@ -23,7 +23,14 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
     <View style={{ paddingHorizontal: spacing.lg }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         {/* Botón cerrar sesión — escala 0.88, hitSlop generoso */}
-        <PressableScale onPress={onClose} hitSlop={14} pressScale={0.88}>
+        <PressableScale
+          onPress={onClose}
+          hitSlop={8}
+          pressScale={0.88}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar entrenamiento"
+          style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+        >
           <Icon name="close" size={18} color={colors.text.muted} />
         </PressableScale>
         <Text
@@ -37,12 +44,10 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
         {elapsedLabel !== null ? (
           <View
             style={{
-              backgroundColor: colors.bg.elevated,
-              borderRadius: radius.sm,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              minWidth: 48,
+              minWidth: 44,
+              minHeight: 44,
               alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             <Text variant="caption" tone="secondary" numeric>
@@ -63,7 +68,7 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
                 key={i}
                 style={{
                   flex: 1,
-                  height: 6,
+                  height: 5,
                   borderRadius: radius.sm,
                   backgroundColor: colors.bg.elevated,
                   overflow: 'hidden',
@@ -74,7 +79,7 @@ export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Prop
                     width: `${pct * 100}%`,
                     height: '100%',
                     borderRadius: radius.sm,
-                    backgroundColor: colors.primary.DEFAULT,
+                    backgroundColor: colors.text.primary,
                   }}
                 />
               </View>

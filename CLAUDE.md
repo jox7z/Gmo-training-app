@@ -146,6 +146,14 @@ the only place that decides where the user goes. Key invariants there:
   Update active sets through stable entry/set IDs; stale mutations return `false`.
   Commit both drafts before save, serialize valid changes through the persistence
   queue, and never let haptic failure reject the mutation.
+- **Active workout visual rhythm:** render weight, reps, elapsed rest and progress
+  facts through the open `WorkoutMetric` hierarchy. Normal progress stays
+  cream/neutral; primary red belongs to the phase CTA and explicit records or
+  relevant states. Every rest phase includes `RestMascotCoach` with one stable
+  phrase and one finite entrance; Reduce Motion is static. `RestRing` is elapsed
+  time only and cannot claim recovery or prescribe minutes. Do not restore
+  rotating phrases, pulsing progress, set-start splash, ordinary glow or
+  decorative gradients; only the exercise-image scrim remains functional.
 - **Routine quality score:** `src/lib/routineQualityScore.ts` is the only source.
   It returns a deterministic 0–100 score from coverage (35%), volume (30%),
   frequency (20%) and structure (15%), rendered through `RoutineQualityCard`.
@@ -277,9 +285,10 @@ the only place that decides where the user goes. Key invariants there:
   canonical `FeedItem` posts with pagination, activity and achievements. The
   three-dot menu owns Share Profile and Settings; no gear or Account card.
   Settings alone owns sign-out.
-- **Reduce Motion:** active-workout phase/splash/rest/summary motion,
+- **Reduce Motion:** active-workout phase/rest-mascot/summary motion,
   routine-editor entrances and repeating PR effects resolve to static state and
-  stop stale animations.
+  stop stale animations. Set splashes, rotating rest phrases and pulsing progress
+  are retired.
 - **Profile goals:** live `profiles.goals` stores the ordered selection and mirrors
   `goals[0]` into legacy `goal`. `secondaryGoals` are the remaining unique
   priorities and do not merge training prescriptions. `complete_signup` accepts
