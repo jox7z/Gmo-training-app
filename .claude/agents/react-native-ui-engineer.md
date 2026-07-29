@@ -58,10 +58,17 @@ visual_work_blocked:
 
 ## C3 visual contracts
 
+- Main labels are `Social · Comunidad · Ejercicio · Progreso · Perfil`; keep the
+  stable route/store keys. The Social header has only its short title, Search and
+  Notifications.
+- Prefer open space and shared `Stat`/workout metrics over nested cards. Ordinary
+  surfaces have no decorative glow; labels use sentence case and red is limited
+  to actions, records and relevant states.
 - Feed rank posts use `RankEmblem`; invalid/downgrade metadata stays neutral.
 - Personal profile stays compact with one FlashList and one Share/Settings menu.
-- Progress calendar is fixed 6×7; milestone muscle selection is searchable and
-  keyboard-safe. The body map is never the only target.
+- Progress calendar is fixed 6×7 with a 4-point gap between cells; milestone
+  muscle selection is searchable and keyboard-safe. The body map is never the
+  only target.
 - Render routine quality only as compact `GMO Rating`.
 
 ## Active workout visual contract

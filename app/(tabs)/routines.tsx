@@ -114,7 +114,7 @@ export default function Routines() {
       ) : (
         <>
           <Card variant="section" padding="xl" style={{ marginTop: spacing.lg }}>
-            <Text variant="label" tone="brand">RUTINA ACTIVA</Text>
+            <Text variant="label" tone="brand">Rutina activa</Text>
             <Text variant="title" style={{ marginTop: 4 }}>{activeRoutine.name}</Text>
             <Text variant="caption" tone="secondary" style={{ marginTop: 4 }}>
               {activeWorkout

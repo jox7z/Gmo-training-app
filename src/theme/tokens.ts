@@ -123,20 +123,18 @@ export const spacing = {
 } as const;
 
 /**
- * Escala de radios real. Sustituye a la regla anterior de "superficies casi
- * rectas" (2–4 px): la geometría redondeada es parte del cambio de identidad.
- * `pill` es para cápsulas de ancho variable; `full` sigue reservado a círculos
- * reales (avatares, puntos, anillos, indicadores).
+ * Superficies casi rectas. El radio solo suaviza el corte; no convierte cada
+ * bloque en una cápsula. `pill` y `full` quedan reservados para geometría real.
  */
 export const radius = {
   none: 0,
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  '2xl': 28,
-  '3xl': 36,
+  xs: 2,
+  sm: 2,
+  md: 3,
+  lg: 4,
+  xl: 4,
+  '2xl': 6,
+  '3xl': 8,
   pill: 999,
   full: 9999,
 } as const;
@@ -219,9 +217,9 @@ export const typography = {
   label: {
     fontSize: fontSize.xs,
     lineHeight: 14,
-    letterSpacing: 1.2,
+    letterSpacing: 0.3,
     fontWeight: fontWeight.semibold,
-    textTransform: 'uppercase',
+    textTransform: 'none',
   },
   eyebrow: {
     fontSize: fontSize.sm,

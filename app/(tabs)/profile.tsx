@@ -24,6 +24,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Sheet } from '@/components/ui/Sheet';
 import { Loader } from '@/components/ui/Loader';
 import { PressableScale } from '@/components/ui/PressableScale';
+import { Stat } from '@/components/ui/Stat';
 import { Text } from '@/components/ui/Text';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -599,11 +600,42 @@ function ProfileHeader({
             borderColor: colors.border,
           }}
         >
-          <SocialStat label="Publicaciones" value={posts} />
+          <Stat
+            label="Publicaciones"
+            value={posts === undefined ? '—' : posts.toLocaleString('es-ES')}
+            size="md"
+            align="center"
+            layout="value-first"
+            style={{ flex: 1, paddingVertical: spacing.sm }}
+          />
           <Divider />
-          <SocialStat label="Seguidores" value={followers} onPress={onOpenFollowers} />
+          <Stat
+            label="Seguidores"
+            value={
+              followers === undefined
+                ? '—'
+                : followers.toLocaleString('es-ES')
+            }
+            size="md"
+            align="center"
+            layout="value-first"
+            onPress={onOpenFollowers}
+            style={{ flex: 1, paddingVertical: spacing.sm }}
+          />
           <Divider />
-          <SocialStat label="Siguiendo" value={following} onPress={onOpenFollowing} />
+          <Stat
+            label="Siguiendo"
+            value={
+              following === undefined
+                ? '—'
+                : following.toLocaleString('es-ES')
+            }
+            size="md"
+            align="center"
+            layout="value-first"
+            onPress={onOpenFollowing}
+            style={{ flex: 1, paddingVertical: spacing.sm }}
+          />
         </View>
 
         {countersError ? (
@@ -989,9 +1021,27 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
           borderTopColor: colors.border,
         }}
       >
-        <WorkoutStat label="Tiempo" value={`${durationMin} min`} />
-        <WorkoutStat label="Series" value={String(sets)} />
-        <WorkoutStat label="Reps" value={String(workout.totalReps)} />
+        <Stat
+          label="Tiempo"
+          value={`${durationMin} min`}
+          size="sm"
+          align="center"
+          style={{ flex: 1 }}
+        />
+        <Stat
+          label="Series"
+          value={String(sets)}
+          size="sm"
+          align="center"
+          style={{ flex: 1 }}
+        />
+        <Stat
+          label="Reps"
+          value={String(workout.totalReps)}
+          size="sm"
+          align="center"
+          style={{ flex: 1 }}
+        />
       </View>
 
       {workout.exercises.length > 0 ? (
@@ -1157,47 +1207,6 @@ function TabState({
         />
       </Card>
     </View>
-  );
-}
-
-function WorkoutStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1, alignItems: 'center' }}>
-      <Text variant="caption" tone="muted">{label}</Text>
-      <Text weight="bold" numeric style={{ marginTop: 2 }}>{value}</Text>
-    </View>
-  );
-}
-
-function SocialStat({
-  label,
-  value,
-  onPress,
-}: {
-  label: string;
-  value?: number;
-  onPress?: () => void;
-}) {
-  const content = (
-    <View style={{ flex: 1, alignItems: 'center', paddingVertical: spacing.sm }}>
-      <Text variant="heading" weight="bold" numeric>
-        {value === undefined ? '—' : value.toLocaleString('es-ES')}
-      </Text>
-      <Text variant="label" tone="muted" style={{ marginTop: 2 }}>{label}</Text>
-    </View>
-  );
-
-  if (!onPress) return <View style={{ flex: 1 }}>{content}</View>;
-  return (
-    <PressableScale
-      onPress={onPress}
-      hitSlop={6}
-      pressScale={0.95}
-      haptic={false}
-      style={{ flex: 1 }}
-    >
-      {content}
-    </PressableScale>
   );
 }
 

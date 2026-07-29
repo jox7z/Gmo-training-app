@@ -121,7 +121,7 @@ export function MonthlyTrainingCalendar({
       <Card variant="section" padding={0} style={styles.card}>
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <Text variant="heading">Calendario de entrenamiento</Text>
+            <Text variant="heading">Calendario</Text>
             <Text variant="caption" tone="muted">
               Sesiones terminadas por día
             </Text>
@@ -190,7 +190,6 @@ export function MonthlyTrainingCalendar({
             label="Días del mes"
             value={calendar.daysTrained}
             icon="calendar"
-            tone="brand"
             size="md"
             labelNumberOfLines={2}
             style={styles.stat}
@@ -215,19 +214,21 @@ export function MonthlyTrainingCalendar({
             ))}
           </View>
 
-          {Array.from({ length: 6 }, (_, rowIndex) => (
-            <View key={rowIndex} style={styles.weekRow}>
-              {calendar.days
-                .slice(rowIndex * 7, rowIndex * 7 + 7)
-                .map((day) => (
-                  <CalendarDay
-                    key={day.key}
-                    day={day}
-                    onPress={(event) => openDay(day, event.currentTarget)}
-                  />
-                ))}
-            </View>
-          ))}
+          <View style={styles.weekGrid}>
+            {Array.from({ length: 6 }, (_, rowIndex) => (
+              <View key={rowIndex} style={styles.weekRow}>
+                {calendar.days
+                  .slice(rowIndex * 7, rowIndex * 7 + 7)
+                  .map((day) => (
+                    <CalendarDay
+                      key={day.key}
+                      day={day}
+                      onPress={(event) => openDay(day, event.currentTarget)}
+                    />
+                  ))}
+              </View>
+            ))}
+          </View>
         </View>
 
         <View
@@ -492,6 +493,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
   },
   weekdayRow: {
+    columnGap: spacing.xs,
     flexDirection: 'row',
     paddingHorizontal: spacing.xs,
   },
@@ -500,7 +502,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     textAlign: 'center',
   },
+  weekGrid: {
+    gap: spacing.xs,
+  },
   weekRow: {
+    columnGap: spacing.xs,
     flexDirection: 'row',
     paddingHorizontal: spacing.xs,
   },

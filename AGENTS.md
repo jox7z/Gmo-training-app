@@ -222,7 +222,9 @@ the only place that decides where the user goes. Key invariants there:
   and `docs/memory/exercises-dataset-audit.md`.
 - **Brand identity:** the primary mark is the cream/black/red GMO robot face in
   `assets/brand/gmo-mark-master.png`; `assets/icon.png` is the single optimized
-  source used by icon, splash and Android adaptive configuration. The reusable
+  source used by icon, splash and Android adaptive configuration. Feed refresh
+  uses `assets/brand/gmo-mark-transparent.png`; do not restore a square icon
+  background around that indicator. The reusable
   transparent mascot is `assets/brand/gmo-mascot.webp` (25 KB), rendered only through
   `src/components/GmoMascot.tsx`. Reuse it; do not create per-screen copies.
 - **Progress metrics:** use only completed, non-warmup sets. Exercise trends expose
@@ -247,7 +249,8 @@ the only place that decides where the user goes. Key invariants there:
 - **Progress calendar and muscle milestones:** current Progress uses
   `trainingCalendar.ts` for a fixed Monday-first 6×7 local-month grid. It clamps
   navigation at the current month, excludes future/invalid sessions and opens the
-  exact ledger represented by a day. `muscleMilestones.ts` derives only from the
+  exact ledger represented by a day. Calendar cells and weekday labels keep a
+  4 px row/column gap. `muscleMilestones.ts` derives only from the
   four strength tracks in `ACHIEVEMENTS`; never duplicate their thresholds. It
   accepts only completed non-warmup plausible sets, preserves the exact load, reps,
   date and workout evidence, gives secondary muscles exactly one level less and
@@ -299,13 +302,21 @@ the only place that decides where the user goes. Key invariants there:
   `PagerView` through manual direction-dominance activation, manual refresh state
   stays separate from foreground refetch and pagination. Each manual refresh runs
   exactly one 360-degree turn, completes it even after a fast response, and never
-  loops; Reduce Motion keeps the mark static. Keep a visible 44 px `Actualizar
-  feed` action and announce success/failure from the shared refresh action.
+  loops; Reduce Motion keeps the mark static. The Social header contains only its
+  short title plus Search and Notifications; do not restore a greeting or robot
+  refresh button. Main labels are
+  `Social · Comunidad · Ejercicio · Progreso · Perfil`; internal keys remain
+  `feed · gmup · routines · progress · profile`.
 - **Section surfaces:** reading/information panels use `Card variant="section"`:
   square surface with only top/bottom separators and no lateral border. Keep
   `raised` for compact selectable/navigable tiles, forms and controls; keep full
   borders on inputs, buttons, state badges, modals and real circular geometry.
   Do not mutate `Card` defaults globally to obtain this result.
+- **Visual hierarchy:** prefer intentional space and shared `Stat`/workout metrics
+  over nested cards. Ordinary elevated cards and buttons do not cast decorative
+  glow; labels use sentence case and short titles. Cream carries primary values,
+  muted text carries metadata, and red is reserved for actions, records and
+  relevant states.
 - **Loading skeletons:** use `src/components/ui/Skeleton.tsx`. Group related bones
   inside one `SkeletonGroup` so one pulse drives the whole placeholder. Show a
   skeleton only for initial `isLoading` with no cached data; keep cached content

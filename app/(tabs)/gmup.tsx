@@ -43,7 +43,7 @@ import { useDiscover } from '@/lib/queries/feed';
 import { useGlobalLeaderboard } from '@/lib/queries/social';
 
 /**
- * GMUP — el hub social de la app ("team up").
+ * Comunidad — el hub social de la app.
  *
  * Reúne comunidades, eventos, ranking global y atletas sugeridos. Es la
  * segunda página del PagerView principal. La búsqueda general vive fuera, en
@@ -97,7 +97,7 @@ export default function GmupScreen() {
               accessibilityRole="header"
               style={{ letterSpacing: -1.4 }}
             >
-              GMUP
+              Comunidad
             </Text>
             <Text variant="caption" tone="muted" numberOfLines={1}>
               Entrena en equipo
@@ -129,7 +129,7 @@ export default function GmupScreen() {
           options={VIEWS}
           value={view}
           onValueChange={setView}
-          accessibilityLabel="Secciones de GMUP"
+          accessibilityLabel="Secciones de Comunidad"
         />
       </View>
 

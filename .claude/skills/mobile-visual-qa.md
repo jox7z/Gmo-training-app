@@ -22,9 +22,14 @@ description: Verify GMO Training native UI visually and interactively. Use after
 
 ## C3 regression matrix
 
+- Verify tabs read `Social · Comunidad · Ejercicio · Progreso · Perfil` while
+  swipe order and state remain stable.
+- Social header shows only title, Search and Notifications. Pull refresh shows no
+  square PNG background and no dedicated robot button.
 - Render all nine rank emblems; invalid metadata and downshifts stay neutral.
 - Compare vertical refresh with horizontal PagerView swipes; the list stays fixed.
-- Exercise calendar, ledgers, milestone evidence, muscle sheet and keyboard.
+- Exercise calendar 6×7 with a consistent 4-point gap, ledgers, milestone
+  evidence, muscle sheet and keyboard.
 - Repeat numeric +/−, comma typing, save, exercise changes and lifecycle.
 - Inspect compact profile at 360/390/430/768, large text, screen reader and Reduce Motion.
 

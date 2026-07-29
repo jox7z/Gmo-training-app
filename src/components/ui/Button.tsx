@@ -1,6 +1,6 @@
 import { Pressable, View, ActivityIndicator, StyleSheet, ViewStyle } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, fontSize, radius, spacing, shadow, depth } from '@/theme/tokens';
+import { colors, fontSize, radius, spacing, depth } from '@/theme/tokens';
 import { Text } from './Text';
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent';
@@ -125,8 +125,6 @@ export function Button({
         fullWidth && { alignSelf: 'stretch' },
         pressed && !isDisabled && { transform: [{ scale: 0.97 }], opacity: 0.92 },
         isDisabled && { opacity: 0.45 },
-        variant === 'primary' && shadow.glowPrimary,
-        variant === 'accent' && shadow.glowAccent,
         style,
       ]}
     >
@@ -175,7 +173,7 @@ const variantStyles: Record<
     container: {
       backgroundColor: colors.bg.elevated,
       borderWidth: 1,
-      borderColor: colors.accent.DEFAULT,
+      borderColor: colors.borderStrong,
     },
     textColor: colors.text.primary,
   },

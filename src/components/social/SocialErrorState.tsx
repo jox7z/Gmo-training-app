@@ -54,7 +54,7 @@ export function SocialErrorState({
             borderColor: colors.danger,
           }}
         >
-          <Icon name="close" size={compact ? spacing.md : radius['2xl']} color={colors.danger} />
+          <Icon name="close" size={compact ? spacing.md : spacing.xl} color={colors.danger} />
         </View>
 
         <View

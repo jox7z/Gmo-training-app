@@ -62,6 +62,14 @@ Cada descanso muestra al robot GMO con una entrada finita y frase estable;
 glow, gradiente de descanso, pulso y copy rotatorio. El editor anuncia pesos
 decimales como texto accesible para evitar la conversión entera de Fabric.
 
+**Delta visual general 2026-07-29:** la navegación visible pasa a
+`Social · Comunidad · Ejercicio · Progreso · Perfil` sin alterar keys ni orden del
+PagerView. Social conserva solo título, búsqueda y notificaciones; el refresh usa
+el mark PNG transparente, sin botón robot. La escala compartida vuelve a radios
+casi rectos, cards/botones ordinarios pierden glow, `Stat` concentra datos
+repetidos y el rojo queda para acciones, récords y estados. El calendario mensual
+mantiene 6×7 con separación GitHub de 4 px.
+
 **Delta agentes visuales 2026-07-26:** dirección `gym editorial industrial` para
 adultos jóvenes gym-first. MotionSites aporta composición/coreografía, nunca
 cursores/WebGL/scroll web; Hevy aporta logging+progreso+social; Nike aporta lenguaje
@@ -104,7 +112,7 @@ reutilizables viven en skills y los cambios cross-layer escalan a Supabase.
 | Hevy | Home = feed social con toggle Discover; tab Workout dedicado a rutinas/arranque; analíticas en Profile; widgets de OS. |
 | Fitbod | El home ES el workout del día ya generado: empezar = 1 tap. Gym Profiles conmutables regeneran la rutina según equipo. |
 | Strava | Feed social como home; 5 tabs con **botón Record central** como CTA permanente; tab You consolida todo lo personal con tarjetas expandibles. |
-| **Gmo hoy** | Home = feed social (patrón Hevy/Strava ✓) con 4 tabs swipeables y CTA persistente que inicia el próximo día o reanuda una sesión activa mostrando progreso. **Falta:** widgets de OS y calendario real para sugerir el día. |
+| **Gmo hoy** | Social = feed principal (patrón Hevy/Strava ✓) con 5 tabs swipeables: Social, Comunidad, Ejercicio, Progreso y Perfil. El CTA persistente inicia el próximo día o reanuda una sesión activa. **Falta:** widgets de OS y calendario real para sugerir el día. |
 
 **Adoptado 2026-07-19:** CTA de inicio/continuación siempre visible sobre el Feed, sin alterar la tab bar ni el recycler. **Aplazamos:** widgets de OS (requieren dev build y módulos nativos → tras C4/B1, P2).
 

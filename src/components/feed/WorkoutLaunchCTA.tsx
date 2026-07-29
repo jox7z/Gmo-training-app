@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
-import { colors, radius, shadow, spacing } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 interface WorkoutLaunchCTAProps {
   active: boolean;
@@ -42,34 +42,29 @@ export function WorkoutLaunchCTA({
           active ? 'Vuelve a tu entrenamiento en curso' : 'Abre tu próximo entrenamiento'
         }
         style={{
-          minHeight: 76,
+          minHeight: 68,
           flexDirection: 'row',
           alignItems: 'center',
           gap: spacing.md,
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.sm,
-          borderWidth: 1,
-          borderBottomWidth: 4,
-          borderColor: active ? colors.primary.DEFAULT : colors.borderStrong,
-          borderBottomColor: active ? colors.primary.dark : colors.bg.cardEdge,
-          borderRadius: radius.xl,
-          backgroundColor: colors.bg.card,
-          ...shadow.card,
+          borderLeftWidth: 3,
+          borderLeftColor: colors.primary.DEFAULT,
+          borderRadius: radius.lg,
+          backgroundColor: colors.bg.raised,
         }}
       >
         <View
           style={{
-            width: 52,
-            height: 52,
-            borderRadius: radius.lg,
+            width: 44,
+            height: 44,
+            borderRadius: radius.md,
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
-            borderWidth: 1,
-            borderColor: active ? colors.primary.DEFAULT : colors.border,
+            backgroundColor: colors.surfaceVeil,
           }}
         >
-          <Icon name="dumbbell" size={25} color={colors.primary.DEFAULT} />
+          <Icon name="dumbbell" size={22} color={colors.primary.DEFAULT} />
         </View>
 
         <View style={{ flex: 1 }}>
@@ -107,18 +102,7 @@ export function WorkoutLaunchCTA({
           </Text>
         </View>
 
-        <View
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: radius.sm,
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: colors.primary.DEFAULT,
-          }}
-        >
-          <Icon name="chevron-right" size={18} color={colors.text.primary} />
-        </View>
+        <Icon name="chevron-right" size={20} color={colors.primary.DEFAULT} />
       </PressableScale>
     </View>
   );

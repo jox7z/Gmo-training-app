@@ -25,7 +25,8 @@ description: Audit or implement visual accessibility for GMO Training React Nati
 - Keep destructive and privacy actions explicit. Do not use swipe or long press as the sole path.
 - Manage focus when opening and closing modals or sheets.
 - Keep forms and searchable sheets usable with the keyboard visible.
-- Provide a visible, focusable refresh action in addition to pull gestures.
+- Do not rely only on the pull gesture: expose a focusable `refresh` accessibility
+  action from the Social list. It does not require another visible header button.
 - Calendar future days remain legible with muted semantics; today has a non-color-only outline.
 
 ## Adapt

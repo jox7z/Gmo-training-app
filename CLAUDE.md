@@ -270,13 +270,19 @@ the only place that decides where the user goes. Key invariants there:
   the list remains fixed, 72 px vertical intent triggers manual refresh, and
   horizontal intent yields to `PagerView` through manual direction-dominance
   activation. The mark makes one complete turn per refresh, finishes that turn
-  after a fast response, never loops, and stays static under Reduce Motion.
-  Preserve a visible 44 px `Actualizar feed` action and announce results from the
-  shared refresh action.
+  after a fast response, never loops, and stays static under Reduce Motion. Use
+  `assets/brand/gmo-mark-transparent.png`; never restore the icon's square
+  background. The Social header contains its short title, Search and Notifications
+  only. Main labels are `Social · Comunidad · Ejercicio · Progreso · Perfil`;
+  internal tab keys remain unchanged.
 - **Section surfaces:** informational panels use `Card variant="section"`: square,
   top/bottom separators only, no lateral border. `raised` remains for compact
   selectable/navigable tiles, forms and controls. Inputs, buttons, state badges,
   modals and genuine circles keep their own complete border geometry.
+- **Visual hierarchy:** use intentional space and shared `Stat`/workout metrics
+  instead of nested bordered cards. Keep ordinary surfaces free of decorative
+  glow, labels in sentence case, titles short, primary values cream and metadata
+  muted. Red belongs to actions, records and relevant states.
 - **Loading skeletons:** reuse `src/components/ui/Skeleton.tsx`; one
   `SkeletonGroup` owns one pulse for all child bones. Skeletons replace only an
   initial empty load, never cached data during refetch, pagination indicators,

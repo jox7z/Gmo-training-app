@@ -195,6 +195,11 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
 - **Continuidad de captura (2026-07-29):** cada serie laboral hereda el peso real
   de la anterior dentro del mismo ejercicio, sin pisar ediciones. El refresh del
   Feed usa el mark GMO con una única vuelta completa y mantiene la lista inmóvil.
+- **Limpieza visual general (2026-07-29):** navegación visible
+  `Social · Comunidad · Ejercicio · Progreso · Perfil`; header Social sin saludo ni
+  botón robot; refresh con PNG transparente. Radios casi rectos, menos glow,
+  jerarquía por espacio/tipo y `Stat` compartido. El calendario 6×7 usa gap de
+  4 px. Sin dependencias, migraciones ni cambios Supabase.
 - **Bloqueador backend P0 — rangos semanales:** reconciliar ledger alojado; cerrar
   `recalc_weekly_ranks()` al Data API; garantizar idempotencia/concurrencia por
   semana; migrar a los 9 umbrales canónicos; backfill sin celebraciones falsas.

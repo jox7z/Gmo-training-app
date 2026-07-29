@@ -1,5 +1,5 @@
 import { View, ViewProps, ViewStyle } from 'react-native';
-import { colors, radius, spacing, shadow } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
 
 interface Props extends ViewProps {
   variant?: 'default' | 'elevated' | 'outlined' | 'glow' | 'raised' | 'stream' | 'section';
@@ -19,10 +19,7 @@ export function Card({
   const variantStyle: ViewStyle = (() => {
     switch (variant) {
       case 'elevated':
-        // `raised` y no `elevated`: con la rampa Ember, bg.elevated queda por
-        // debajo de bg.card, así que un "elevated" con ese relleno se leería
-        // más hundido que el Card por defecto.
-        return { backgroundColor: colors.bg.raised, ...shadow.card };
+        return { backgroundColor: colors.bg.raised };
       case 'outlined':
         return {
           backgroundColor: 'transparent',
@@ -33,19 +30,13 @@ export function Card({
         return {
           backgroundColor: colors.bg.card,
           borderWidth: 1,
-          borderColor: colors.accent.DEFAULT,
-          borderRadius: radius['2xl'],
+          borderColor: colors.border,
         };
       case 'glow':
         return {
           backgroundColor: colors.bg.card,
           borderWidth: 1,
           borderColor: glowColor ?? colors.primary.DEFAULT,
-          shadowColor: glowColor ?? colors.primary.DEFAULT,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.5,
-          shadowRadius: 14,
-          elevation: 10,
         };
       case 'stream':
         return {

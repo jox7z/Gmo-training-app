@@ -14,7 +14,6 @@ import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/Avatar';
 import { Icon, IconName } from '@/components/Icon';
-import { IconButton } from '@/components/ui/IconButton';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { FeedItem } from '@/components/feed/FeedItem';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
@@ -408,52 +407,74 @@ export default function FeedHome() {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: spacing.lg,
-          paddingTop: spacing.sm,
+          paddingTop: spacing.md,
           paddingBottom: spacing.md,
-          gap: spacing.lg,
+          gap: spacing.sm,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
           backgroundColor: colors.bg.base,
         }}
       >
-        <View style={{ flex: 1 }}>
-          <Text variant="caption" tone="muted">Hola,</Text>
-          <Text variant="heading" numberOfLines={1}>
-            {profile?.displayName ?? 'Atleta'}
-          </Text>
-        </View>
-        <IconButton
-          name="robot"
-          accessibilityLabel="Actualizar feed"
-          accessibilityHint="Actualiza las publicaciones sin mover la lista"
-          onPress={refreshFromButton}
-          variant="surface"
-          size="md"
-          disabled={manualRefreshing}
-          iconColor={colors.primary.DEFAULT}
+        <Text
+          variant="heading"
+          accessibilityRole="header"
+          numberOfLines={1}
+          style={{ flex: 1 }}
+        >
+          Social
+        </Text>
+
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Buscar"
+          accessibilityHint="Abre el buscador de atletas y comunidades"
+          onPress={goDiscover}
+          hitSlop={8}
+          pressScale={0.92}
           haptic={false}
-        />
-        {/* Bell icon with unread badge */}
-        <PressableScale onPress={goNotifications} hitSlop={8} pressScale={0.9} haptic={false}>
+        >
           <View
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.full,
-              backgroundColor: colors.bg.elevated,
+              width: 44,
+              height: 44,
+              borderRadius: radius.sm,
               alignItems: 'center',
               justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: colors.border,
             }}
           >
-            <Icon name="bell" size={18} color={colors.text.primary} />
+            <Icon name="search" size={20} color={colors.text.primary} />
+          </View>
+        </PressableScale>
+
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={
+            unreadCount > 0
+              ? `Notificaciones, ${unreadCount > 99 ? 'más de 99' : unreadCount} sin leer`
+              : 'Notificaciones'
+          }
+          accessibilityHint="Abre tus notificaciones"
+          onPress={goNotifications}
+          hitSlop={8}
+          pressScale={0.92}
+          haptic={false}
+        >
+          <View
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: radius.sm,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="bell" size={20} color={colors.text.primary} />
             {unreadCount > 0 && (
               <View
                 style={{
                   position: 'absolute',
-                  top: 4,
-                  right: 4,
+                  top: 3,
+                  right: 3,
                   minWidth: 16,
                   height: 16,
                   borderRadius: radius.sm,
@@ -471,23 +492,6 @@ export default function FeedHome() {
                 </Text>
               </View>
             )}
-          </View>
-        </PressableScale>
-
-        <PressableScale onPress={goDiscover} hitSlop={8} pressScale={0.9} haptic={false}>
-          <View
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: radius.full,
-              backgroundColor: colors.bg.elevated,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderWidth: 1,
-              borderColor: colors.border,
-            }}
-          >
-            <Icon name="search" size={18} color={colors.text.primary} />
           </View>
         </PressableScale>
       </View>

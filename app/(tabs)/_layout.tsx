@@ -18,12 +18,12 @@ import RoutinesScreen from './routines';
 import ProgressScreen from './progress';
 import ProfileScreen from './profile';
 
-// El orden define el índice del PagerView. GMUP es la segunda página: el hub
-// social queda a un swipe del Feed.
+// El orden define el índice del PagerView. Comunidad es la segunda página:
+// el hub queda a un swipe de Social.
 const TABS: { key: MainTabName; label: string }[] = [
-  { key: 'feed',     label: 'Feed'     },
-  { key: 'gmup',     label: 'GMUP'     },
-  { key: 'routines', label: 'Rutinas'  },
+  { key: 'feed',     label: 'Social'    },
+  { key: 'gmup',     label: 'Comunidad' },
+  { key: 'routines', label: 'Ejercicio' },
   { key: 'progress', label: 'Progreso' },
   { key: 'profile',  label: 'Perfil'   },
 ];

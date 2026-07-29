@@ -78,7 +78,8 @@
   como `GMO Rating`, radial segmentado, desglose 2×2 y un disclaimer; no se
   persiste ni genera consejos.
 - `src/lib/trainingCalendar.ts` construye 42 días civiles locales, lunes primero,
-  agrupa sesiones 0/1/2/3+ y conserva los workouts exactos para el ledger.
+  agrupa sesiones 0/1/2/3+ y conserva los workouts exactos para el ledger. La UI
+  mantiene el grid 6×7 y separa sus celdas con un gap fijo de 4 px.
 - `src/lib/muscleMilestones.ts` reutiliza los cuatro tracks de fuerza de
   `ACHIEVEMENTS`. Selecciona evidencia determinista por carga, reps, fecha e IDs;
   un músculo secundario recibe un nivel menos. No duplica umbrales ni estima 1RM.
@@ -105,7 +106,9 @@
   y el perfil público usa galería 3×N sin margen exterior, con gaps de 1 px.
 - Las secciones informativas usan `Card variant="section"`: radio 0 y separadores
   superior/inferior sin líneas laterales. `raised` queda para tiles compactos,
-  selección, navegación, formularios y controles; no se cambió el default global.
+  selección, navegación, formularios y controles. La escala de radios compartida
+  es casi recta; `Stat` y `WorkoutMetric` concentran métricas repetidas. Cards y
+  botones ordinarios no dependen de glow para indicar jerarquía.
 - `src/components/ui/Skeleton.tsx` centraliza placeholders. `SkeletonGroup` crea un
   único pulso por grupo y sus huesos son decorativos para accesibilidad. Solo
   reemplaza carga inicial sin datos; cache durante refetch, paginación, refresh y
@@ -143,10 +146,10 @@
 - Los contratos puros viven en `src/lib/__tests__/` y usan Jest + `jest-expo`.
 - El Feed usa `StaticPullToRefresh`: el gesto mueve solo `GmoRefreshIndicator`;
   la FlashList mantiene offset, la activación manual cede intención horizontal
-  al `PagerView`, un control visible comparte acción/anuncios accesibles y
-  foreground/paginación no comparten el estado manual. El indicador reutiliza el
-  mark GMO optimizado, completa una sola vuelta por refresh aunque la respuesta
-  termine antes y queda estático con Reduce Motion.
+  al `PagerView`, y la propia lista expone una acción accesible `Actualizar feed`
+  sin sumar un botón visual. Foreground/paginación no comparten el estado manual.
+  El indicador usa `gmo-mark-transparent.png`, completa una sola vuelta aunque la
+  respuesta termine antes y queda estático con Reduce Motion.
 - `completeSetAndCarryWeightById` completa la serie y copia su peso a la siguiente
   serie laboral pendiente en un único snapshot persistido antes del descanso.
   `getCarriedWeightForSet` conserva el fallback de entrada. Ambos usan IDs

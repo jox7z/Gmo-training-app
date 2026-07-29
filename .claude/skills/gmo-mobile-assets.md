@@ -9,6 +9,8 @@ description: Create, select, optimize, replace, or audit GMO Training mobile ima
 
 - `assets/brand/gmo-mark-master.png` is the cream/black/red robot master.
 - `assets/icon.png` is the optimized runtime icon/splash source.
+- `assets/brand/gmo-mark-transparent.png` is the alpha-safe runtime derivative
+  for Feed refresh. Preserve its transparent outer canvas.
 - Render the mascot only through `src/components/GmoMascot.tsx`.
 - Preserve rank filenames and the static `RANK_IMAGES` map.
 - Keep masters under `assets/brand/`; import optimized derivatives at runtime.

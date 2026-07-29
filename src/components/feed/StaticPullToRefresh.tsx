@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Image } from 'expo-image';
 import {
+  type AccessibilityActionEvent,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   View,
@@ -32,6 +33,8 @@ export interface StaticPullListProps {
   scrollEventThrottle: number;
   bounces: false;
   overScrollMode: 'never';
+  accessibilityActions: { name: string; label: string }[];
+  onAccessibilityAction: (event: AccessibilityActionEvent) => void;
 }
 
 interface Props {
@@ -158,6 +161,14 @@ export function StaticPullToRefresh({
           scrollEventThrottle: 16,
           bounces: false,
           overScrollMode: 'never',
+          accessibilityActions: [
+            { name: 'refresh', label: 'Actualizar feed' },
+          ],
+          onAccessibilityAction: (event) => {
+            if (event.nativeEvent.actionName === 'refresh') {
+              void requestRefresh();
+            }
+          },
         })}
         <GmoRefreshIndicator
           refreshing={refreshing}
@@ -268,7 +279,7 @@ export function GmoRefreshIndicator({
       ]}
     >
       <Image
-        source={require('../../../assets/icon.png')}
+        source={require('../../../assets/brand/gmo-mark-transparent.png')}
         style={{ width: INDICATOR_SIZE, height: INDICATOR_SIZE }}
         contentFit="contain"
         accessible={false}

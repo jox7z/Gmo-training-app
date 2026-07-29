@@ -60,8 +60,9 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Progreso real por ejercicio | `src/lib/progressInsights.ts` + `exerciseProgressPicker.ts` + `ProgressInsightsSection.tsx` |
 | Metadata/tarjeta social de workout | `src/lib/workoutPostMetadata.ts` + `WorkoutShareCard.tsx` |
 | Columna social edge-to-edge | `src/components/social/SocialStreamColumn.tsx` + `Card variant="stream"` |
-| Refresh inmóvil del Feed | `StaticPullToRefresh.tsx` + mark GMO runtime |
+| Refresh inmóvil de Social | `StaticPullToRefresh.tsx` + `gmo-mark-transparent.png` |
 | Secciones y carga | `Card variant="section"` + `src/components/ui/Skeleton.tsx` |
+| Métricas repetibles | `src/components/ui/Stat.tsx` + `WorkoutMetric.tsx` |
 | Hub del ejercicio | `app/exercise/[id].tsx` + `src/lib/exerciseDetails.ts` |
 | Puente de tabs externas | `src/store/mainTabs.ts` |
 | Mascota reutilizable | `src/components/GmoMascot.tsx` + `assets/brand/gmo-mascot.webp` |
@@ -70,8 +71,10 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 
 ## Decisiones de producto vigentes
 
-- **Tabs principales:** Feed · Rutinas · Progreso · Perfil (4 tabs)
-  - Home (Feed) es la red social tipo LinkedIn de logros
+- **Tabs principales:** Social · Comunidad · Ejercicio · Progreso · Perfil (5 tabs)
+  - Las claves internas siguen siendo `feed`, `gmup`, `routines`, `progress` y
+    `profile`; el rename es únicamente de navegación visible
+  - Social es la red de entrenamientos y logros
   - **Progreso** muestra solo tendencias reales por ejercicio y peso corporal
 - **Perfil** concentra identidad social en un encabezado compacto: avatar, rango,
   racha, seguidores, publicaciones paginadas, actividad y logros. Su menú de tres
@@ -113,7 +116,7 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   estructura visibles. Se calcula localmente, no se guarda, no recomienda cambios
   y no predice resultados.
 - **Calendario e hitos en Progreso:** calendario local fijo 6×7, lunes primero,
-  intensidad 0/1/2/3+ y ledger exacto por día. El mapa reutiliza los umbrales de
+  gap de 4 px entre celdas, intensidad 0/1/2/3+ y ledger exacto por día. El mapa reutiliza los umbrales de
   los cuatro tracks de fuerza de `ACHIEVEMENTS`; muestra carga, reps, fecha, sesión
   y rol muscular, sin 1RM estimado ni comparación poblacional.
 - **Selección de progreso escalable:** una fila compacta abre el picker buscable
@@ -139,8 +142,13 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   full-bleed y 44 px táctiles. El perfil público usa galería de 3 columnas con gaps
   de 1 px. Formularios, modales y superficies privadas continúan contenidos.
 - **Refresh fijo del Feed:** un gesto vertical de 72 px mueve solo el indicador
-  GMO; la FlashList no se arrastra y el gesto horizontal se entrega a `PagerView`.
-  Un control visible `Actualizar feed` ofrece la misma acción a teclado y lector.
+  GMO transparente; la FlashList no se arrastra y el gesto horizontal se entrega
+  a `PagerView`. La lista expone `Actualizar feed` como acción accesible sin añadir
+  otro botón visual al header.
+- **Jerarquía visual:** el sistema usa radios casi rectos, espacio abierto y
+  `Stat`/`WorkoutMetric` para repetir datos. Cards y botones ordinarios no tienen
+  glow; títulos y etiquetas usan frase corta. El rojo se limita a acciones,
+  récords y estados relevantes.
 - **Secciones sin marco lateral:** paneles de Rutinas, Progreso, Perfil, Logros,
   workout activo, onboarding, evento y hub de ejercicio usan solo separadores
   superior/inferior. Tiles compactos, formularios y controles conservan su marco.
@@ -181,8 +189,8 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   el icono de lupa en el header del Feed.
 - **Reacciones a posts:** la UI activa usa una sola reacción gym `muscle` (💪).
 - **Navegación entre tabs:** swipe horizontal habilitado vía
-  `react-native-pager-view`. Las 4 tabs (Feed/Rutinas/Progreso/
-  Perfil) se pueden recorrer deslizando o tocando.
+  `react-native-pager-view`. Las 5 tabs
+  (Social/Comunidad/Ejercicio/Progreso/Perfil) se recorren deslizando o tocando.
 - **Feedback UX:** todo botón importante (Seguir, reacciones,
   publicar, comentar) usa optimistic update + haptics + micro
   animación de scale para sentirse como Instagram/Strava.

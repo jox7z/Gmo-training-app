@@ -2,7 +2,7 @@
 
 > Fuente única del tooling de UI/visualización e imágenes de Gmo Training.
 > `CLAUDE.md`, `README.md` y `docs/memory/overview.md` enlazan aquí en vez de
-> duplicar el detalle. Última revisión: 2026-07-19.
+> duplicar el detalle. Última revisión: 2026-07-29.
 
 ## Estrategia de build (por fases)
 
@@ -34,6 +34,9 @@ react-native-worklets 0.5 · New Architecture (Fabric) activada**. Ya presentes:
 - Las superficies usan esquinas casi rectas (`2–4 px`). `radius.full` queda
   reservado para geometría realmente circular: avatares, puntos, anillos e
   indicadores; no para tarjetas, chips o shells decorativos.
+- La jerarquía ordinaria sale de espacio, tipografía y contraste: sin glow en
+  cards/botones comunes. `Stat` y `WorkoutMetric` son los patrones repetibles para
+  datos. El rojo queda para acciones, récords y estados relevantes.
 - `src/components/ui/Text.tsx`: única fachada tipográfica.
 - `PressableScale`, `Button`, `IconButton`, `Chip` y `SegmentedControl`: feedback,
   haptics y accesibilidad consistentes sin dependencia nueva.
@@ -59,6 +62,7 @@ local cuando una de ellas cubra el caso.
 | Metadata de ejercicios | **hasaneyldrm/exercises-dataset** (adoptada parcialmente, commit fijado) | 46 instrucciones enlazadas; nunca su media sin licencia Gym visual |
 | Transform de imágenes | **Supabase Storage image transforms** (resize/quality/WebP) | avatares + fotos de feed/comunidad |
 | Emblemas de rank | Atlas original generado para Gmo, PNG con alpha | 9 crests reales en `assets/ranks/`; master en `assets/brand/` |
+| Refresh Social | PNG con alpha | `assets/brand/gmo-mark-transparent.png`; una vuelta, sin fondo cuadrado |
 
 ## Tier 2 — Premium (requiere development build)
 

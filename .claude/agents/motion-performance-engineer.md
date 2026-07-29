@@ -31,8 +31,9 @@ Read completely before acting:
 - Never attach `entering` or `layout` to FlashList items.
 - Never run decorative infinite loops or JS timers per row.
 - Feed pull moves only `GmoRefreshIndicator`; never translate FlashList content.
-- Feed refresh renders the optimized GMO mark, runs one complete turn per manual
-  refresh, finishes that turn after fast responses, and never loops.
+- Feed refresh renders `assets/brand/gmo-mark-transparent.png`, runs one complete
+  turn per manual refresh, finishes that turn after fast responses, and never
+  loops.
 - Active-workout rest uses one finite `RestMascotCoach` entrance, then remains
   static. There is no set splash, rotating rest phrase or pulsing progress.
 - Under Reduce Motion, mascot and phase transitions render directly at their

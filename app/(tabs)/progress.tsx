@@ -11,6 +11,7 @@ import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Skeleton, SkeletonGroup } from '@/components/ui/Skeleton';
+import { Stat } from '@/components/ui/Stat';
 import { WeightChart } from '@/components/WeightChart';
 import { WeightDetailModal } from '@/components/WeightDetailModal';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -194,7 +195,7 @@ function BodySection({
               borderColor: colors.border,
             }}
           >
-            <Icon name="chart" size={18} color={colors.primary.DEFAULT} />
+            <Icon name="chart" size={18} color={colors.text.secondary} />
           </View>
         </PressableScale>
       </View>
@@ -236,8 +237,8 @@ function BodySection({
             }}
           >
             <View>
-              <Text variant="label" tone="secondary">ÚLTIMA MEDICIÓN</Text>
-              <Text variant="metric" tone="brand" numeric style={{ marginTop: spacing.xs }}>
+              <Text variant="label" tone="secondary">Última medición</Text>
+              <Text variant="metric" numeric style={{ marginTop: spacing.xs }}>
                 {formatWeight(latest.weightKg, unit)}
               </Text>
               <Text variant="caption" tone="muted">
@@ -251,10 +252,10 @@ function BodySection({
                 borderRadius: radius.sm,
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: colors.primary.muted,
+                backgroundColor: colors.surfaceVeil,
               }}
             >
-              <Icon name="scale" size={22} color={colors.primary.DEFAULT} />
+              <Icon name="scale" size={22} color={colors.text.secondary} />
             </View>
           </View>
           {(latest.bodyFatPct !== undefined ||
@@ -271,13 +272,28 @@ function BodySection({
               }}
             >
               {latest.bodyFatPct !== undefined && (
-                <MiniStat label="Grasa" value={`${latest.bodyFatPct.toFixed(1)}%`} />
+                <Stat
+                  label="Grasa"
+                  value={`${latest.bodyFatPct.toFixed(1)}%`}
+                  size="sm"
+                  style={{ flex: 1 }}
+                />
               )}
               {latest.musclePct !== undefined && (
-                <MiniStat label="Músculo" value={`${latest.musclePct.toFixed(1)}%`} />
+                <Stat
+                  label="Músculo"
+                  value={`${latest.musclePct.toFixed(1)}%`}
+                  size="sm"
+                  style={{ flex: 1 }}
+                />
               )}
               {latest.waterPct !== undefined && (
-                <MiniStat label="Agua" value={`${latest.waterPct.toFixed(1)}%`} />
+                <Stat
+                  label="Agua"
+                  value={`${latest.waterPct.toFixed(1)}%`}
+                  size="sm"
+                  style={{ flex: 1 }}
+                />
               )}
             </View>
           )}
@@ -298,7 +314,7 @@ function BodySection({
       {!measurementsLoading && recent.length > 0 && (
         <Card padding="lg">
           <Text variant="label" tone="secondary" style={{ marginBottom: spacing.md }}>
-            ÚLTIMAS MEDICIONES
+            Últimas mediciones
           </Text>
           <View style={{ gap: spacing.sm }}>
             {recent.map((m, i) => (
@@ -307,17 +323,6 @@ function BodySection({
           </View>
         </Card>
       )}
-    </View>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1 }}>
-      <Text variant="caption" tone="muted">{label}</Text>
-      <Text weight="bold" numeric style={{ marginTop: 2 }}>
-        {value}
-      </Text>
     </View>
   );
 }

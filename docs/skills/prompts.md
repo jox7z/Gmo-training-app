@@ -5,7 +5,9 @@
 > hitos musculares, perfil compacto y editor numérico estable; 128 tests en
 > 20 suites. El workout activo ahora usa métricas abiertas y robot en cada
 > descanso, sin splash ni prescripción de recuperación. La carga continúa entre
-> series del mismo ejercicio y el refresh usa el mark GMO con una vuelta. El historial vive
+> series del mismo ejercicio y el refresh usa el mark GMO transparente con una
+> vuelta. La navegación visible es Social, Comunidad, Ejercicio, Progreso y
+> Perfil; el header Social solo conserva título, búsqueda y notificaciones. El historial vive
 > en `docs/memory/checklist.md`.
 
 ## SPRINT C3 — Logros reales, progreso por hitos y perfil compacto
@@ -22,13 +24,14 @@ Todos los agentes empiezan con `CAVEMAN` y leen
 CAVEMAN.
 Ownership: evidencia manual; código solo para bugs reproducibles.
 
-1. Feed corto/largo/vacío: pull vertical mueve solo el mark GMO una vuelta, swipe horizontal conserva
-   PagerView, botón Actualizar anuncia éxito/error y no mezcla foreground/paginación.
+1. Feed corto/largo/vacío: pull vertical mueve solo el mark GMO transparente una
+   vuelta, swipe horizontal conserva PagerView, la acción accesible de la lista
+   actualiza sin botón visual y no mezcla foreground/paginación.
 2. Nueve ascensos en Feed, comunidad, posts propios y galería pública; `legend`
    muestra Olympus y downgrade/metadata rota quedan neutrales.
 3. `GMO Rating`: 0/medio/100, cuatro segmentos, 360/390/430/768 y texto grande.
-4. Calendario: mes de seis filas, febrero bisiesto, hoy/futuros, mes anterior/siguiente,
-   un workout abre ledger y varios abren selector de sesión.
+4. Calendario: mes de seis filas con gap de 4 px, febrero bisiesto, hoy/futuros,
+   mes anterior/siguiente, un workout abre ledger y varios abren selector.
 5. Mapa frontal/trasero + selector buscable: 12 músculos, Con/Sin hitos, tildes,
    teclado abierto, evidencia principal/secundaria y sesión exacta.
 6. Perfil compacto: identidad, tabs sticky, paginación, actividad, logros, menú
@@ -41,7 +44,7 @@ Ownership: evidencia manual; código solo para bugs reproducibles.
    GMO aparece en cada descanso, frase no rota y el timer no prescribe minutos.
 9. Reduce Motion: feed indicator, PR, robot de descanso, transiciones, editor de
    rutina, skeletons y sheets quedan estáticos sin perder información.
-10. VoiceOver/TalkBack: acciones de post separadas, refresh visible, calendario,
+10. VoiceOver/TalkBack: acciones de post separadas, acción refresh de la lista, calendario,
    selector, galería, actividad/logros y toolbar de teclado.
 11. Stream en 360/390/430/768: fotos 4:5, 16 px internos, targets 44 px y cero
     bordes/radios laterales; mapa anatómico requiere validar taps pequeños.

@@ -18,6 +18,34 @@
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
 | Calidad técnica | 🟡 | 128 tests puros en 20 suites, typecheck/lint y export Android limpios; falta smoke físico |
 
+## Limpieza visual general — 2026-07-29
+
+### Implementación
+
+- [x] Tabs visibles: Social, Comunidad, Ejercicio, Progreso y Perfil
+- [x] Header Social: título corto, búsqueda y notificaciones; sin saludo ni bot naranja
+- [x] Refresh inmóvil con `gmo-mark-transparent.png` y una sola vuelta
+- [x] Acción `Actualizar feed` expuesta por la lista para tecnología asistiva
+- [x] Radios casi rectos y glow retirado de cards/botones ordinarios
+- [x] Jerarquía neutral: crema para datos, metadata muted y rojo para acción/PR/estado
+- [x] `Stat` reutilizado en Perfil y peso corporal
+- [x] Calendario 6×7 con gap GitHub de 4 px
+- [x] AGENTS, CLAUDE, agentes/skills, overview, arquitectura y roadmaps sincronizados
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 20 suites / 128 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 0 warnings
+- [x] Export Android final — 2063 módulos / HBC 6,19 MB
+- [x] Revisión `code-quality-reviewer` — sin hallazgos accionables
+- [ ] Smoke físico Expo Go: 360/390/430/768, texto grande, TalkBack y Reduce Motion
+
+Riesgo restante: falta confirmar en dispositivo el rotor/acción accesible del
+refresh, transparencia renderizada y densidad de la tab Comunidad en 360 px.
+
+Siguiente paso: revisión final y smoke físico Expo Go.
+
 ## Continuidad de carga + refresh GMO — 2026-07-29
 
 ### Implementación
@@ -206,24 +234,24 @@ Objetivo: cerrar deuda que rompe confianza antes de añadir features.
 3. Smoke Expo Go: mapa interactivo, onboarding múltiple y rutina personalizada.
 4. Completar smoke físico general en 360/390/430/768 px.
 
-## Recuperación — GMUP + consistencia visual (2026-07-29)
+## Recuperación — Comunidad (`gmup`) + consistencia visual (2026-07-29)
 
 Contexto: dos eventos destructivos el 2026-07-29 borraron trabajo sin commitear.
 Hacia las 04:0x se revirtieron archivos ya trackeados (el commit `210d47b`
 —"NO COMPILA"— fue un rescate parcial) y hacia las 10:5x un `git clean -fd`
-eliminó los no trackeados. GMUP **sí sobrevivió** en el rescate: faltaban su
+eliminó los no trackeados. Comunidad/`gmup` **sí sobrevivió** en el rescate: faltaban su
 cableado y 4 dependencias, y el proyecto no compilaba (17 errores de `tsc`).
 
 ### Recuperado
 
 - [x] `SkeletonRows`, `isEventFinished`, `RankEmblem` y `bottomInset` de
-      `CommunitiesExplorer` — las 4 dependencias que rompían GMUP
+      `CommunitiesExplorer` — las 4 dependencias que rompían Comunidad
 - [x] `RankEmblem` extraído como fuente única; `RankBadge` lo consume
-- [x] Pestaña GMUP cableada como 2ª página del PagerView (5 pestañas);
+- [x] Pestaña Comunidad (`gmup`) cableada como 2ª página del PagerView (5 pestañas);
       `MainTabName` y `TabIcon` ampliados; shell del icono ajustado para que
       "Progreso" no trunque a 360 px
 - [x] `/discover` reducido a búsqueda de atletas (586 → 252 líneas): Eventos,
-      Comunidades y Ranking viven ahora solo en GMUP
+      Comunidades y Ranking viven ahora solo en Comunidad
 - [x] 14 cabeceras migradas a `ScreenHeader`, incluidos los `Header` locales de
       `publish.tsx` y `profile/[username].tsx`
 - [x] `Stat` unificado, `Badge` con borde/icono/`warning`, `Button` con

@@ -9,7 +9,9 @@ description: Set visual art direction for GMO Training social, fitness, ranking,
 
 - Build from the GMO robot identity: disciplined, competitive, human, dark, and direct.
 - Use cream for readable warmth (`text.primary` is `#F6F2EC`, never pure white), black for the training environment, and the `colors.ember` ramp for decisive emphasis.
-- Ember is a colour **temperature**, not a light source. Keep glow restrained (`glow` tokens sit at 0.22): structure comes from the surface ramp, hairline borders and `gradients.emberEdge` rims — never from bloom.
+- Ember is a colour **temperature**, not a light source. Ordinary surfaces use no
+  decorative glow. Structure comes from negative space, type scale and the dark
+  surface ramp; reserve gradients/halos for earned rank or achievement moments.
 - Make effort and recorded performance feel tangible. Keep the tone factual; never manufacture praise, shame, diagnosis, or performance verdicts.
 - Treat the robot mark and mascot as recognizable anchors, not decorative wallpaper.
 
@@ -17,7 +19,7 @@ description: Set visual art direction for GMO Training social, fitness, ranking,
 
 - Choose one visual thesis per surface: training ledger, competitive rank, earned achievement, community moment, or editorial story.
 - Establish hierarchy with scale, crop, typography, negative space, and one dominant focal point.
-- Use industrial cues sparingly: stamped labels, scorekeeping grids, hard separators, restrained grain, and training-floor photography.
+- Use industrial cues sparingly: scorekeeping grids, hard separators, restrained grain, and training-floor photography. Prefer sentence case over stamped uppercase labels.
 - Keep data legible over decoration. Use red to focus attention, not to color every state.
 - Give ranks and achievements ceremony without making ordinary screens feel like game menus.
 - Follow social composition geometry from `gmo-mobile-product-design`; use art direction to strengthen its focal point and image treatment.
