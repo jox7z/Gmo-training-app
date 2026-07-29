@@ -51,6 +51,7 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Hitos musculares | `src/lib/muscleMilestones.ts` + `MuscleMilestoneMap.tsx` |
 | Rangos sociales | `src/lib/rankMilestone.ts` + `RankEmblem.tsx` |
 | Editor numérico de series | `src/lib/numericInput.ts` + `BigStepperInput.tsx` |
+| Carry de peso entre series | `completeSetAndCarryWeightById()` + `getCarriedWeightForSet()` |
 | Métricas del workout | `WorkoutMetric.tsx` + `RestRing.tsx` |
 | Compañero de descanso | `RestMascotCoach.tsx` + `GmoMascot.tsx` |
 | Objetivos del perfil | `profiles.goals` ordenado + espejo legacy `goal` |
@@ -59,6 +60,7 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Progreso real por ejercicio | `src/lib/progressInsights.ts` + `exerciseProgressPicker.ts` + `ProgressInsightsSection.tsx` |
 | Metadata/tarjeta social de workout | `src/lib/workoutPostMetadata.ts` + `WorkoutShareCard.tsx` |
 | Columna social edge-to-edge | `src/components/social/SocialStreamColumn.tsx` + `Card variant="stream"` |
+| Refresh inmóvil del Feed | `StaticPullToRefresh.tsx` + mark GMO runtime |
 | Secciones y carga | `Card variant="section"` + `src/components/ui/Skeleton.tsx` |
 | Hub del ejercicio | `app/exercise/[id].tsx` + `src/lib/exerciseDetails.ts` |
 | Puente de tabs externas | `src/store/mainTabs.ts` |

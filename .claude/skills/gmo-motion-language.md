@@ -25,7 +25,9 @@ must explain state, preserve continuity, or confirm direct manipulation.
 - Never attach `entering` or `layout` to FlashList items; recycler reuse can crash or visually corrupt rows.
 - Pull-to-refresh may animate an overlay indicator, never the Feed FlashList.
   Gate activation manually by direction dominance and fail when horizontal intent
-  belongs to `PagerView`, including diagonals that change dominance.
+  belongs to `PagerView`, including diagonals that change dominance. The Feed
+  indicator reuses the optimized GMO mark and makes one complete turn per manual
+  refresh; it finishes the turn after a fast response and never loops.
 - Keep shared continuity across sheets, modals, and navigation without delaying the user's next action.
 - Cancel or replace obsolete animation when state changes rapidly. Never queue stale confirmations.
 

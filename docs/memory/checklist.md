@@ -16,7 +16,34 @@
 | Progreso | ✅ honesto | Tendencia real, calendario mensual, hitos por cargas reales, peso separado y punto→sesión |
 | Gamificación | ✅ | Racha derivada por meta, 9 rangos, logros, eventos y comunidades |
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
-| Calidad técnica | 🟡 | 122 tests puros en 20 suites, typecheck/lint limpios; falta smoke físico |
+| Calidad técnica | 🟡 | 128 tests puros en 20 suites, typecheck/lint y export Android limpios; falta smoke físico |
+
+## Continuidad de carga + refresh GMO — 2026-07-29
+
+### Implementación
+
+- [x] La siguiente serie laboral hereda el peso real de la última completada
+- [x] Carry limitado al mismo `WorkoutExercise` y resuelto por IDs estables
+- [x] Targets editados/completados quedan protegidos; calentamientos completan sin propagar peso
+- [x] Las repeticiones conservan su contrato de autofill histórico independiente
+- [x] Feed inmóvil con el mark GMO optimizado como indicador
+- [x] Una sola vuelta de 360° por refresh; termina tras respuestas rápidas
+- [x] Sin borde, glow, gradiente ni loop; Reduce Motion estático
+- [x] AGENTS, CLAUDE, agentes/skills, overview, arquitectura, roadmaps y prompts sincronizados
+
+### Verificación
+
+- [x] Test focal de carry — 8/8
+- [x] `npm test -- --runInBand` — 20 suites / 128 tests / 0 fallos
+- [x] `npm run typecheck` — 0 errores
+- [x] `npm run lint` — 0 errores / 0 warnings
+- [x] Export Android — 2063 módulos / HBC 6,19 MB
+- [x] Revisión final `code-quality-reviewer` — sin hallazgos accionables
+- [ ] Smoke físico Expo Go: carry, edición protegida, refresh corto/largo y Reduce Motion
+
+Riesgo restante: la validación visual y táctil necesita dispositivo físico Expo Go.
+
+Siguiente paso: ejecutar gates completos y probar el flujo en un teléfono.
 
 ## Sprint en cierre — Workout abierto + GMO en descanso (2026-07-29)
 

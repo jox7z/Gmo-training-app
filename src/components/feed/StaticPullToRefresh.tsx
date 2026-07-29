@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from 'react';
+import { Image } from 'expo-image';
 import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -6,18 +7,19 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+  cancelAnimation,
   runOnJS,
   type SharedValue,
+  useAnimatedReaction,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 
-import { Icon } from '@/components/Icon';
 import { useReduceMotion } from '@/components/ui/useReduceMotion';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { duration, useMotion } from '@/theme/motion';
+import { spacing } from '@/theme/tokens';
 
 const PULL_THRESHOLD = 72;
 const MAX_PULL = 104;
@@ -173,20 +175,59 @@ export function GmoRefreshIndicator({
   refreshing: boolean;
   pullDistance: SharedValue<number>;
 }) {
-  const reduceMotion = useReduceMotion();
+  const motion = useMotion();
   const spin = useSharedValue(0);
+  const refreshActive = useSharedValue(refreshing);
+  const spinComplete = useSharedValue(true);
+  const showRefresh = useSharedValue(refreshing);
 
   useEffect(() => {
-    if (refreshing && !reduceMotion) {
+    refreshActive.value = refreshing;
+
+    if (refreshing) {
+      showRefresh.value = true;
+      cancelAnimation(spin);
       spin.value = 0;
-      spin.value = withRepeat(withTiming(1, { duration: 850 }), -1, false);
+      spinComplete.value = motion.reduce;
+
+      if (!motion.reduce) {
+        spin.value = withTiming(
+          1,
+          {
+            ...motion.timing('base'),
+            duration: duration.slow,
+          },
+          (finished) => {
+            if (finished) spinComplete.value = true;
+          },
+        );
+      }
       return;
     }
-    spin.value = withTiming(0, { duration: reduceMotion ? 0 : 140 });
-  }, [reduceMotion, refreshing, spin]);
+
+    if (motion.reduce) {
+      cancelAnimation(spin);
+      spin.value = 0;
+      spinComplete.value = true;
+    }
+  }, [
+    motion,
+    refreshActive,
+    refreshing,
+    showRefresh,
+    spin,
+    spinComplete,
+  ]);
+
+  useAnimatedReaction(
+    () => !refreshActive.value && spinComplete.value,
+    (shouldHide) => {
+      if (shouldHide) showRefresh.value = false;
+    },
+  );
 
   const indicatorStyle = useAnimatedStyle(() => {
-    const visibleDistance = refreshing
+    const visibleDistance = showRefresh.value
       ? spacing.md + INDICATOR_SIZE
       : pullDistance.value;
     const progress = Math.min(1, visibleDistance / PULL_THRESHOLD);
@@ -202,7 +243,7 @@ export function GmoRefreshIndicator({
         { scale: 0.82 + progress * 0.18 },
       ],
     };
-  }, [refreshing]);
+  });
 
   return (
     <Animated.View
@@ -220,17 +261,18 @@ export function GmoRefreshIndicator({
           width: INDICATOR_SIZE,
           height: INDICATOR_SIZE,
           marginLeft: -INDICATOR_SIZE / 2,
-          borderRadius: radius.full,
-          borderWidth: 1,
-          borderColor: colors.primary.glow,
-          backgroundColor: colors.bg.elevated,
           alignItems: 'center',
           justifyContent: 'center',
         },
         indicatorStyle,
       ]}
     >
-      <Icon name="robot" size={22} color={colors.primary.DEFAULT} />
+      <Image
+        source={require('../../../assets/icon.png')}
+        style={{ width: INDICATOR_SIZE, height: INDICATOR_SIZE }}
+        contentFit="contain"
+        accessible={false}
+      />
     </Animated.View>
   );
 }

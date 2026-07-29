@@ -144,7 +144,13 @@
 - El Feed usa `StaticPullToRefresh`: el gesto mueve solo `GmoRefreshIndicator`;
   la FlashList mantiene offset, la activación manual cede intención horizontal
   al `PagerView`, un control visible comparte acción/anuncios accesibles y
-  foreground/paginación no comparten el estado manual.
+  foreground/paginación no comparten el estado manual. El indicador reutiliza el
+  mark GMO optimizado, completa una sola vuelta por refresh aunque la respuesta
+  termine antes y queda estático con Reduce Motion.
+- `completeSetAndCarryWeightById` completa la serie y copia su peso a la siguiente
+  serie laboral pendiente en un único snapshot persistido antes del descanso.
+  `getCarriedWeightForSet` conserva el fallback de entrada. Ambos usan IDs
+  estables, no cruzan ejercicios y respetan targets editados o completados.
 - Riesgo live P0: `public.recalc_weekly_ranks()` es `SECURITY DEFINER`, ejecutable
   desde Data API y no idempotente; además usa seis tiers legacy. La remediación
   exige reconciliar el ledger, revocar ACLs, deduplicar por semana y alinear nueve

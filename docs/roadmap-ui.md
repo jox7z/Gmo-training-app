@@ -212,7 +212,8 @@ Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 3. **SetProgressPills** estable y neutral; sin loop decorativo. Haptics solo en
    acciones mediante `PressableScale`.
 4. **Botones 3D chunky** (`Button` con edge/pressTravel) — identidad propia; no sustituir por botones planos de ninguna librería.
-5. **Tab bar con blur** (expo-blur) y pull-to-refresh consistente.
+5. **Tab bar con blur** (expo-blur) y pull-to-refresh inmóvil con el mark GMO:
+   una vuelta por actualización, sin loop.
 6. **Racha semanal** basada en objetivo (`weekly_goal_days`) — validada como el diseño correcto por Hevy y Strava; no convertirla en racha diaria.
 
 ---

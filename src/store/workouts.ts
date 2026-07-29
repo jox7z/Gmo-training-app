@@ -81,6 +81,12 @@ interface State {
     setId: string,
     patch: SetPatch,
   ) => boolean;
+  completeSetAndCarryWeightById: (
+    exerciseEntryId: string,
+    setId: string,
+    restStartedAt: string,
+    protectedSetIds?: readonly string[],
+  ) => boolean;
   addSet: (exerciseIndex: number) => void;
   removeSet: (exerciseIndex: number, setIndex: number) => void;
   toggleSetComplete: (exerciseIndex: number, setIndex: number) => void;
@@ -393,6 +399,66 @@ export const useWorkoutsStore = create<State>((set, get) => ({
     if (setIndex < 0) return false;
     const next = patchSetAt(a, exerciseIndex, setIndex, patch);
     if (!next) return false;
+    set({ active: next });
+    persistSnapshot(get().history, next);
+    return true;
+  },
+
+  completeSetAndCarryWeightById: (
+    exerciseEntryId,
+    setId,
+    restStartedAt,
+    protectedSetIds = [],
+  ) => {
+    const active = get().active;
+    if (!active || !Number.isFinite(Date.parse(restStartedAt))) return false;
+
+    const exerciseIndex = active.exercises.findIndex(
+      (exercise) => exercise.id === exerciseEntryId,
+    );
+    if (exerciseIndex < 0) return false;
+
+    const exercise = active.exercises[exerciseIndex];
+    const setIndex = exercise.sets.findIndex((entry) => entry.id === setId);
+    const sourceSet = exercise.sets[setIndex];
+    if (
+      setIndex < 0 ||
+      !sourceSet ||
+      sourceSet.isCompleted
+    ) {
+      return false;
+    }
+
+    let next = patchSetAt(active, exerciseIndex, setIndex, {
+      isCompleted: true,
+      restStartedAt,
+      restAfterSeconds: undefined,
+    });
+    if (!next) return false;
+
+    const nextExercise = next.exercises[exerciseIndex];
+    const nextWorkingSet = sourceSet.isWarmup
+      ? undefined
+      : nextExercise.sets
+          .slice(setIndex + 1)
+          .find((entry) => !entry.isWarmup && !entry.isCompleted);
+    if (nextWorkingSet && !protectedSetIds.includes(nextWorkingSet.id)) {
+      const carriedWeightKg = sourceSet.weightKg;
+      if (
+        Number.isFinite(carriedWeightKg) &&
+        carriedWeightKg >= 0 &&
+        carriedWeightKg <= 1000
+      ) {
+        const nextSetIndex = nextExercise.sets.findIndex(
+          (entry) => entry.id === nextWorkingSet.id,
+        );
+        next =
+          patchSetAt(next, exerciseIndex, nextSetIndex, {
+            weightKg: carriedWeightKg,
+          }) ?? next;
+      }
+    }
+
     set({ active: next });
     persistSnapshot(get().history, next);
     return true;

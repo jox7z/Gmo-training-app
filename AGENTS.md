@@ -159,7 +159,11 @@ the only place that decides where the user goes. Key invariants there:
   active set through `updateSetById(exerciseEntryId, setId, patch)` so stale IDs
   return `false` without throwing. Commit both drafts before completing a set,
   serialize every valid mutation through the persistence queue, and keep haptic
-  rejection non-fatal. `TextInput.accessibilityValue` for these decimal controls
+  rejection non-fatal. When a working set is completed, the next unedited working
+  set in that same exercise entry inherits its real weight through the atomic
+  `completeSetAndCarryWeightById` snapshot. Never carry weight across exercises,
+  over an edited/completed target, or from a warmup.
+  `TextInput.accessibilityValue` for these decimal controls
   must remain text-only: Fabric may coerce `now/min/max` to native integers and
   crash on valid weights such as `22.5`.
 - **Active workout visual rhythm:** use `WorkoutMetric` as the open, borderless
@@ -290,12 +294,13 @@ the only place that decides where the user goes. Key invariants there:
   full-bleed 4:5, and action targets stay at least 44 px. Do not apply this layout
   to forms, modals, auth, routines, Progress, private history or settings. Public
   profile galleries remain 3 columns with 1 px gaps and no outer margin.
-  Feed refresh uses `StaticPullToRefresh`: the FlashList never translates, the GMO
-  SVG alone descends after a 72 px vertical pull, horizontal intent yields to
+  Feed refresh uses `StaticPullToRefresh`: the FlashList never translates, the
+  optimized GMO mark alone descends after a 72 px vertical pull, horizontal intent yields to
   `PagerView` through manual direction-dominance activation, manual refresh state
-  stays separate from foreground refetch and pagination, and Reduce Motion removes
-  the indicator spin. Keep a visible 44 px `Actualizar feed` action and announce
-  success/failure from the shared refresh action.
+  stays separate from foreground refetch and pagination. Each manual refresh runs
+  exactly one 360-degree turn, completes it even after a fast response, and never
+  loops; Reduce Motion keeps the mark static. Keep a visible 44 px `Actualizar
+  feed` action and announce success/failure from the shared refresh action.
 - **Section surfaces:** reading/information panels use `Card variant="section"`:
   square surface with only top/bottom separators and no lateral border. Keep
   `raised` for compact selectable/navigable tiles, forms and controls; keep full

@@ -192,6 +192,9 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   queda en CTA/PR/estados, progreso normal usa crema. GMO aparece en cada descanso
   con una única entrada accesible; no hay splash, frases rotatorias ni prescripción
   de recuperación.
+- **Continuidad de captura (2026-07-29):** cada serie laboral hereda el peso real
+  de la anterior dentro del mismo ejercicio, sin pisar ediciones. El refresh del
+  Feed usa el mark GMO con una única vuelta completa y mantiene la lista inmóvil.
 - **Bloqueador backend P0 — rangos semanales:** reconciliar ledger alojado; cerrar
   `recalc_weekly_ranks()` al Data API; garantizar idempotencia/concurrencia por
   semana; migrar a los 9 umbrales canónicos; backfill sin celebraciones falsas.

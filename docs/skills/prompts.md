@@ -2,9 +2,10 @@
 
 > Última rotación: 2026-07-29.
 > C3 cerró celebración de rangos, refresh fijo, `GMO Rating`, calendario mensual,
-> hitos musculares, perfil compacto y editor numérico estable; 122 tests en
+> hitos musculares, perfil compacto y editor numérico estable; 128 tests en
 > 20 suites. El workout activo ahora usa métricas abiertas y robot en cada
-> descanso, sin splash ni prescripción de recuperación. El historial vive
+> descanso, sin splash ni prescripción de recuperación. La carga continúa entre
+> series del mismo ejercicio y el refresh usa el mark GMO con una vuelta. El historial vive
 > en `docs/memory/checklist.md`.
 
 ## SPRINT C3 — Logros reales, progreso por hitos y perfil compacto
@@ -21,7 +22,7 @@ Todos los agentes empiezan con `CAVEMAN` y leen
 CAVEMAN.
 Ownership: evidencia manual; código solo para bugs reproducibles.
 
-1. Feed corto/largo/vacío: pull vertical mueve solo robot, swipe horizontal conserva
+1. Feed corto/largo/vacío: pull vertical mueve solo el mark GMO una vuelta, swipe horizontal conserva
    PagerView, botón Actualizar anuncia éxito/error y no mezcla foreground/paginación.
 2. Nueve ascensos en Feed, comunidad, posts propios y galería pública; `legend`
    muestra Olympus y downgrade/metadata rota quedan neutrales.
@@ -34,7 +35,8 @@ Ownership: evidencia manual; código solo para bugs reproducibles.
    Compartir/Ajustes y ausencia de engranaje/Cuenta duplicada.
 7. Repetir `+/−`, escribir `22.5` y coma decimal, límites 0/1000 kg y 1/999 reps,
    guardar/terminar serie sin crash Fabric, cambiar ejercicio, background/reanudar
-   y haptics no disponibles.
+   y haptics no disponibles. Completar una serie debe conservar su peso en la
+   siguiente del mismo ejercicio sin pisar una edición.
 8. Workout activo: peso/reps comparten geometría, progreso normal no usa rojo,
    GMO aparece en cada descanso, frase no rota y el timer no prescribe minutos.
 9. Reduce Motion: feed indicator, PR, robot de descanso, transiciones, editor de

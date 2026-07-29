@@ -147,7 +147,10 @@ the only place that decides where the user goes. Key invariants there:
   Commit both drafts before save, serialize valid changes through the persistence
   queue, and never let haptic failure reject the mutation. Keep decimal
   `TextInput.accessibilityValue` text-only; Fabric can crash while coercing
-  `now/min/max` values such as `22.5` into native integers.
+  `now/min/max` values such as `22.5` into native integers. The next unedited
+  working set in the same exercise inherits the latest completed working-set
+  weight through `completeSetAndCarryWeightById`; completion and carry persist in
+  one snapshot. Warmups, other exercises and edited/completed targets never do.
 - **Active workout visual rhythm:** render weight, reps, elapsed rest and progress
   facts through the open `WorkoutMetric` hierarchy. Normal progress stays
   cream/neutral; primary red belongs to the phase CTA and explicit records or
@@ -263,11 +266,13 @@ the only place that decides where the user goes. Key invariants there:
   and tap targets at least 44 px. Forms, modals, auth, routines, Progress, private
   history and settings remain contained. Public profile galleries use 3 columns,
   1 px gaps and no outer margin.
-  Feed refresh uses `StaticPullToRefresh`: only the GMO SVG descends, the list
-  remains fixed, 72 px vertical intent triggers manual refresh, horizontal intent
-  yields to `PagerView` through manual direction-dominance activation, and Reduce
-  Motion leaves the indicator static. Preserve a visible 44 px `Actualizar feed`
-  action and announce results from the shared refresh action.
+  Feed refresh uses `StaticPullToRefresh`: only the optimized GMO mark descends,
+  the list remains fixed, 72 px vertical intent triggers manual refresh, and
+  horizontal intent yields to `PagerView` through manual direction-dominance
+  activation. The mark makes one complete turn per refresh, finishes that turn
+  after a fast response, never loops, and stays static under Reduce Motion.
+  Preserve a visible 44 px `Actualizar feed` action and announce results from the
+  shared refresh action.
 - **Section surfaces:** informational panels use `Card variant="section"`: square,
   top/bottom separators only, no lateral border. `raised` remains for compact
   selectable/navigable tiles, forms and controls. Inputs, buttons, state badges,

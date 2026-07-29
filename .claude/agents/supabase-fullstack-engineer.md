@@ -57,6 +57,9 @@ visibility, buckets or Supabase to solve presentation problems.
 - RLS and every SECURITY DEFINER RPC apply the same ownership/privacy matrix.
 - Writes are retry-safe and transactional where multiple tables are involved.
 - KG remains database unit.
+- Active-workout weight carry uses `completeSetAndCarryWeightById` so completion
+  and the same-exercise target persist atomically by stable set IDs. It never
+  overwrites an edited/completed target or copies a warmup.
 - Restricted media never enters a public bucket.
 - Auth timeout uncertainty never becomes logout or destructive local reset.
 - Run SQL/runtime verification only after explicit deployment authority.

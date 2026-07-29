@@ -24,6 +24,10 @@ Read `AGENTS.md` and the touched source before editing. Keep Spanish UI copy.
 - Parse set drafts through `numericInput.ts`, commit them before completion, and
   mutate only through stable exercise-entry/set IDs. Stale or invalid patches
   return `false`; optional haptics never decide whether data persists.
+- Carry the latest completed working-set weight into the next unedited working set
+  of that same exercise entry through `completeSetAndCarryWeightById`; completion
+  and carry persist in one snapshot. Never carry warmups, cross exercises, or
+  overwrite a target the user already edited or completed.
 - Decimal workout inputs expose text-only `accessibilityValue`. Do not send
   `now/min/max`: Fabric may convert them to native integers and crash on `22.5`.
 - Active workout facts use the open `WorkoutMetric` hierarchy. Keep ordinary

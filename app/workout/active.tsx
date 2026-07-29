@@ -22,6 +22,7 @@ import { saveWorkout } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import {
   detectSetPR,
+  getCarriedWeightForSet,
   getPreviousSetValue,
   type PreviousSetValue,
 } from '@/lib/workoutCompare';
@@ -194,6 +195,9 @@ export default function ActiveWorkout() {
 
   const startWorkout = useWorkoutsStore((s) => s.startWorkout);
   const updateSetById = useWorkoutsStore((s) => s.updateSetById);
+  const completeSetAndCarryWeightById = useWorkoutsStore(
+    (s) => s.completeSetAndCarryWeightById,
+  );
   const finishWorkout = useWorkoutsStore((s) => s.finishWorkout);
   const cancelWorkout = useWorkoutsStore((s) => s.cancelWorkout);
   const swapExercise = useWorkoutsStore((s) => s.swapExercise);
@@ -315,12 +319,23 @@ export default function ActiveWorkout() {
       exercise.exerciseId,
       workingSetIndex,
     );
-    if (!previous) return;
+    const carriedWeightKg = getCarriedWeightForSet(
+      exercise,
+      set.id,
+      new Set(
+        [...editedSetIds.current]
+          .filter((id) => id.startsWith(`${active.id}:`))
+          .map((id) => id.slice(active.id.length + 1)),
+      ),
+    );
+    if (!previous && carriedWeightKg === null) return;
 
-    if (set.reps !== previous.reps || set.weightKg !== previous.weightKg) {
+    const nextReps = previous?.reps ?? set.reps;
+    const nextWeightKg = carriedWeightKg ?? previous?.weightKg ?? set.weightKg;
+    if (set.reps !== nextReps || set.weightKg !== nextWeightKg) {
       updateSetById(exercise.id, set.id, {
-        reps: previous.reps,
-        weightKg: previous.weightKg,
+        reps: nextReps,
+        weightKg: nextWeightKg,
       });
     }
   }, [active, exIdx, history, phase, setIdx, updateSetById]);
@@ -538,9 +553,8 @@ export default function ActiveWorkout() {
     }
 
     const latestWorkout = useWorkoutsStore.getState().active;
-    const isLivePr = latestWorkout
-      ? detectSetPR(history, latestWorkout, exIdx, setIdx)
-      : false;
+    if (!latestWorkout) return;
+    const isLivePr = detectSetPR(history, latestWorkout, exIdx, setIdx);
     if (isLivePr) {
       setLivePr({
         setId: latestSet.id,
@@ -555,11 +569,16 @@ export default function ActiveWorkout() {
       );
     }
     const startedAt = Date.now();
-    updateSetById(latestExercise.id, latestSet.id, {
-      isCompleted: true,
-      restStartedAt: new Date(startedAt).toISOString(),
-      restAfterSeconds: undefined,
-    });
+    const protectedSetIds = [...editedSetIds.current]
+      .filter((id) => id.startsWith(`${latestWorkout.id}:`))
+      .map((id) => id.slice(latestWorkout.id.length + 1));
+    const didComplete = completeSetAndCarryWeightById(
+      latestExercise.id,
+      latestSet.id,
+      new Date(startedAt).toISOString(),
+      protectedSetIds,
+    );
+    if (!didComplete) return;
     setRestStartedAt(startedAt);
     setRestElapsed(0);
     setPhase('rest');

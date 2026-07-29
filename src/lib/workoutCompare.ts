@@ -1,4 +1,4 @@
-import { Workout, WorkoutExercise } from '@/store/workouts';
+import type { Workout, WorkoutExercise } from '@/store/workouts';
 
 export interface PreviousSetValue {
   /** Peso guardado en kg. Conversión ocurre solo en UI. */
@@ -9,6 +9,44 @@ export interface PreviousSetValue {
   /** True cuando la sesión previa tenía menos series y se usó la última. */
   usedFallback: boolean;
   sessionId: string;
+}
+
+/**
+ * Finds the closest completed working set before the target inside the same
+ * workout-exercise entry. Stable IDs avoid carrying data to another set after
+ * list mutations. Protected targets represent values already edited by users.
+ */
+export function getCarriedWeightForSet(
+  exercise: WorkoutExercise,
+  targetSetId: string,
+  protectedSetIds: ReadonlySet<string> = new Set(),
+): number | null {
+  const targetIndex = exercise.sets.findIndex((set) => set.id === targetSetId);
+  const target = exercise.sets[targetIndex];
+  if (
+    targetIndex <= 0 ||
+    !target ||
+    target.isCompleted ||
+    target.isWarmup ||
+    protectedSetIds.has(targetSetId)
+  ) {
+    return null;
+  }
+
+  for (let index = targetIndex - 1; index >= 0; index -= 1) {
+    const candidate = exercise.sets[index];
+    if (
+      candidate.isCompleted &&
+      !candidate.isWarmup &&
+      Number.isFinite(candidate.weightKg) &&
+      candidate.weightKg >= 0 &&
+      candidate.weightKg <= 1000
+    ) {
+      return candidate.weightKg;
+    }
+  }
+
+  return null;
 }
 
 /** Top-set weight for a single exercise (completed non-warmup sets only). */

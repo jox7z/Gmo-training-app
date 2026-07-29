@@ -5,12 +5,62 @@ import {
   detectPRs,
   detectSetPR,
   exerciseTopWeight,
+  getCarriedWeightForSet,
   getPreviousSetValue,
 } from '@/lib/workoutCompare';
 
 import { makeExercise, makeSet, makeWorkout } from './helpers/fixtures';
 
 describe('workoutCompare', () => {
+  test('arrastra el peso de la serie laboral completada anterior por id estable', () => {
+    const exercise = makeExercise({
+      sets: [
+        makeSet({ id: 'serie-1', weightKg: 72.5, isCompleted: true }),
+        makeSet({ id: 'serie-2', weightKg: 20, isCompleted: false }),
+      ],
+    });
+
+    expect(getCarriedWeightForSet(exercise, 'serie-2')).toBe(72.5);
+  });
+
+  test('no sobrescribe una serie editada o completada', () => {
+    const exercise = makeExercise({
+      sets: [
+        makeSet({ id: 'serie-1', weightKg: 80, isCompleted: true }),
+        makeSet({ id: 'serie-2', weightKg: 85, isCompleted: false }),
+      ],
+    });
+
+    expect(
+      getCarriedWeightForSet(exercise, 'serie-2', new Set(['serie-2'])),
+    ).toBeNull();
+    exercise.sets[1] = { ...exercise.sets[1], isCompleted: true };
+    expect(getCarriedWeightForSet(exercise, 'serie-2')).toBeNull();
+  });
+
+  test('no arrastra calentamientos, ids obsoletos ni pesos de otro ejercicio', () => {
+    const firstExercise = makeExercise({
+      sets: [
+        makeSet({
+          id: 'calentamiento',
+          weightKg: 30,
+          isWarmup: true,
+          isCompleted: true,
+        }),
+        makeSet({ id: 'serie-1', weightKg: 20, isCompleted: false }),
+      ],
+    });
+    const otherExercise = makeExercise({
+      sets: [
+        makeSet({ id: 'otra-serie', weightKg: 100, isCompleted: true }),
+      ],
+    });
+
+    expect(getCarriedWeightForSet(firstExercise, 'serie-1')).toBeNull();
+    expect(getCarriedWeightForSet(otherExercise, 'serie-1')).toBeNull();
+    expect(getCarriedWeightForSet(firstExercise, 'id-obsoleto')).toBeNull();
+  });
+
   test('ignora calentamiento, series pendientes y peso corporal al elegir el top set', () => {
     const exercise = makeExercise({
       sets: [
