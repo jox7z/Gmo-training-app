@@ -29,7 +29,7 @@ export const Input = forwardRef<TextInput, Props>(function Input(
           alignItems: 'center',
           borderWidth: 1,
           borderColor: error ? colors.danger : focused ? colors.primary.DEFAULT : colors.border,
-          backgroundColor: colors.bg.elevated,
+          backgroundColor: colors.bg.track,
           borderRadius: radius.lg,
           paddingHorizontal: spacing.md,
         }}

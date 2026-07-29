@@ -8,11 +8,7 @@ module.exports = {
   icon: './assets/icon.png',
   scheme: 'gmo',
   userInterfaceStyle: 'dark',
-  splash: {
-    image: './assets/icon.png',
-    resizeMode: 'contain',
-    backgroundColor: '#0B0B0B',
-  },
+  backgroundColor: '#000000',
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.gmo.trainingapp',
@@ -20,7 +16,7 @@ module.exports = {
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/icon.png',
-      backgroundColor: '#0B0B0B',
+      backgroundColor: '#000000',
     },
     package: 'com.gmo.trainingapp',
     softwareKeyboardLayoutMode: 'pan',
@@ -32,10 +28,38 @@ module.exports = {
   plugins: [
     'expo-router',
     'expo-secure-store',
+    'expo-dev-client',
+    [
+      'expo-splash-screen',
+      {
+        image: './assets/icon.png',
+        resizeMode: 'contain',
+        backgroundColor: '#000000',
+      },
+    ],
     [
       'expo-image-picker',
       {
         photosPermission: 'Permitir acceso a fotos para subir imágenes de entrenamientos.',
+      },
+    ],
+    // Fija el toolchain nativo del development build. Coincide con el SDK de
+    // Android instalado (platforms/android-36, build-tools/36.0.0) y con el
+    // mínimo que exige @shopify/react-native-skia.
+    // El NDK NO se fija aquí: `expo-build-properties@1.0.10` no tiene esa clave
+    // en su esquema y ajv la descarta en silencio.
+    [
+      'expo-build-properties',
+      {
+        android: {
+          minSdkVersion: 24,
+          compileSdkVersion: 36,
+          targetSdkVersion: 36,
+          buildToolsVersion: '36.0.0',
+        },
+        ios: {
+          deploymentTarget: '15.1',
+        },
       },
     ],
   ],

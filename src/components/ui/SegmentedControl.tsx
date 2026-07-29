@@ -104,7 +104,7 @@ const styles = {
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.bg.elevated,
+    backgroundColor: colors.bg.track,
   },
   segment: {
     minHeight: spacing['2xl'] + spacing.sm,

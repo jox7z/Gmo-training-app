@@ -62,7 +62,7 @@ export function RestRing({ elapsed, target = 180, size = 260 }: Props) {
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={colors.bg.elevated}
+          stroke={colors.bg.track}
           strokeWidth={stroke}
           fill="none"
         />

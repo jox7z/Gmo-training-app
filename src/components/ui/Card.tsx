@@ -19,7 +19,10 @@ export function Card({
   const variantStyle: ViewStyle = (() => {
     switch (variant) {
       case 'elevated':
-        return { backgroundColor: colors.bg.elevated, ...shadow.card };
+        // `raised` y no `elevated`: con la rampa Ember, bg.elevated queda por
+        // debajo de bg.card, así que un "elevated" con ese relleno se leería
+        // más hundido que el Card por defecto.
+        return { backgroundColor: colors.bg.raised, ...shadow.card };
       case 'outlined':
         return {
           backgroundColor: 'transparent',
@@ -35,7 +38,7 @@ export function Card({
         };
       case 'glow':
         return {
-          backgroundColor: colors.bg.elevated,
+          backgroundColor: colors.bg.card,
           borderWidth: 1,
           borderColor: glowColor ?? colors.primary.DEFAULT,
           shadowColor: glowColor ?? colors.primary.DEFAULT,

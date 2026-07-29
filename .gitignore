@@ -10,6 +10,12 @@ npm-debug.*
 *.mobileprovision
 *.orig.*
 web-build/
+
+# Carpetas nativas generadas por `expo prebuild` (CNG).
+# La configuración vive en app.config.js; se regeneran con
+# `npx expo prebuild --clean --platform android`.
+android/
+ios/
 .env
 .env.local
 .DS_Store

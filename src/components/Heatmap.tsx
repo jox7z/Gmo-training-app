@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { View, ScrollView } from 'react-native';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
 import { useWorkoutsStore } from '@/store/workouts';
@@ -9,16 +9,21 @@ const CELL = 11;
 const GAP = 2;
 const STEP = CELL + GAP;
 const NUM_WEEKS = 53;
+/**
+ * Radio propio, no `radius.sm`. La escala Ember subió `sm` a 8 px, y sobre una
+ * celda de 11 px eso la convierte en un círculo y destruye la lectura de rejilla.
+ */
+const CELL_RADIUS = 2;
 
 const DAY_LABELS = ['L', '', 'X', '', 'V', '', 'D'];
 const MONTH_LABELS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 // Empty → primary at increasing opacity
 const HEAT_COLORS = [
-  colors.bg.elevated,        // 0 — sin workout
-  'rgba(255,59,59,0.18)',    // 1
-  'rgba(255,59,59,0.42)',    // 2
-  'rgba(255,59,59,0.68)',    // 3
+  colors.bg.track,           // 0 — sin workout
+  'rgba(245,67,43,0.18)',    // 1
+  'rgba(245,67,43,0.42)',    // 2
+  'rgba(245,67,43,0.68)',    // 3
   colors.primary.DEFAULT,    // 4 — máximo
 ];
 
@@ -172,7 +177,7 @@ export function Heatmap() {
                     style={{
                       width: CELL,
                       height: CELL,
-                      borderRadius: radius.sm,
+                      borderRadius: CELL_RADIUS,
                       marginBottom: d < 6 ? GAP : 0,
                       backgroundColor: cell.isFuture ? 'transparent' : HEAT_COLORS[cell.level],
                     }}
@@ -196,7 +201,7 @@ export function Heatmap() {
             {HEAT_COLORS.map((color, i) => (
               <View
                 key={i}
-                style={{ width: CELL, height: CELL, borderRadius: radius.sm, backgroundColor: color }}
+                style={{ width: CELL, height: CELL, borderRadius: CELL_RADIUS, backgroundColor: color }}
               />
             ))}
             <Text style={{ fontSize: 9, color: colors.text.muted, marginLeft: 3 }}>Más</Text>
