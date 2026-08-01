@@ -4,6 +4,7 @@ import { Icon } from '@/components/Icon';
 import type { SocialLayout } from '@/components/social/SocialStreamColumn';
 import { Text } from '@/components/ui/Text';
 import { MUSCLE_GROUP_LABELS } from '@/data/exercises';
+import { formatCompactDuration, formatDecimal } from '@/lib/format';
 import type { WorkoutPostMetadata } from '@/lib/workoutPostMetadata';
 import { toDisplay } from '@/lib/units';
 import { useAppStore } from '@/store/app';
@@ -20,23 +21,23 @@ export function WorkoutShareCard({ title, subtitle, metadata, layout = 'containe
   const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
   const stats = [
     metadata.durationSeconds !== undefined
-      ? { label: 'Duración', value: formatDuration(metadata.durationSeconds) }
+      ? { label: 'Duración', value: formatCompactDuration(metadata.durationSeconds) }
       : null,
     metadata.exerciseCount !== undefined &&
     metadata.workingSetCount === undefined &&
     metadata.totalReps === undefined
-      ? { label: 'Ejercicios', value: formatNumber(metadata.exerciseCount) }
+      ? { label: 'Ejercicios', value: formatDecimal(metadata.exerciseCount) }
       : null,
     metadata.workingSetCount !== undefined
-      ? { label: 'Series', value: formatNumber(metadata.workingSetCount) }
+      ? { label: 'Series', value: formatDecimal(metadata.workingSetCount) }
       : null,
     metadata.totalReps !== undefined
-      ? { label: 'Reps', value: formatNumber(metadata.totalReps) }
+      ? { label: 'Reps', value: formatDecimal(metadata.totalReps) }
       : null,
     metadata.volumeKg !== undefined && metadata.volumeKg > 0
       ? {
           label: 'Trabajo',
-          value: `${formatNumber(toDisplay(metadata.volumeKg, unit))} ${unit}·rep`,
+          value: `${formatDecimal(toDisplay(metadata.volumeKg, unit))} ${unit}·rep`,
         }
       : null,
   ].filter((item): item is { label: string; value: string } => item !== null);
@@ -119,19 +120,6 @@ export function WorkoutShareCard({ title, subtitle, metadata, layout = 'containe
       ) : null}
     </View>
   );
-}
-
-function formatDuration(value: number): string {
-  const seconds = Math.max(0, Math.round(value));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m`;
-  return `${seconds}s`;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString('es-ES', { maximumFractionDigits: 1 });
 }
 
 const styles = StyleSheet.create({

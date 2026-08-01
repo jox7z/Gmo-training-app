@@ -33,8 +33,9 @@
 3. **Stack social completo** (feed, reacciones, comentarios, realtime, perfiles) — equivalente al de Hevy, por delante de Strong/Fitbod.
 
 **Lectura de fases:** C0 y los assets críticos de C1 quedaron mayormente resueltos
-el 2026-07-19; C2 continúa incremental en Expo Go. C4 (Tier 2, Skia) sigue
-gated por el mismo salto a development build que push notifications (B1).
+el 2026-07-19; C2 continúa incremental en Expo Go. Skia 2.2.12 está incluida en
+Expo Go SDK 54, pero hoy no tiene imports; C4 sigue aplazada hasta medir su valor y
+verificar individualmente cualquier otro módulo nativo.
 
 **Delta de producto 2026-07-22:** Strava y Hevy validan que convertir el log en
 contenido compartible sí distribuye la app. GMO adopta esa parte. No adopta Focus
@@ -304,11 +305,11 @@ Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 | 14 | ✅ Selector de progreso escalable: sheet fijo, miniaturas locales, recientes, más entrenados, búsqueda y filtros músculo/equipo; tendencias sin métrica Trabajo (2026-07-24) | P0 | S | — | D3/D4 |
 | 15 | ✅ Repetición desde ledger, recientes en cambio/editor y filtros locales de Actividad (2026-08-01); sin favoritos ni backend | P0 | S | — | D1/D2/D4 |
 
-### C3 — Tier 2 (GATE: el mismo salto a development build que push B1 — no antes)
+### C3 — Tier 2 (GATE: evaluación de valor, compatibilidad y profiling físico)
 
 | Item | Prioridad | Esfuerzo | Depende de | Dimensión |
 |---|---|---|---|---|
-| `@shopify/react-native-skia` (base del tier) | P1 | L | dev build (B1) | D3/D5 |
+| `@shopify/react-native-skia` (base del tier) | P1 | L | Expo Go SDK 54 + profiling físico | D3/D5 |
 | `react-native-graph` **o** `victory-native-xl` (elegir 1: graph si prima el line-chart 120fps de peso/trabajo; victory si priman rings/tipos variados) | P1 | M | Skia | D3 |
 | `react-native-fast-confetti` — sustituir partículas manuales **conservando la coreografía** (§4.1) | P2 | S–M | Skia | D5 |
 | `burnt` (toasts nativos) — evaluar contra nuestro Toast propio; adoptar solo si mejora | P2 | S | dev build | D8 |
@@ -321,7 +322,7 @@ Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 
 - [memory/visual-stack.md](memory/visual-stack.md) es la **fuente única del QUÉ**: catálogo de librerías, tiers, compatibilidad New Arch/Reanimated 4 y la tabla de **exclusiones** (moti, wagmi-charts, confetti-cannon, toast-message, fast-image, moti/skeleton — ninguna aparece en este roadmap).
 - Este documento es la **fuente única del CUÁNDO y POR QUÉ**: la antigua sección "Roadmap de adopción" de visual-stack.md (fases A/B) queda reemplazada por las fases C2/C3 de aquí, priorizadas por el benchmark.
-- Cada fase cierra con `npm run typecheck` + `npm run lint` + smoke en Expo Go (o dev client en C3) + revisión del code-quality-reviewer.
+- Cada fase cierra con `npm run typecheck` + `npm run lint` + smoke en Expo Go (o development build solo si una dependencia lo exige) + revisión del code-quality-reviewer.
 
 ## 7. Riesgos y supuestos
 
@@ -331,7 +332,9 @@ Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 - **gorhom/bottom-sheet (C2-2) es la migración más invasiva**: recalcular el
   inventario después de retirar los modales antiguos de Progreso y migrar un
   sheet vivo por PR, empezando por comentarios.
-- **C3 no debe adelantarse:** ninguna dependencia de Skia entra mientras la app deba arrancar en Expo Go (regla de visual-stack.md).
+- **C3 no debe adelantarse:** Skia puede correr en Expo Go SDK 54, pero no se adopta
+  sin imports reales, beneficio medido y profiling físico; otras dependencias nativas
+  se verifican individualmente (regla de visual-stack.md).
 - Robot GMO, mascota de vacíos y emblemas C1 ya no bloquean. El riesgo visual
   inmediato pasa a validar safe-area/máscaras y Summary en dispositivos.
 

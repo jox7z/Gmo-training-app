@@ -5,6 +5,7 @@ import {
   type Equipment,
   type MuscleGroup,
 } from '@/data/exercises';
+import { normalizeSearchText } from '@/lib/format';
 import type { ExercisePerformance } from '@/lib/progressInsights';
 
 export type ExerciseProgressSortMode = 'recent' | 'most-trained' | 'all';
@@ -37,12 +38,7 @@ const spanishCollator = new Intl.Collator('es', { sensitivity: 'base' });
 const metadataCache = new Map<string, ExerciseProgressItemMetadata>();
 
 export function normalizeExerciseProgressText(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('es')
-    .trim()
-    .replace(/\s+/g, ' ');
+  return normalizeSearchText(value);
 }
 
 export function getExerciseProgressItemMetadata(

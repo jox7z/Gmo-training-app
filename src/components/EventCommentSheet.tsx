@@ -32,6 +32,7 @@ import {
   type EventComment,
 } from '@/lib/queries/events';
 import { useToast } from '@/components/ui/Toast';
+import { formatRelativeCompact } from '@/lib/format';
 
 interface Props {
   visible: boolean;
@@ -45,18 +46,6 @@ const MAX_BODY = 500;
 
 function rankInfo(id: RankId) {
   return RANKS.find((r) => r.id === id) ?? RANKS[0];
-}
-
-function formatRelative(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return '';
-  const diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
-  if (diffSec < 60) return 'ahora';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `${diffMin}m`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `${diffH}h`;
-  return `${Math.floor(diffH / 24)}d`;
 }
 
 function EventCommentRow({
@@ -87,7 +76,7 @@ function EventCommentRow({
           </Text>
           <Badge label={info.label} tone="muted" />
           <Text variant="caption" tone="muted">
-            · {formatRelative(comment.createdAt)}
+            · {formatRelativeCompact(comment.createdAt)}
           </Text>
         </View>
         <Text variant="body" style={{ marginTop: 2 }}>

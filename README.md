@@ -20,7 +20,11 @@ rutinas, logros y generador heurístico siguen disponibles de forma local.
 ```bash
 npm install
 npm start
+# equivalente directo: npx expo start
 ```
+
+Expo Go es el target predeterminado. Si Metro conserva una caché incompatible,
+usar `npm run start:clear`; para un teléfono en otra red, `npm run tunnel`.
 
 Otros comandos:
 
@@ -28,6 +32,7 @@ Otros comandos:
 npm run android
 npm run ios
 npm run web
+npm run start:clear
 npm run tunnel
 npm test
 npm run typecheck
@@ -36,7 +41,7 @@ npm run exercises:audit
 # npm run exercises:sync  # actualiza solo matches conservadores
 ```
 
-Jest cubre 122 contratos puros en 20 suites. El gate automático es test +
+Jest cubre 146 contratos puros en 23 suites. El gate automático es test +
 typecheck + lint;
 el smoke de UI/lifecycle sigue en Expo Go.
 

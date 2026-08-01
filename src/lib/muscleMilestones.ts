@@ -8,6 +8,7 @@ import {
   MUSCLE_GROUP_LABELS,
   type MuscleGroup,
 } from '@/data/exercises';
+import { normalizeSearchText } from '@/lib/format';
 import { hasValidSetPerformance } from '@/lib/workoutValidation';
 import type { Workout } from '@/store/workouts';
 
@@ -265,15 +266,6 @@ export function buildMuscleMilestones(
   return { lifts, muscles };
 }
 
-function normalizeSearch(value: string): string {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('es')
-    .trim()
-    .replace(/\s+/g, ' ');
-}
-
 export function filterMuscleMilestones(
   results: readonly MuscleMilestoneResult[],
   filters: {
@@ -281,7 +273,7 @@ export function filterMuscleMilestones(
     status?: MuscleMilestoneFilter;
   } = {},
 ): MuscleMilestoneResult[] {
-  const query = normalizeSearch(filters.query ?? '');
+  const query = normalizeSearchText(filters.query ?? '');
   const status = filters.status ?? 'all';
 
   return results.filter((result) => {
@@ -290,7 +282,7 @@ export function filterMuscleMilestones(
     if (status === 'without' && hasMilestone) return false;
     if (!query) return true;
 
-    return normalizeSearch(
+    return normalizeSearchText(
       [
         result.muscleLabel,
         ...result.contributions.map(

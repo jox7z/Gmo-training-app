@@ -15,6 +15,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Text } from '@/components/ui/Text';
+import { formatCompactDuration, formatDecimal } from '@/lib/format';
 import { hasValidSetPerformance } from '@/lib/workoutValidation';
 import { formatWeight, toDisplay } from '@/lib/units';
 import { useAppStore } from '@/store/app';
@@ -128,12 +129,12 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
 
           <Card variant="section" padding="lg">
             <View style={styles.statRow}>
-              <SessionStat label="Duración" value={formatDuration(data.durationSeconds)} />
+              <SessionStat label="Duración" value={formatCompactDuration(data.durationSeconds)} />
               <SessionStat label="Ejercicios" value={String(data.exercises.length)} />
               <SessionStat label="Series" value={String(data.setCount)} />
             </View>
             <View style={styles.secondaryStats}>
-              <SessionStat label="Repeticiones" value={formatNumber(data.totalReps)} />
+              <SessionStat label="Repeticiones" value={formatDecimal(data.totalReps)} />
               {data.workKg > 0 ? (
                 <SessionStat label="Trabajo" value={formatWork(data.workKg, unit)} />
               ) : null}
@@ -173,7 +174,7 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
                       <Text variant="caption" weight="semibold" numeric style={styles.setValue}>
                         {set.reps} reps · {formatWeight(set.weightKg, unit)}
                         {isValidDuration(set.durationSeconds)
-                          ? ` · ${formatDuration(set.durationSeconds)}`
+                          ? ` · ${formatCompactDuration(set.durationSeconds)}`
                           : ''}
                       </Text>
                     </View>
@@ -239,21 +240,8 @@ function formatDateEs(iso: string): string {
   });
 }
 
-function formatDuration(value: number): string {
-  const seconds = Math.max(0, Math.round(value));
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  if (minutes > 0) return `${minutes}m`;
-  return `${seconds}s`;
-}
-
 function formatWork(workKg: number, unit: 'kg' | 'lb'): string {
-  return `${formatNumber(toDisplay(workKg, unit))} ${unit}·rep`;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+  return `${formatDecimal(toDisplay(workKg, unit))} ${unit}·rep`;
 }
 
 const styles = StyleSheet.create({

@@ -1,4 +1,5 @@
 import { MUSCLE_GROUP_LABELS } from '@/data/exercises';
+import { formatDecimal } from '@/lib/format';
 import type { Post } from '@/lib/repos/posts';
 import { toDisplay } from '@/lib/units';
 import { parseWorkoutPostMetadata } from '@/lib/workoutPostMetadata';
@@ -18,7 +19,7 @@ export function formatPostShareMessage(post: Post, unit: Unit): string {
         : null,
       metadata.totalReps !== undefined ? `${metadata.totalReps} reps` : null,
       metadata.volumeKg !== undefined && metadata.volumeKg > 0
-        ? `${formatNumber(toDisplay(metadata.volumeKg, unit))} ${unit}·rep`
+        ? `${formatDecimal(toDisplay(metadata.volumeKg, unit))} ${unit}·rep`
         : null,
     ].filter((value): value is string => value !== null);
     if (stats.length > 0) lines.push(stats.join(' · '));
@@ -42,8 +43,4 @@ function formatDuration(value: number): string {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return hours > 0 ? `${hours}h ${remainder}m` : `${minutes} min`;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString('es-ES', { maximumFractionDigits: 1 });
 }

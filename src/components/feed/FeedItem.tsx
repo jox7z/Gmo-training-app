@@ -15,6 +15,7 @@ import { WorkoutShareCard } from '@/components/social/WorkoutShareCard';
 import type { SocialLayout } from '@/components/social/SocialStreamColumn';
 import { colors, radius, spacing, RANKS, RankId } from '@/theme/tokens';
 import type { Post, ReactionKind } from '@/lib/repos/posts';
+import { formatRelative } from '@/lib/format';
 import { resolveRankMilestone } from '@/lib/rankMilestone';
 import {
   parseWorkoutPostMetadata,
@@ -39,22 +40,6 @@ interface Props {
 
 function rankInfo(id: RankId) {
   return RANKS.find((r) => r.id === id) ?? RANKS[0];
-}
-
-function formatRelative(iso: string): string {
-  const t = new Date(iso).getTime();
-  if (Number.isNaN(t)) return '';
-  const diffSec = Math.max(0, Math.floor((Date.now() - t) / 1000));
-  if (diffSec < 60) return 'ahora';
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `hace ${diffMin}min`;
-  const diffH = Math.floor(diffMin / 60);
-  if (diffH < 24) return `hace ${diffH}h`;
-  const diffD = Math.floor(diffH / 24);
-  if (diffD < 7) return `hace ${diffD}d`;
-  const diffW = Math.floor(diffD / 7);
-  if (diffW < 4) return `hace ${diffW}sem`;
-  return new Date(iso).toLocaleDateString();
 }
 
 function ActionButton({
@@ -802,7 +787,10 @@ export function FeedItem({
 }: Props) {
   const reduceMotion = useReduceMotion();
   const info = useMemo(() => rankInfo(post.user.currentRank), [post.user.currentRank]);
-  const relative = useMemo(() => formatRelative(post.createdAt), [post.createdAt]);
+  const relative = useMemo(
+    () => formatRelative(post.createdAt, 'device'),
+    [post.createdAt],
+  );
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 

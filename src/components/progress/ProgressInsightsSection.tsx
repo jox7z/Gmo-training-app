@@ -12,6 +12,7 @@ import { PressableScale } from '@/components/ui/PressableScale';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { Text } from '@/components/ui/Text';
 import { exerciseById } from '@/data/exercises';
+import { formatDecimal } from '@/lib/format';
 import {
   buildExercisePerformance,
   buildPerformanceTimeline,
@@ -211,7 +212,7 @@ function formatMetricValue(
 ): string {
   if (metric === 'duration') return formatSeconds(value);
   if (metric === 'reps') return `${Math.round(value)} reps`;
-  const converted = formatNumber(toDisplay(value, unit));
+  const converted = formatDecimal(toDisplay(value, unit));
   return `${converted} ${unit}`;
 }
 
@@ -220,10 +221,6 @@ function formatSeconds(value: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainder = seconds % 60;
   return minutes > 0 ? `${minutes}m ${remainder}s` : `${remainder}s`;
-}
-
-function formatNumber(value: number): string {
-  return value.toLocaleString('es-ES', { maximumFractionDigits: 1 });
 }
 
 function formatChartDate(ms: number): string {

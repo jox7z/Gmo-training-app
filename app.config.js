@@ -28,7 +28,6 @@ module.exports = {
   plugins: [
     'expo-router',
     'expo-secure-store',
-    'expo-dev-client',
     [
       'expo-splash-screen',
       {
@@ -43,7 +42,7 @@ module.exports = {
         photosPermission: 'Permitir acceso a fotos para subir imágenes de entrenamientos.',
       },
     ],
-    // Fija el toolchain nativo del development build. Coincide con el SDK de
+    // Fija el toolchain de los builds nativos EAS. Coincide con el SDK de
     // Android instalado (platforms/android-36, build-tools/36.0.0) y con el
     // mínimo que exige @shopify/react-native-skia.
     // El NDK NO se fija aquí: `expo-build-properties@1.0.10` no tiene esa clave

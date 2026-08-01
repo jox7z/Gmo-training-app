@@ -29,9 +29,9 @@
 
 ### Limitaciones transversales
 
-- **Tests puros** — Jest/Expo, 122 contratos en 20 suites; falta UI/integración
+- **Tests puros** — Jest/Expo, 146 contratos en 23 suites; falta UI/integración
 - **Español hardcodeado** — sin i18n
-- **Corre en Expo Go** — limita push notifications y módulos nativos
+- **Expo Go predeterminado** — QR corregido sin `expo-dev-client`; limita push remoto y módulos nativos no incluidos
 
 ---
 
@@ -71,7 +71,7 @@
 - Skills móviles cubren producto, arte gym/social, motion, accesibilidad,
   rendimiento, QA, assets y guardrails de dominio.
 - `frontend-design` queda limitado a web y redirige Expo/RN al contrato móvil.
-- Skill de testing: Jest/Expo mantiene 122 contratos puros en 20 suites.
+- Skill de testing: Jest/Expo mantiene 146 contratos puros en 23 suites.
 - Pendiente operativo: screenshots/smoke físico asistido; no existe control de
   dispositivo automatizado desde los agentes Markdown.
 
@@ -85,7 +85,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 
 | Item | Prioridad | Esfuerzo | Notas y dependencias |
 |---|---|---|---|
-| Push notifications (expo-notifications) | P0 | L | Desbloquea re-engagement social (likes/comentarios/seguidores) y el rest timer con notificación. **OJO:** desde SDK 53 el push remoto NO funciona en Expo Go → requiere development build (EAS); planificar ese salto aquí y alinearlo con Sentry y OAuth. El mismo salto desbloquea el Tier 2 visual (fase C4 de la Pista C). |
+| Push notifications (expo-notifications) | P0 | L | Desbloquea re-engagement social (likes/comentarios/seguidores) y el rest timer con notificación. **OJO:** desde SDK 53 el push remoto NO funciona en Expo Go → requiere development build (EAS); planificar ese salto aquí y alinearlo con Sentry y OAuth. C4 se evalúa por separado: Skia 2.2.12 ya está incluida en Expo Go SDK 54. |
 | 🟡 Rest timer que sobrevive background + notificación local | P0 | M | Timestamp ISO persistido y restauración completados 2026-07-19. Falta notificación local/lock screen con development build. |
 | ✅ Rendimiento real por ejercicio + historial navegable | P0 | M | Completado 2026-07-22 con carga, repeticiones y tiempo reales; cada punto abre la sesión exacta. Trabajo queda solo en ledger/social factual. Se retiraron máximos estimados, prescripciones, deltas y veredictos automáticos. |
 | Sentry (crash reporting) mínimo | P1 | S | Instrumentar antes de crecer. |
@@ -116,7 +116,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | Item | Prioridad | Esfuerzo | Notas y dependencias |
 |---|---|---|---|
 | Analytics de producto (PostHog) | P1 | M | Necesario antes de decidir paywall. |
-| ✅ Tests Jest/Expo | P1 | M inicial, continuo | Base actual: 20 suites/122 contratos puros. Siguiente: integración UI y SQL privacy matrix. |
+| ✅ Tests Jest/Expo | P1 | M inicial, continuo | Base actual: 23 suites/146 contratos puros. Siguiente: integración UI y SQL privacy matrix. |
 | Monetización (RevenueCat/IAP) | P1–P2 | L | Tras analytics; Strong/Hevy/Fitbod monetizan con Pro. |
 | i18n (extraer strings) | P2 | M–L | Hacerlo antes de que crezca la superficie abarata el costo. |
 | Wearables / HealthKit / Google Fit | P2 | L | Requiere dev build; diferenciador de Strava. |
@@ -145,7 +145,7 @@ De `docs/memory/checklist.md`:
 
 ## 4. Pista C — UI/UX
 
-Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 8 dimensiones por fuentes públicas) + roadmap visual: **C0** quick wins, **C1** assets, **C2** stream/sistema, **C3** logros reales y progreso factual compatible con Expo Go, **C4** Tier 2 nativo (gated por development build).
+Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 8 dimensiones por fuentes públicas) + roadmap visual: **C0** quick wins, **C1** assets, **C2** stream/sistema, **C3** logros reales y progreso factual compatible con Expo Go, **C4** Tier 2 nativo (evaluación individual; development build solo si el módulo no está incluido en Expo Go).
 
 **Detalle completo: [roadmap-ui.md](roadmap-ui.md).** Catálogo de librerías y exclusiones: [memory/visual-stack.md](memory/visual-stack.md).
 
@@ -208,8 +208,13 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   estable. Gates pasan; queda smoke físico Expo Go.
 - **P0 historial local (2026-08-01):** repetir desde el ledger crea una sesión
   pendiente sin mutar la fuente ni copiar resultados; cambio/editor ordenan por
-  recientes derivados y Perfil filtra Actividad de forma local. Gates: 22 suites/
-  136 tests, typecheck/lint limpios; smoke Expo Go pendiente.
+  recientes derivados y Perfil filtra Actividad de forma local. Gates actuales:
+  23 suites/146 tests, typecheck/lint limpios; smoke Expo Go pendiente.
+- **Auditoría de rendimiento y Expo Go (2026-08-01):** `expo-dev-client` y `zod`
+  se retiraron, los scripts móviles fuerzan `--go`, Expo Doctor pasa 18/18 y el
+  export Android conserva 2073 módulos/247 assets con HBC 791 bytes menor. Cinco
+  fuentes huérfanas (26,390 bytes) se eliminaron sin atribuir ahorro de bundle.
+  Baseline, duplicaciones y orden recomendado: [performance-audit-2026-08-01.md](memory/performance-audit-2026-08-01.md).
 - **Bloqueador backend P0 — rangos semanales:** reconciliar ledger alojado; cerrar
   `recalc_weekly_ranks()` al Data API; garantizar idempotencia/concurrencia por
   semana; migrar a los 9 umbrales canónicos; backfill sin celebraciones falsas.

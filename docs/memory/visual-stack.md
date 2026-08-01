@@ -6,17 +6,20 @@
 
 ## Estrategia de build (por fases)
 
-La app corre hoy en **Expo Go** (iteración rápida, sin build nativo). Por eso el
-tooling se divide en dos tiers:
+La app corre hoy en **Expo Go** (iteración rápida, sin build nativo) y
+`expo-dev-client` no está instalado. `npm start`, los scripts móviles y el túnel
+fuerzan `--go`; `npx expo start` también resuelve el esquema nativo de Expo Go.
+Por eso el tooling se divide en dos tiers:
 
 - **Tier 1 — Expo Go:** JS puro / SVG / Reanimated 4. Se adopta **ya**, sin dev build.
-- **Tier 2 — Premium (dev client):** depende de `@shopify/react-native-skia` o de
-  módulos nativos → **no corre en Expo Go**. Se activa al migrar a un **development
-  build** (`expo-dev-client` + `eas build --profile development`). El proyecto ya hace
-  EAS preview builds, así que el salto es incremental. Ver `docs/skills/scripts/preview-build.md`.
+- **Tier 2 — Premium / decisión separada:** cada dependencia nativa se verifica
+  contra Expo Go SDK 54. Skia 2.2.12 sí está incluida en Expo Go; solo una librería
+  cuyo módulo nativo no esté incluido obliga a usar un **development build**.
+  Reintroducir `expo-dev-client` requiere una decisión explícita. Ver
+  `docs/skills/scripts/preview-build.md`.
 
-Regla: **nada de Tier 2 entra al código mientras la app deba seguir arrancando en
-Expo Go.** Documentar cada dependencia con su tier.
+Regla: **nada de Tier 2 entra al código sin verificar Expo Go, New Architecture y
+el costo real medido.** Documentar cada dependencia con su tier.
 
 ## Contexto de compatibilidad
 
@@ -64,7 +67,7 @@ local cuando una de ellas cubra el caso.
 | Emblemas de rank | Atlas original generado para Gmo, PNG con alpha | 9 crests reales en `assets/ranks/`; master en `assets/brand/` |
 | Refresh Social | PNG con alpha | `assets/brand/gmo-mark-transparent.png`; una vuelta, sin fondo cuadrado |
 
-## Tier 2 — Premium (requiere development build)
+## Tier 2 — Premium (requiere evaluación individual)
 
 | Necesidad | Librería / repo |
 |---|---|
@@ -74,8 +77,12 @@ local cuando una de ellas cubra el caso.
 | Confetti físico (rank-up, logros) | **react-native-fast-confetti** — github.com/AlirezaHadjar/react-native-fast-confetti |
 | Toasts nativos | **burnt** — github.com/nandorojo/burnt |
 
-> `react-native-graph`, `victory-native` y `react-native-fast-confetti` **dependen de
-> Skia**; `burnt` usa UI nativa. Ninguna funciona en Expo Go.
+> `react-native-graph`, `victory-native` y `react-native-fast-confetti` dependen de
+> Skia. Skia 2.2.12 está incluida en Expo Go SDK 54, pero hoy no tiene imports en la
+> app y su retiro queda como recomendación de auditoría, no como cambio automático.
+> `burnt` y cualquier otro módulo nativo deben verificarse por separado antes de
+> decidir si exigen development build. Lottie también está instalado sin imports y
+> queda en la misma revisión de dependencias no usadas.
 
 ## Excluidas (NO usar — incompatibles con Reanimated 4 / New Arch)
 

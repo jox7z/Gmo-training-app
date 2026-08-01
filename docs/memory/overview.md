@@ -4,7 +4,7 @@
 
 App móvil de entrenamiento de fuerza estilo Strava: registro de workouts,
 sistema de ranking de 9 niveles (Rookie→Olympus), feed social,
-logros offline por niveles, comunidades, eventos y heatmap anual.
+logros offline por niveles, comunidades, eventos y calendario mensual.
 
 ## Stack
 
@@ -28,8 +28,9 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 
 ## Ambiente
 
-- **App corre en Expo Go SDK 54** — features con módulo nativo custom
-  obligan a EAS Dev Client
+- **App corre en Expo Go SDK 54 por defecto** — `npx expo start` y los scripts
+  móviles generan enlaces Expo Go; un módulo nativo custom obligaría a
+  reintroducir un development build de forma explícita
 - **Pesos siempre en KG en BD** — conversión a LB es solo presentación
 - **Sin Supabase configurado, la app sigue funcionando** con stores
   locales + estructura heurística local de rutinas
@@ -68,6 +69,7 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Mascotas reutilizables | `GmoMascot.tsx`, `RestMascotCoach.tsx`, `WorkoutPrMascot.tsx` + `assets/brand/gmo-mascot-{start,motivating,rest,pr}.webp`, `gmo-body-weight.webp` y `gmo-exercise-progress.webp` |
 | Metadata exercise-dataset | `scripts/sync-exercises-dataset.mjs` + `src/data/exerciseDatasetDetails.generated.json` |
 | Schema y evolución BD | `supabase/migrations/` + ledger timestamped recuperado |
+| Auditoría de rendimiento | `docs/memory/performance-audit-2026-08-01.md` |
 
 ## Decisiones de producto vigentes
 

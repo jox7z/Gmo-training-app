@@ -16,7 +16,34 @@
 | Progreso | ✅ honesto | Tendencia real, calendario mensual, hitos por cargas reales, peso separado y punto→sesión |
 | Gamificación | ✅ | Racha derivada por meta, 9 rangos, logros, eventos y comunidades |
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
-| Calidad técnica | 🟡 | 136 tests puros en 22 suites y typecheck/lint limpios; falta smoke físico |
+| Calidad técnica | 🟡 | 146 tests puros en 23 suites, typecheck/lint limpios y Expo Doctor 18/18; falta smoke físico |
+
+## Auditoría de tamaño/rendimiento y QR Expo Go — 2026-08-01
+
+### Implementación
+
+- [x] `expo-dev-client` y su plugin se retiraron; `npx expo start` resuelve `devClient: false` y el esquema nativo de Expo Go.
+- [x] `start`, `android`, `ios`, `tunnel` y `tunnel:clear` fuerzan `--go`; se añadió `start:clear` y se conserva `@expo/ngrok` como fallback.
+- [x] Expo quedó en `~54.0.36`, `expo-file-system` en `~19.0.23` y `expo-router` en `~6.0.24`; `zod` sin consumidores se retiró.
+- [x] Se eliminaron cinco fuentes huérfanas por 26,390 bytes y se centralizaron formatos relativos, duración factual, decimal y búsqueda sin diacríticos con tests.
+- [x] La auditoría completa, top 20, duplicaciones y recomendaciones diferidas viven en `docs/memory/performance-audit-2026-08-01.md`.
+- [x] Supabase permaneció read-only: sin cambios de auth, repos, queries, RPC, RLS, migraciones o datos.
+
+### Verificación
+
+- [x] Baseline: 232 assets / 11.22 MiB; export Android 13.72 MiB, HBC 6,208,130 bytes, 247 assets y 2073 módulos.
+- [x] Después: export Android 14,388,311 bytes, HBC 6,207,339 bytes, 247 assets y 2073 módulos; reducción medida de 791 bytes, sin atribuir los huérfanos al bundle.
+- [x] `npm test -- --runInBand` — 23 suites / 146 tests / 0 fallos.
+- [x] `npm run typecheck` y `npm run lint` — limpios.
+- [x] `npx expo-doctor` — 18/18 checks.
+- [x] `npx expo start --clear` — caché reconstruida sin warning corrupto; target Expo Go (`devClient: false`).
+- [x] `npm run tunnel` — túnel conectado y listo.
+- [ ] Escaneo físico del QR LAN/túnel, arranque en frío, lifecycle, memoria y FPS: sin dispositivo ADB conectado.
+- [ ] APK release baseline: Gradle no terminó dentro de la ventana acotada.
+
+Riesgo restante: falta confirmar el QR y el comportamiento nativo en un teléfono real; npm reporta 22 advisories que no se corrigieron a ciegas.
+
+Siguiente paso: escanear `npm start` desde Expo Go en la misma LAN; si falla la red, ejecutar `npm run tunnel`, y después capturar arranque en frío, memoria, FPS y lifecycle.
 
 ## Interfaz 2D y mascota GMO — 2026-08-01
 
