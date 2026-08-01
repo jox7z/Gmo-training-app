@@ -140,7 +140,9 @@ the only place that decides where the user goes. Key invariants there:
   shipped PNGs are real original crests generated as one cohesive
   atlas; editable masters live in `assets/brand/`. Preserve filenames and the static
   `RANK_IMAGES` map when replacing them.
-  Render shared crests through `RankEmblem`. Social `rank_up` posts must resolve
+  Render shared crests through `RankEmblem`. Comunidad ranking rows and podiums show
+  the rank emblem/name, never numeric `rankPoints`; points remain ranking input only.
+  Social `rank_up` posts must resolve
   both `fromRank`/`toRank` or snake-case equivalents through
   `resolveRankMilestone`; map legacy `legend` to `olympus`, celebrate only a real
   promotion, and render invalid/no-op/downgrade metadata neutrally. Normalize
@@ -170,8 +172,8 @@ the only place that decides where the user goes. Key invariants there:
   hierarchy for weight, reps, elapsed rest and progress facts. Values dominate;
   labels/units remain secondary. Normal progress is cream/neutral, never red.
   Reserve primary red for the phase CTA and explicit records/relevant states.
-  Every `rest` phase renders `RestMascotCoach` once with one stable phrase and a
-  finite entrance; Reduce Motion is static. `RestRing` reports elapsed time only:
+  Every `rest` phase renders `RestMascotCoach` once with one stable phrase and no
+  entrance animation. `RestRing` reports elapsed time only:
   never infer recovery or prescribe a duration. Do not restore rotating phrases,
   pulsing progress, full-screen set splashes, decorative glow or ordinary
   gradients; the exercise-photo scrim is the only functional gradient here.
@@ -303,12 +305,10 @@ the only place that decides where the user goes. Key invariants there:
   full-bleed 4:5, and action targets stay at least 44 px. Do not apply this layout
   to forms, modals, auth, routines, Progress, private history or settings. Public
   profile galleries remain 3 columns with 1 px gaps and no outer margin.
-  Feed refresh uses `StaticPullToRefresh`: the FlashList never translates, the
-  optimized GMO mark alone descends after a 72 px vertical pull, horizontal intent yields to
-  `PagerView` through manual direction-dominance activation, manual refresh state
-  stays separate from foreground refetch and pagination. Each manual refresh runs
-  exactly one 360-degree turn, completes it even after a fast response, and never
-  loops; Reduce Motion keeps the mark static. The Social header contains only its
+  Feed refresh uses `StaticPullToRefresh`: the FlashList never translates and there
+  is no animated indicator. Horizontal intent yields to `PagerView` through manual
+  direction-dominance activation; manual refresh state stays separate from foreground
+  refetch and pagination. The Social header contains only its
   short title plus Search and Notifications; do not restore a greeting or robot
   refresh button. Main labels are
   `Social · Comunidad · Ejercicio · Progreso · Perfil`; internal keys remain
@@ -324,10 +324,9 @@ the only place that decides where the user goes. Key invariants there:
   muted text carries metadata, and red is reserved for actions, records and
   relevant states.
 - **Loading skeletons:** use `src/components/ui/Skeleton.tsx`. Group related bones
-  inside one `SkeletonGroup` so one pulse drives the whole placeholder. Show a
+  inside one `SkeletonGroup` for consistent static placeholders. Show a
   skeleton only for initial `isLoading` with no cached data; keep cached content
   during refetch and retain spinners for pagination, pull-to-refresh and mutations.
-  The pulse must stop and become static when Reduce Motion is enabled.
 - **Motion preference:** `useReduceMotion` treats the initial unknown state as
   reduced. Never start an entrance or native-modal animation before the system
   preference resolves.
@@ -340,10 +339,9 @@ the only place that decides where the user goes. Key invariants there:
   The three-dot menu owns Share Profile and Settings; settings remains the only
   sign-out owner. Do not restore a profile gear, Account card, nested ScrollViews
   or duplicated post cards.
-- **Reduce Motion in training:** active-workout phase transitions, the finite
-  rest-mascot entrance, routine-editor entrances and repeating PR effects become
-  static; stop obsolete animations when state or preference changes. Set splashes,
-  rotating rest phrases and pulsing progress are retired.
+- **Motion baseline:** custom visual motion is removed. Keep phase changes, mascots,
+  PR notices, routine editor, skeletons, toasts and refresh feedback static; set
+  splashes, rotating rest phrases and pulsing progress are retired.
 - **Profile goals:** `profiles.goals` is live and authoritative; `goals[0]` is
   mirrored into legacy `goal`. `secondaryGoals` are the remaining optional
   priorities, unique and excluding the primary; they never combine incompatible
@@ -363,11 +361,10 @@ the only place that decides where the user goes. Key invariants there:
 - Surfaces are intentionally almost square (`radius.sm`–`radius.xl`, 2–4 px).
   Reserve `radius.full` for genuine circles such as avatars, dots, rings and
   circular indicators—not cards, chips, badges, inputs or decorative icon shells.
-- **Press feedback:** use `src/components/ui/PressableScale.tsx` (Reanimated spring
-  scale + optional haptic) instead of bare `Pressable` for tappable cards/icons.
-  `Button` has its own built-in effect — don't wrap it. List items in the training
-  section animate with `FadeInDown` (stagger capped at `Math.min(i, 8)`) +
-  `LinearTransition`; never put `entering`/`layout` on FlashList items (recycler crash).
+- **Press feedback:** use `src/components/ui/PressableScale.tsx` for shared targets
+  and optional haptic feedback; it uses an instant pressed state without transforms.
+  `Button` has its own built-in effect — don't wrap it. Do not add entering, layout,
+  pulse, scale or spring animations to list items.
 - New IDs: `uuidv4()` from `src/lib/ids.ts`.
 - Workout save (`repos/workouts.ts`) is retry-safe through the transactional
   `sync_workout_snapshot` RPC (migration `0041`): advisory lock per workout,

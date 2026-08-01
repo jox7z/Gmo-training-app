@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { Alert, View, ScrollView, Modal, FlatList } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
@@ -299,12 +298,7 @@ export default function RoutineEditor() {
           {day.exercises.map((e) => {
             const ex = exerciseById(e.exerciseId);
             return (
-              // Animated.View para animar inserción/eliminación de ejercicios
-              <Animated.View
-                key={e.id}
-                entering={FadeInDown.springify().damping(18)}
-                layout={LinearTransition.springify().damping(18)}
-              >
+              <View key={e.id}>
                 <Card padding="md" style={{ marginBottom: spacing.sm }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                     {/* Columna central: nombre + steppers */}
@@ -350,7 +344,7 @@ export default function RoutineEditor() {
                     </PressableScale>
                   </View>
                 </Card>
-              </Animated.View>
+              </View>
             );
           })}
         </View>
@@ -370,7 +364,6 @@ export default function RoutineEditor() {
         <MuscleVolumeMap
           results={plannedVolume}
           title="Mapa de tu rutina"
-          subtitle="Se actualiza mientras agregas ejercicios y series."
           frequencyUnit="días/semana"
           gender={profile?.sex ?? 'male'}
           style={{ marginTop: spacing.lg }}

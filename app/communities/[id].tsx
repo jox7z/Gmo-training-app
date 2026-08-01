@@ -115,7 +115,7 @@ export default function CommunityDetailScreen() {
         {
           onSuccess: (status) => {
             if (status === 'pending') {
-              toast.show({ message: 'Solicitud enviada. El admin te dara acceso pronto', tone: 'success' });
+              toast.show({ message: 'Solicitud enviada', tone: 'success' });
             } else {
               toast.show({ message: 'Te uniste a la comunidad', tone: 'success' });
             }
@@ -130,7 +130,7 @@ export default function CommunityDetailScreen() {
     if (!community) return;
     Alert.alert(
       'Eliminar comunidad',
-      `Esta acción es irreversible. Se perderán todos los datos de "${community.name}".`,
+      `Se perderá todo el contenido de "${community.name}".`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -552,7 +552,7 @@ function MuroTab({
             <SocialErrorState
               compact
               title="No pudimos actualizar el muro"
-              subtitle="Mostramos las publicaciones disponibles mientras recuperas la conexión."
+              subtitle="Esto es lo último guardado."
               onRetry={() => void feedQuery.refetch()}
               isRetrying={feedQuery.isFetching}
             />
@@ -565,7 +565,7 @@ function MuroTab({
             {feedQuery.isError ? (
               <SocialErrorState
                 title="No pudimos cargar el muro"
-                subtitle="Revisa tu conexión y vuelve a intentarlo."
+                subtitle="Sin conexión"
                 onRetry={() => void feedQuery.refetch()}
                 isRetrying={feedQuery.isFetching}
               />
@@ -690,7 +690,7 @@ function EventosTab({
           <SocialErrorState
             compact
             title="No pudimos actualizar los eventos"
-            subtitle="Mostramos los eventos disponibles mientras recuperas la conexión."
+            subtitle="Esto es lo último guardado."
             onRetry={() => void eventsQuery.refetch()}
             isRetrying={eventsQuery.isFetching}
           />
@@ -702,7 +702,7 @@ function EventosTab({
           {showBlockingError ? (
             <SocialErrorState
               title="No pudimos cargar los eventos"
-              subtitle="Revisa tu conexión y vuelve a intentarlo."
+              subtitle="Sin conexión"
               onRetry={() => void eventsQuery.refetch()}
               isRetrying={eventsQuery.isFetching}
             />

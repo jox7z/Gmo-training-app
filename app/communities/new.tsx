@@ -18,7 +18,6 @@ export default function NewCommunityScreen() {
 
       <ScreenHeader
         title="Crear comunidad"
-        subtitle="Define nombre, descripción y privacidad"
         backIcon="close"
         border
       />

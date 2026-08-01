@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import Animated from 'react-native-reanimated';
 
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
@@ -9,7 +8,6 @@ import { Text } from '@/components/ui/Text';
 import { formatWeight } from '@/lib/units';
 import type { Unit } from '@/store/app';
 import { colors, radius, spacing } from '@/theme/tokens';
-import { enter, exit } from '@/theme/motion';
 
 interface Props {
   exerciseName: string;
@@ -31,9 +29,7 @@ export function LivePrBanner({
   }, []);
 
   return (
-    <Animated.View
-      entering={enter()}
-      exiting={exit()}
+    <View
       style={{
         borderTopWidth: 1,
         borderBottomWidth: 1,
@@ -89,6 +85,6 @@ export function LivePrBanner({
           Cerrar
         </Text>
       </PressableScale>
-    </Animated.View>
+    </View>
   );
 }

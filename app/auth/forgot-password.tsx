@@ -63,7 +63,7 @@ export default function ForgotPassword() {
 
           <Text variant="title">Recuperar contraseña</Text>
           <Text variant="body" tone="secondary" style={{ marginTop: spacing.sm, marginBottom: spacing['2xl'] }}>
-            Introduce el email asociado a tu cuenta. Te enviaremos un enlace para crear una nueva contraseña.
+            Te enviamos un enlace para crear una contraseña nueva.
           </Text>
 
           <Input

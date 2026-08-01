@@ -209,7 +209,7 @@ export default function Onboarding() {
             setError('Ese username ya está tomado. Elige otro.');
             setUsernameOverride(usernameOverride ?? finalUsername);
           } else {
-            setError(e instanceof AuthError ? e.message : 'No pudimos guardar tu perfil. Inténtalo de nuevo.');
+            setError(e instanceof AuthError ? e.message : 'No pudimos guardar tu perfil.');
           }
           return;
         }
@@ -279,12 +279,12 @@ export default function Onboarding() {
             <Text variant="display" tone="brand">GMO</Text>
             <Text variant="title" style={{ marginTop: 4 }}>Entrena. Compite. Evoluciona.</Text>
             <Text variant="body" tone="secondary" style={{ marginTop: spacing.md }}>
-              La app que convierte tu disciplina en progreso medible. Rachas, rangos y logros que celebran tu constancia.
+              Tu disciplina, en progreso medible.
             </Text>
             <View style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
-              <FeatureRow icon="fire" color={colors.accent.DEFAULT} title="Rachas que motivan" desc="Visualiza tu constancia semana a semana." />
-              <FeatureRow icon="trophy" color="#FFD700" title="Sistema Ranked" desc="Sube de rango por consistencia, no por ego." />
-              <FeatureRow icon="medal" color={colors.info.DEFAULT} title="Logros desbloqueables" desc="Gana medallas por cada hito de tu entrenamiento." />
+              <FeatureRow icon="fire" color={colors.accent.DEFAULT} title="Rachas que motivan" desc="Tu constancia, semana a semana." />
+              <FeatureRow icon="trophy" color="#FFD700" title="Sistema Ranked" desc="Subes por consistencia, no por ego." />
+              <FeatureRow icon="medal" color={colors.info.DEFAULT} title="Logros desbloqueables" desc="Una medalla por cada hito." />
             </View>
           </View>
         )}
@@ -360,7 +360,7 @@ export default function Onboarding() {
         )}
 
         {step === 'level' && (
-          <Section title="¿Cuál es tu nivel?" subtitle="Usaremos este dato al crear la estructura">
+          <Section title="¿Cuál es tu nivel?" subtitle="Define la estructura">
             <ChoiceCard
               selected={level === 'beginner'}
               onPress={() => setLevel('beginner')}
@@ -391,7 +391,7 @@ export default function Onboarding() {
         {step === 'goal' && (
           <Section
             title="¿Qué quieres conseguir?"
-            subtitle="Elige un objetivo principal y todas las prioridades secundarias que quieras"
+            subtitle="Uno principal; los demás, opcionales"
           >
             <Text variant="label" tone="secondary" style={{ marginBottom: spacing.sm }}>
               OBJETIVO PRINCIPAL
@@ -464,7 +464,7 @@ export default function Onboarding() {
         )}
 
         {step === 'routine' && (
-          <Section title="Elige tu rutina" subtitle="Puedes editarla después cuando quieras">
+          <Section title="Elige tu rutina" subtitle="Editable después">
             {options.map((opt, i) => {
               const iconNames = ['trophy', 'dumbbell', 'lightning', 'fire'] as const;
               const iconColors = [colors.primary.DEFAULT, colors.info.DEFAULT, colors.accent.DEFAULT, '#FFD700'];

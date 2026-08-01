@@ -206,7 +206,7 @@ export function MuscleMilestoneMap({
         </View>
 
         <Text variant="caption" tone="muted" style={styles.disclaimer}>
-          Cargas reales; sin 1RM estimado ni comparación con otras personas.
+          Cargas reales, sin 1RM estimado.
           Secundarios: un nivel menos.
         </Text>
 
@@ -393,8 +393,7 @@ function MuscleDetail({
         <View style={styles.noContribution}>
           <Icon name="info" size={spacing.lg} color={colors.text.muted} />
           <Text variant="caption" tone="muted" style={styles.noContributionText}>
-            Ninguno de los cuatro levantamientos base usa este grupo como
-            principal o secundario.
+            Ningún levantamiento base usa este grupo.
           </Text>
         </View>
       )}

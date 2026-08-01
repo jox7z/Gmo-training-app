@@ -154,7 +154,7 @@ export function CommunitiesExplorer({ bottomInset = 0 }: Props) {
             <SocialErrorState
               compact
               title="No pudimos actualizar las comunidades"
-              subtitle="Mostramos la última información disponible mientras recuperas la conexión."
+              subtitle="Esto es lo último guardado."
               onRetry={() => void query.refetch()}
               isRetrying={query.isFetching}
             />
@@ -178,7 +178,7 @@ export function CommunitiesExplorer({ bottomInset = 0 }: Props) {
           ) : showBlockingError ? (
             <SocialErrorState
               title="No pudimos cargar las comunidades"
-              subtitle="Revisa tu conexión y vuelve a intentarlo. Tus filtros y búsqueda seguirán aquí."
+              subtitle="Revisa tu conexión."
               onRetry={() => void query.refetch()}
               isRetrying={query.isFetching}
             />

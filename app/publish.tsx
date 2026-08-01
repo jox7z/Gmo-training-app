@@ -431,7 +431,7 @@ function WorkoutComposer({
             Sin entrenos recientes
           </Text>
           <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
-            No tienes entrenos registrados en los últimos 30 días.
+            Sin entrenos en los últimos 30 días.
           </Text>
           <Button title="Cerrar" variant="secondary" onPress={onClose} style={{ marginTop: spacing.lg }} fullWidth />
         </Card>
@@ -650,8 +650,7 @@ function WorkoutComposer({
         >
           <Text weight="semibold">Público</Text>
           <Text variant="caption" tone="muted">
-            Seguidores y Privado se activarán cuando el servidor aplique su
-            protección completa.
+            Seguidores y Privado, aún no disponibles.
           </Text>
         </View>
       </View>
@@ -920,7 +919,7 @@ function StreakComposer({
           <Icon name="fire" size={32} color={colors.text.muted} />
           <Text variant="heading" style={{ marginTop: spacing.md }}>Sin racha activa</Text>
           <Text variant="caption" tone="secondary" style={{ marginTop: spacing.xs, textAlign: 'center' }}>
-            Completa tu primera semana de entrenos para iniciar una racha.
+            Completa una semana para iniciar tu racha.
           </Text>
         </Card>
       </View>

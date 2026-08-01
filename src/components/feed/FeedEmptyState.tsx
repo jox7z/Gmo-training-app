@@ -16,7 +16,7 @@ export function FeedEmptyState({ onDiscover }: Props) {
       <MascotState
         mascotSize={144}
         title="Tu feed está listo"
-        description="Sigue a otros atletas y aquí verás sus entrenos, PRs y rachas."
+        description="Sigue atletas y verás sus entrenos aquí."
         style={{ alignSelf: 'stretch' }}
       >
         <Button title="Descubrir atletas →" onPress={onDiscover} fullWidth />

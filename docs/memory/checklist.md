@@ -56,20 +56,56 @@ Siguiente paso: escanear `npm start` desde Expo Go en la misma LAN; si falla la 
 - [x] `Registrar peso` conserva su acción y reemplaza el SVG genérico por una báscula analógica 2D de lectura más clara.
 - [x] `Registrar peso` incorpora `gmo-body-weight.webp`: GMO plano corporativo crema/negro/ember apunta a una fila de tabla de peso resaltada; el control mantiene etiqueta y apertura del formulario.
 - [x] El encabezado del ejercicio seleccionado en `Progreso por ejercicio` incorpora `gmo-exercise-progress.webp`: GMO con diadema apunta al resultado de un cuaderno, a la derecha del nombre y sin alterar métrica, gráfica ni selección.
-- [x] La fase de serie usa `gmo-mascot-motivating.webp` con el globo “Tú puedes” de la lámina; descanso usa `gmo-mascot-rest.webp`, con ojos cerrados y Zs. Ambos preservan transparencia y el descanso mantiene frase estable, una entrada finita y estado estático con Reduce Motion.
-- [x] El Summary deriva el PR del workout frente al historial antes de finalizar; solo entonces usa `gmo-mascot-pr.webp` de la lámina, que brota una vez con Reanimated y se vuelve estático con Reduce Motion.
+- [x] La fase de serie usa `gmo-mascot-motivating.webp` con el globo “Tú puedes” de la lámina; descanso usa `gmo-mascot-rest.webp`, con ojos cerrados y Zs. Ambos preservan transparencia y se muestran de forma estática.
+- [x] El Summary deriva el PR del workout frente al historial antes de finalizar y usa `gmo-mascot-pr.webp` estático cuando corresponde.
 - [x] La mascota 3D previa se conserva como master histórico y no se duplica ningún asset por pantalla.
 
 ### Verificación
 
-- [x] `npm test -- --runInBand` — 22 suites / 136 tests / 0 fallos.
+- [x] `npm test -- --runInBand` — 23 suites / 146 tests / 0 fallos.
 - [x] `npm run typecheck` — 0 errores.
 - [x] `npm run lint` — 0 errores / 0 warnings.
 - [x] `git diff --check` — limpio.
 - [x] Inspección de assets — las tres poses de la lámina y las dos ilustraciones planas de Progreso se exportaron como WebP RGBA; el píxel de esquina `(0, 0, 0, 0)` confirma transparencia exterior.
 - [ ] Smoke físico Expo Go: contraste y encuadre de GMO sobre CTA, encabezado de ejercicio, vacíos, descanso y Summary con/sin PR en 360 px/texto grande y Reduce Motion. Sin emulador ni dispositivo ADB conectado.
 
-Riesgo restante: la transparencia, contraste y encuadre de la entrada PR necesitan validación en la composición nativa de Android/iOS.
+Riesgo restante: la transparencia, contraste y encuadre de GMO estático necesitan validación en la composición nativa de Android/iOS.
+
+## Racha, Logros y motion estático — 2026-08-01
+
+### Implementación
+
+- [x] El layout raíz recalcula racha y sincroniza niveles de logro al hidratar, cambiar la meta semanal o cambiar el historial local/remoto; la sesión finalizada conserva su cola inmediata de desbloqueos.
+- [x] Perfil sustituye las barras repetidas por una vitrina compacta; `/achievements` concentra colección, próximos hitos y el detalle de todos los tracks.
+- [x] La colección usa poses existentes de GMO de inicio, motivación u orgullo según progreso; la expresión de enojo no se usa.
+- [x] Se retira el motion visual personalizado de press feedback, entradas, PR, descanso, celebraciones, placeholders, toast y refresh; los estados aparecen estáticos.
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 23 suites / 146 tests / 0 fallos.
+- [x] `npm run typecheck` — 0 errores.
+- [x] `npm run lint` — 0 errores / 0 warnings.
+
+Riesgo restante: confirmar en Expo Go que el recálculo tras volver de background, la vitrina y los tres estados de GMO mantienen jerarquía en 360 px y con texto grande.
+
+Siguiente paso ejecutable: terminar un entreno, volver a foreground y abrir Perfil/Logros para comprobar racha, desbloqueo y estado de GMO en un dispositivo físico.
+
+## Ranking de Comunidad por emblemas — 2026-08-01
+
+### Implementación
+
+- [x] El ranking completo y el podio de Comunidad renderizan el `RankEmblem` real de cada atleta; el logo sustituye las cifras de `rankPoints` sin modificar el orden ni la consulta del leaderboard.
+- [x] Las etiquetas e hints de lector de pantalla comunican posición y rango, nunca el valor numérico de puntos.
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 23 suites / 146 tests / 0 fallos.
+- [x] `npm run typecheck` — 0 errores.
+- [x] `npm run lint` — 0 errores / 0 warnings.
+
+Riesgo restante: el tamaño y contraste de los emblemas en podio y filas largas requieren smoke en Expo Go.
+
+Siguiente paso ejecutable: comprobar Ranking de Comunidad con avatar, rango alto y lector de pantalla en un dispositivo de 360 px.
 
 Siguiente paso: realizar el smoke físico en Expo Go con un workout normal y otro con PR.
 

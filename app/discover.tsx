@@ -169,7 +169,7 @@ function SearchTab() {
             <SocialErrorState
               compact
               title="No pudimos actualizar la búsqueda"
-              subtitle="Estos resultados pueden no estar al día. Puedes seguir explorándolos o intentar cargarlos de nuevo."
+              subtitle="Resultados sin actualizar."
               onRetry={() => void searchQuery.refetch()}
               isRetrying={searchQuery.isFetching}
             />
@@ -180,12 +180,12 @@ function SearchTab() {
             <EmptyState
               icon="search"
               title="Encuentra atletas"
-              description="Escribe al menos 2 caracteres para buscar por nombre o username."
+              description="Escribe al menos 2 caracteres."
             />
           ) : showBlockingError ? (
             <SocialErrorState
               title="No pudimos buscar atletas"
-              subtitle="Revisa tu conexión e inténtalo de nuevo. Tu búsqueda seguirá aquí."
+              subtitle="Revisa tu conexión."
               onRetry={() => void searchQuery.refetch()}
               isRetrying={searchQuery.isFetching}
             />

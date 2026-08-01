@@ -185,7 +185,7 @@ export function ProgressInsightsSection({ history, unit }: Props) {
         <Card variant="section" padding="xl" style={styles.emptyPerformance}>
           <Icon name="chart" size={spacing['2xl']} color={colors.text.muted} />
           <Text variant="caption" tone="muted" style={styles.emptyPerformanceText}>
-            Completa una serie para empezar a registrar tu rendimiento.
+            Completa una serie para empezar.
           </Text>
         </Card>
       )}

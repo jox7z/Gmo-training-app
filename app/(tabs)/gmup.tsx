@@ -3,7 +3,6 @@ import { View, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
 
 import { Text } from '@/components/ui/Text';
 import { Card } from '@/components/ui/Card';
@@ -147,13 +146,13 @@ export default function GmupScreen() {
         <CreateOption
           icon="users"
           title="Crear comunidad"
-          description="Reúne a tu gente en un espacio propio con feed y eventos."
+          description="Tu gente, con feed y eventos propios."
           onPress={() => openCreate('/communities/new')}
         />
         <CreateOption
           icon="calendar"
           title="Crear evento"
-          description="Convoca un reto o una quedada y mide la participación."
+          description="Un reto o una quedada."
           onPress={() => openCreate('/events/new')}
         />
       </Sheet>
@@ -271,7 +270,7 @@ function MyCommunitiesSection({ onSeeAll }: { onSeeAll: () => void }) {
           <SocialErrorState
             compact
             title="No pudimos cargar tus comunidades"
-            subtitle="Revisa tu conexión y vuelve a intentarlo."
+            subtitle="Sin conexión"
             onRetry={() => void query.refetch()}
             isRetrying={query.isFetching}
           />
@@ -282,7 +281,7 @@ function MyCommunitiesSection({ onSeeAll }: { onSeeAll: () => void }) {
           compact
           icon="users"
           title="Todavía no estás en ninguna"
-          description="Únete a una comunidad para entrenar acompañado y no perderte sus eventos."
+          description="Únete a una y entrena acompañado."
           action={{ label: 'Explorar comunidades', onPress: onSeeAll }}
         />
       ) : (
@@ -340,7 +339,7 @@ function UpcomingEventsSection({ onSeeAll }: { onSeeAll: () => void }) {
           <SocialErrorState
             compact
             title="No pudimos cargar los eventos"
-            subtitle="Revisa tu conexión y vuelve a intentarlo."
+            subtitle="Sin conexión"
             onRetry={() => void query.refetch()}
             isRetrying={query.isFetching}
           />
@@ -351,7 +350,7 @@ function UpcomingEventsSection({ onSeeAll }: { onSeeAll: () => void }) {
           compact
           icon="calendar"
           title="Nada en el calendario"
-          description="No hay eventos por venir. Convoca el primero y reúne a la comunidad."
+          description="Convoca el primero."
           action={{ label: 'Crear evento', onPress: () => router.push('/events/new') }}
         />
       ) : (
@@ -405,7 +404,7 @@ function SuggestedAthletesSection() {
           <SocialErrorState
             compact
             title="No pudimos cargar las sugerencias"
-            subtitle="Revisa tu conexión y vuelve a intentarlo."
+            subtitle="Sin conexión"
             onRetry={() => void query.refetch()}
             isRetrying={query.isFetching}
           />
@@ -416,7 +415,7 @@ function SuggestedAthletesSection() {
           compact
           icon="users"
           title="Sin sugerencias por ahora"
-          description="Ya sigues a los atletas que teníamos para recomendarte. Busca por nombre para encontrar más."
+          description="Ya los sigues a todos. Busca por nombre."
           action={{ label: 'Buscar atletas', onPress: () => router.push('/discover') }}
         />
       ) : (
@@ -464,7 +463,6 @@ function TopAthletesSection({ onSeeAll }: { onSeeAll: () => void }) {
     <View style={{ gap: spacing.md }}>
       <GmupSectionHeader
         title="Top atletas"
-        subtitle="Las tres primeras posiciones por puntos"
         action={
           hasData
             ? {
@@ -496,7 +494,7 @@ function TopAthletesSection({ onSeeAll }: { onSeeAll: () => void }) {
           <SocialErrorState
             compact
             title="No pudimos cargar el ranking"
-            subtitle="Revisa tu conexión y vuelve a intentarlo."
+            subtitle="Sin conexión"
             onRetry={() => void query.refetch()}
             isRetrying={query.isFetching}
           />
@@ -507,7 +505,7 @@ function TopAthletesSection({ onSeeAll }: { onSeeAll: () => void }) {
           compact
           icon="trophy"
           title="Sin ranking todavía"
-          description="Cuando los atletas acumulen puntos aparecerán aquí en el top global."
+          description="Aún sin posiciones."
         />
       ) : (
         <RankPodium entries={entries} myEntry={myEntry} onOpen={openProfile} />
@@ -536,15 +534,10 @@ function Carousel({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Entrada escalonada, con el tope de 8 que usa el resto de la app. */
 function CarouselItem({ index, children }: { index: number; children: React.ReactNode }) {
+  void index;
   return (
-    <Animated.View
-      entering={FadeInDown.delay(Math.min(index, 8) * 40)}
-      layout={LinearTransition}
-    >
-      {children}
-    </Animated.View>
+    <View>{children}</View>
   );
 }
 

@@ -37,7 +37,7 @@ export default function SettingsScreen() {
   const handleSignOut = async () => {
     const ok = await confirm({
       title: 'Cerrar sesión',
-      message: '¿Seguro que quieres salir? Tus datos quedan guardados en la nube.',
+      message: 'Tus datos quedan guardados en la nube.',
       confirmLabel: 'Cerrar sesión',
       destructive: true,
     });
@@ -49,7 +49,7 @@ export default function SettingsScreen() {
 
   const handleDelete = () => {
     toast.show({
-      message: 'Borrar la cuenta desde la app llegará pronto. Escríbenos para hacerlo manualmente.',
+      message: 'Aún no disponible. Escríbenos para borrarla.',
       tone: 'info',
       durationMs: 4200,
     });
@@ -61,7 +61,6 @@ export default function SettingsScreen() {
     <Screen>
       <ScreenHeader
         title="Configuración"
-        subtitle="Cuenta, unidades y preferencias de la app"
         padded={false}
         style={{ marginBottom: spacing.md }}
       />
@@ -108,7 +107,7 @@ export default function SettingsScreen() {
         <Row
           icon="edit"
           label="Editar perfil"
-          subtitle="Nombre, username, bio, ubicación"
+          subtitle="Nombre, bio y ubicación"
           onPress={() => router.push('/profile/edit')}
         />
         <Row
@@ -138,7 +137,7 @@ export default function SettingsScreen() {
       <Card padding={0}>
         <Row
           icon="dumbbell"
-          label="Entrenamientos registrados"
+          label="Entrenamientos"
           value={String(history.length)}
         />
         <Row
@@ -148,7 +147,7 @@ export default function SettingsScreen() {
         />
         <Row
           icon="share"
-          label="Actividades publicadas"
+          label="Publicadas"
           value={String(history.filter((w) => w.isPublished).length)}
           last
         />

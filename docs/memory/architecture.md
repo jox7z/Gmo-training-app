@@ -153,11 +153,13 @@
 - `src/lib/weeklyStreak.ts` deriva días y racha desde historial +
   `weeklyGoalDays`: semana local lunes–domingo, días únicos y gracia para la
   semana actual incompleta. Store, logros y UI consumen esa misma fuente; el
-  snapshot se refresca al volver a foreground para cubrir el rollover semanal.
+  layout raíz la recalcula tras hidratación, foreground, cambios de meta e
+  historial local/remoto para cubrir rollover semanal y sincronización.
 - El payload v2 de `gmo:achievements:v1` elimina solo tiers `streak-*` heredados
   y los re-siembra en silencio con la regla nueva; conserva fechas de otros logros.
 - Los contratos puros viven en `src/lib/__tests__/` y usan Jest + `jest-expo`.
-- El Feed usa `StaticPullToRefresh`: el gesto mueve solo `GmoRefreshIndicator`;
+- El Feed usa `StaticPullToRefresh`: el gesto conserva la lista inmóvil y no muestra
+  indicador animado;
   la FlashList mantiene offset, la activación manual cede intención horizontal
   al `PagerView`, y la propia lista expone una acción accesible `Actualizar feed`
   sin sumar un botón visual. Foreground/paginación no comparten el estado manual.

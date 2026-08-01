@@ -75,7 +75,7 @@ export default function NewEventScreen() {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      toast.show({ message: 'Ponle un título de al menos 3 caracteres', tone: 'danger' });
+      toast.show({ message: 'Mínimo 3 caracteres', tone: 'danger' });
       return;
     }
 

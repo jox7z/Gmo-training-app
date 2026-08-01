@@ -81,6 +81,15 @@ logros offline por niveles, comunidades, eventos y calendario mensual.
 - **Perfil** concentra identidad social en un encabezado compacto: avatar, rango,
   racha, seguidores, publicaciones paginadas, actividad y logros. Su menú de tres
   puntos abre Compartir perfil o Ajustes; no existe bloque Cuenta duplicado.
+- **Ranking de Comunidad:** el orden sigue derivado del leaderboard, pero las filas y
+  el podio muestran el emblema y nombre del rango; `rankPoints` no se expone como
+  cifra visual ni mediante lector de pantalla.
+- **Racha y logros:** ambos se derivan del historial terminado y el objetivo semanal.
+  El layout raíz los recalcula después de hidratar, al cambiar la meta y ante cambios
+  locales o remotos del historial; Perfil solo muestra una vitrina compacta y
+  `/achievements` concentra la colección detallada.
+- **Motion:** se retiró el motion visual personalizado; las transiciones, entradas,
+  pulsos, escalados y celebraciones quedan estáticos.
 - **Trabajo factual:** carga × repeticiones permanece en ledgers de sesión y
   resúmenes sociales como `kg·rep`/`lb·rep`; no es tendencia seleccionable,
   récord comparativo, puntuación, diagnóstico ni total vitalicio

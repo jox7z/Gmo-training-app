@@ -65,8 +65,8 @@ export function RankPodium({ entries, myEntry, onOpen }: Props) {
       {myEntry ? (
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={`Tu posición: ${myEntry.position}`}
-          accessibilityHint={`${myEntry.entry.rankPoints.toLocaleString()} puntos. Abre tu perfil`}
+          accessibilityLabel={`Tu posición: ${myEntry.position}, rango ${rankInfo(myEntry.entry.currentRank).label}`}
+          accessibilityHint="Abre tu perfil"
           onPress={() => onOpen(myEntry.entry.username)}
           pressScale={0.98}
           haptic={false}
@@ -97,9 +97,12 @@ export function RankPodium({ entries, myEntry, onOpen }: Props) {
             <Text variant="caption" weight="bold" style={{ flex: 1 }} numberOfLines={1}>
               Tu posición
             </Text>
-            <Text variant="caption" weight="bold" numeric tone="brand">
-              {myEntry.entry.rankPoints.toLocaleString()} pts
-            </Text>
+            <RankEmblem
+              rankId={myEntry.entry.currentRank}
+              size={spacing['2xl']}
+              halo={false}
+              accessible={false}
+            />
           </View>
         </PressableScale>
       ) : null}
@@ -125,8 +128,8 @@ function PodiumColumn({
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`Posición ${position}: ${entry.displayName}`}
-      accessibilityHint={`${entry.rankPoints.toLocaleString()} puntos, rango ${info.label}. Abre su perfil`}
+      accessibilityLabel={`Posición ${position}: ${entry.displayName}, rango ${info.label}`}
+      accessibilityHint="Abre su perfil"
       accessibilityState={{ selected: entry.isMe }}
       onPress={onPress}
       pressScale={0.96}
@@ -150,8 +153,8 @@ function PodiumColumn({
         {entry.displayName}
         {entry.isMe ? ' (tú)' : ''}
       </Text>
-      <Text variant="label" tone="muted" numeric numberOfLines={1}>
-        {entry.rankPoints.toLocaleString()}
+      <Text variant="label" tone="muted" numberOfLines={1}>
+        {info.label}
       </Text>
 
       <View

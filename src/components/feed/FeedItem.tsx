@@ -152,11 +152,8 @@ function PrChips({ prs }: { prs: WorkoutPostPrMetadata[] }) {
   );
 }
 
-const PR_AUTOPLAY_MS = 3000;
-
 function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
   const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
-  const reduceMotion = useReduceMotion();
   // Medimos el ancho real del carril con onLayout en vez de calcularlo desde el
   // ancho de pantalla: así el slide cabe exacto sin depender del padding de la
   // lista ni del borde dorado del PrGoldenWrapper (antes el slide quedaba ~3px
@@ -172,20 +169,6 @@ function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
   const idxRef = useRef(0);
   // Mientras el usuario arrastra, el autoplay se pausa.
   const interactingRef = useRef(false);
-
-  // Auto-deslizamiento: avanza al siguiente PR cada PR_AUTOPLAY_MS y vuelve
-  // al primero al llegar al final.
-  useEffect(() => {
-    if (reduceMotion || prs.length < 2 || interval <= 0) return;
-    const t = setInterval(() => {
-      if (interactingRef.current) return;
-      const next = (idxRef.current + 1) % prs.length;
-      idxRef.current = next;
-      setActiveIdx(next);
-      scrollRef.current?.scrollTo({ x: next * interval, animated: true });
-    }, PR_AUTOPLAY_MS);
-    return () => clearInterval(t);
-  }, [prs.length, interval, reduceMotion]);
 
   return (
     <View style={{ overflow: 'hidden' }} onLayout={(e) => setTrackW(e.nativeEvent.layout.width)}>
@@ -238,15 +221,28 @@ function PrCarousel({ prs }: { prs: WorkoutPostPrMetadata[] }) {
       {/* Dots de página */}
       <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: spacing.sm }}>
         {prs.map((_, i) => (
-          <PrDot key={i} active={i === activeIdx} />
+          <StaticPrDot key={i} active={i === activeIdx} />
         ))}
       </View>
     </View>
   );
 }
 
+function StaticPrDot({ active }: { active: boolean }) {
+  return (
+    <View
+      style={{
+        width: active ? 16 : 6,
+        height: 6,
+        borderRadius: radius.full,
+        backgroundColor: active ? 'rgba(255,215,0,1)' : 'rgba(255,215,0,0.3)',
+      }}
+    />
+  );
+}
+
 // Dot que se estira/encoge con spring al activarse, en lugar de saltar.
-function PrDot({ active }: { active: boolean }) {
+export function PrDot({ active }: { active: boolean }) {
   const anim = useRef(new Animated.Value(active ? 1 : 0)).current;
   const reduceMotion = useReduceMotion();
 
@@ -378,6 +374,33 @@ export function PrGoldenWrapper({
     >
       {children}
     </Animated.View>
+  );
+}
+
+function StaticPrGoldenWrapper({
+  children,
+  layout = 'contained',
+}: {
+  children: React.ReactNode;
+  layout?: SocialLayout;
+}) {
+  return (
+    <View
+      style={{
+        borderRadius: layout === 'stream' ? 0 : radius.xl,
+        borderWidth: layout === 'stream' ? 0 : 1.5,
+        borderTopWidth: 1.5,
+        borderBottomWidth: 1.5,
+        borderColor: 'rgba(255,215,0,0.55)',
+        shadowColor: GOLD,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: layout === 'stream' ? 0 : 0.25,
+        shadowRadius: layout === 'stream' ? 0 : 14,
+        elevation: layout === 'stream' ? 0 : 10,
+      }}
+    >
+      {children}
+    </View>
   );
 }
 
@@ -785,7 +808,6 @@ export function FeedItem({
   onShare,
   onOpenProfile,
 }: Props) {
-  const reduceMotion = useReduceMotion();
   const info = useMemo(() => rankInfo(post.user.currentRank), [post.user.currentRank]);
   const relative = useMemo(
     () => formatRelative(post.createdAt, 'device'),
@@ -982,7 +1004,7 @@ export function FeedItem({
       ]}
     >
       {post.type === 'pr' ? (
-        <PrGoldenWrapper layout={layout}>
+        <StaticPrGoldenWrapper layout={layout}>
           <Card
             variant={layout === 'stream' ? 'stream' : 'default'}
             padding={layout === 'stream' ? 0 : 'lg'}
@@ -990,7 +1012,7 @@ export function FeedItem({
           >
             {cardInner}
           </Card>
-        </PrGoldenWrapper>
+        </StaticPrGoldenWrapper>
       ) : (
         <Card
           variant={layout === 'stream' ? 'stream' : 'raised'}
@@ -1004,7 +1026,7 @@ export function FeedItem({
       <Modal
         transparent
         visible={menuOpen}
-        animationType={reduceMotion ? 'none' : 'fade'}
+        animationType="none"
         onRequestClose={() => setMenuOpen(false)}
       >
         <Pressable
@@ -1046,7 +1068,7 @@ export function FeedItem({
       <Modal
         transparent
         visible={confirmOpen}
-        animationType={reduceMotion ? 'none' : 'fade'}
+        animationType="none"
         onRequestClose={() => setConfirmOpen(false)}
       >
         <View

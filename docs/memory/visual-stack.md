@@ -115,7 +115,8 @@ local cuando una de ellas cubra el caso.
   directos de la lámina de marca entregada. Ninguna lleva placa ni fondo oscuro
   cuadrado. Consumirlas vía `GmoMascot`/`RestMascotCoach`/`WorkoutPrMascot` o el
   CTA de Rutinas; no copiar assets por pantalla ni añadir Lottie para estados
-  estáticos. `gmo-body-weight.webp` es la ilustración RGBA plana corporativa del
+  estáticos. La colección de Logros reutiliza `start`, `motivating` y `pr` según
+  progreso inicial, parcial o alto; nunca usa la expresión de enojo. `gmo-body-weight.webp` es la ilustración RGBA plana corporativa del
   registro corporal: GMO crema/negro/ember apunta a una tabla tech de peso y se usa
   únicamente en el CTA de Progreso. `gmo-exercise-progress.webp` es la variante con
   diadema y cuaderno de resultados, reservada al encabezado del ejercicio seleccionado.

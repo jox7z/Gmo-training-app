@@ -60,7 +60,7 @@ type ProfileRow =
   | { kind: 'activity-filters' }
   | { kind: 'post'; post: Post }
   | { kind: 'workout'; workout: Workout }
-  | { kind: 'achievement'; achievement: AchievementProgress };
+  | { kind: 'achievements-summary'; achievements: AchievementProgress[] };
 
 const TABS: { key: ProfileTab; label: string; icon: IconName }[] = [
   { key: 'posts', label: 'Publicaciones', icon: 'image' },
@@ -131,12 +131,7 @@ export default function Profile() {
       );
       return nextRows;
     }
-    nextRows.push(
-      ...achievements.map((achievement) => ({
-        kind: 'achievement' as const,
-        achievement,
-      })),
-    );
+    nextRows.push({ kind: 'achievements-summary', achievements });
     return nextRows;
   }, [achievements, activeTab, filteredActivity, userPosts]);
 
@@ -262,7 +257,7 @@ export default function Profile() {
   ) : hasPostsError ? (
     <TabState
       icon="close"
-      title="No se pudieron cargar tus publicaciones"
+      title="No pudimos cargar tus posts"
       message={userPostsQuery.error?.message ?? 'Revisa tu conexión e inténtalo de nuevo.'}
       action="Reintentar"
       onAction={onRefresh}
@@ -272,7 +267,7 @@ export default function Profile() {
     <TabState
       icon="image"
       title="Aún no hay publicaciones"
-      message="Comparte un entrenamiento, un logro o una actualización."
+      message="Comparte un entreno o un logro."
       action="Crear publicación"
       onAction={() => router.push('/publish')}
     />
@@ -280,7 +275,7 @@ export default function Profile() {
     <TabState
       icon="dumbbell"
       title="Aún no hay actividad"
-      message="Tus entrenamientos terminados aparecerán aquí."
+      message="Aquí van tus entrenos terminados."
       action="Ir a rutinas"
       onAction={goToRoutines}
     />
@@ -288,7 +283,7 @@ export default function Profile() {
     <TabState
       icon="filter"
       title="Sin sesiones con estos filtros"
-      message="Prueba con otro periodo, ejercicio o rutina."
+      message="Prueba con otro filtro."
       action="Limpiar filtros"
       onAction={() => setActivityFilters(DEFAULT_WORKOUT_HISTORY_FILTERS)}
     />
@@ -344,7 +339,7 @@ export default function Profile() {
           if (item.kind === 'activity-filters') return 'profile-activity-filters';
           if (item.kind === 'post') return `post-${item.post.id}`;
           if (item.kind === 'workout') return `workout-${item.workout.id}`;
-          return `achievement-${item.achievement.def.id}`;
+          return 'achievements-summary';
         }}
         getItemType={(item) => item.kind}
         renderItem={({ item, index }) => {
@@ -408,23 +403,27 @@ export default function Profile() {
             );
           }
 
-          return (
-            <View
-              style={{
-                width: '100%',
-                maxWidth: 600,
-                alignSelf: 'center',
-                paddingHorizontal: spacing.lg,
-                paddingTop: index === 1 ? spacing.md : 0,
-                paddingBottom: spacing.md,
-              }}
-            >
-              <AchievementRow
-                achievement={item.achievement}
-                onPress={() => router.push('/achievements')}
-              />
-            </View>
-          );
+          if (item.kind === 'achievements-summary') {
+            return (
+              <View
+                style={{
+                  width: '100%',
+                  maxWidth: 600,
+                  alignSelf: 'center',
+                  paddingHorizontal: spacing.lg,
+                  paddingTop: index === 1 ? spacing.md : 0,
+                  paddingBottom: spacing.md,
+                }}
+              >
+                <AchievementsProfilePreview
+                  achievements={item.achievements}
+                  onPress={() => router.push('/achievements')}
+                />
+              </View>
+            );
+          }
+
+          return null;
         }}
         ListHeaderComponent={
           <ProfileHeader
@@ -484,7 +483,7 @@ export default function Profile() {
         <ProfileMenuAction
           icon="settings"
           title="Ajustes"
-          description="Privacidad, unidades y cierre de sesión."
+          description="Privacidad, unidades y sesión."
           onPress={handleOpenSettings}
         />
       </Sheet>
@@ -1159,7 +1158,76 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
   );
 }
 
-function AchievementRow({
+function AchievementsProfilePreview({
+  achievements,
+  onPress,
+}: {
+  achievements: AchievementProgress[];
+  onPress: () => void;
+}) {
+  const unlocked = achievements.reduce((total, achievement) => total + achievement.level, 0);
+  const total = achievements.reduce((count, achievement) => count + achievement.maxLevel, 0);
+  const featured = achievements
+    .filter((achievement) => achievement.level > 0)
+    .sort((a, b) => b.level - a.level || b.progressToNext - a.progressToNext)
+    .slice(0, 3);
+  const next = achievements
+    .filter((achievement) => achievement.nextTier)
+    .sort((a, b) => b.progressToNext - a.progressToNext)[0];
+
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={`Abrir colección de logros, ${unlocked} de ${total} niveles alcanzados`}
+      accessibilityHint="Muestra el detalle de medallas y próximos hitos"
+      onPress={onPress}
+      haptic={false}
+    >
+      <Card variant="section" padding="lg" style={{ gap: spacing.md }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text variant="heading">Tu vitrina</Text>
+            <Text variant="caption" tone="muted">
+              {unlocked} de {total} niveles alcanzados
+            </Text>
+          </View>
+          <Icon name="chevron-right" size={18} color={colors.text.muted} />
+        </View>
+
+        {featured.length > 0 ? (
+          <View style={{ flexDirection: 'row', gap: spacing.md }}>
+            {featured.map((achievement) => (
+              <View key={achievement.def.id} style={{ alignItems: 'center', flex: 1, gap: 4 }}>
+                <AchievementMedal
+                  icon={achievement.def.icon}
+                  color={achievement.def.color}
+                  level={achievement.level}
+                  maxLevel={achievement.maxLevel}
+                  size={46}
+                />
+                <Text variant="caption" tone="muted" numberOfLines={1} style={{ maxWidth: 76 }}>
+                  {achievement.def.title}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text variant="caption" tone="muted">
+            Tu primera medalla aparecerá al completar un hito.
+          </Text>
+        )}
+
+        {next?.nextTier ? (
+          <Text variant="caption" tone="secondary">
+            Más cerca: {next.def.title} · {next.nextTier.label}
+          </Text>
+        ) : null}
+      </Card>
+    </PressableScale>
+  );
+}
+
+export function AchievementRow({
   achievement,
   onPress,
 }: {

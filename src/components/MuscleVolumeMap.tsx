@@ -184,7 +184,7 @@ export function MuscleVolumeMap({
         ))}
       </View>
       <Text variant="caption" tone="muted" style={styles.disclaimer}>
-        Rangos de series equivalentes. Una principal cuenta 1 y una secundaria 0.5.
+        Series equivalentes: principal 1, secundaria 0,5.
       </Text>
 
       {availableResults.length > 0 ? (
@@ -226,8 +226,7 @@ export function MuscleVolumeMap({
         <View style={styles.emptyState}>
           <Text weight="semibold">Sin volumen todavía</Text>
           <Text variant="caption" tone="muted" style={styles.emptyCopy}>
-            Agrega series a una rutina o completa un entrenamiento para activar
-            músculos y ver su desglose.
+            Agrega series o completa un entreno.
           </Text>
         </View>
       )}

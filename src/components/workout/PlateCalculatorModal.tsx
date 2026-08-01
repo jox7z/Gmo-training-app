@@ -392,8 +392,7 @@ export function PlateCalculatorModal({
                   tone="danger"
                   style={{ marginTop: spacing.md }}
                 >
-                  El objetivo es menor que la barra seleccionada. Elige la barra de
-                  15 kg o registra el peso directamente.
+                  Menos que la barra. Usa la de 15 kg.
                 </Text>
               ) : !result.isExact ? (
                 <Text

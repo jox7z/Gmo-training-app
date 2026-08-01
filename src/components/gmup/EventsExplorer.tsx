@@ -91,7 +91,7 @@ export function EventsExplorer({ bottomInset = 0 }: Props) {
             <SocialErrorState
               compact
               title="No pudimos actualizar los eventos"
-              subtitle="Mostramos la última información disponible mientras recuperas la conexión."
+              subtitle="Esto es lo último guardado."
               onRetry={() => void eventsQuery.refetch()}
               isRetrying={eventsQuery.isFetching}
             />
@@ -113,7 +113,7 @@ export function EventsExplorer({ bottomInset = 0 }: Props) {
           ) : showBlockingError ? (
             <SocialErrorState
               title="No pudimos cargar los eventos"
-              subtitle="Revisa tu conexión y vuelve a intentarlo. También puedes crear un evento cuando estés en línea."
+              subtitle="Revisa tu conexión."
               onRetry={() => void eventsQuery.refetch()}
               isRetrying={eventsQuery.isFetching}
             />
@@ -121,7 +121,7 @@ export function EventsExplorer({ bottomInset = 0 }: Props) {
             <EmptyState
               icon="calendar"
               title="Sin eventos por aquí"
-              description="Aún no hay eventos en esta categoría. Crea el primero y reúne a la comunidad."
+              description="Sin eventos aquí. Crea el primero."
               action={{ label: 'Crear evento', onPress: () => router.push('/events/new') }}
             />
           )}

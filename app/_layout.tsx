@@ -116,6 +116,8 @@ export default function RootLayout() {
   const hydrated = useAppStore((s) => s.hydrated);
   const onboarded = useAppStore((s) => s.onboarded);
   const hydrate = useAppStore((s) => s.hydrate);
+  const workoutHistory = useWorkoutsStore((s) => s.history);
+  const weeklyGoalDays = useAppStore((s) => s.profile?.weeklyGoalDays);
   // profileComplete viene del store (estado de sesión, no persiste).
   // El backend es la única verdad: no depende del flag local `onboarded`.
   const profileComplete = useAppStore((s) => s.profileComplete);
@@ -132,25 +134,19 @@ export default function RootLayout() {
     const workoutsHydrate = useWorkoutsStore.getState().hydrate;
     const achievementsHydrate = useAchievementsStore.getState().hydrate;
     Promise.all([hydrate(), routinesHydrate(), workoutsHydrate(), achievementsHydrate()])
-      .then(() => {
-        useAppStore.getState().refreshWeeklyProgress();
-        // Backfill silencioso una sola vez: registra los logros que ya
-        // correspondían al historial existente sin celebrarlos. A partir de
-        // aquí, cada workout nuevo sí dispara la celebración (incluido el
-        // primer entreno de un usuario nuevo, que arranca sin historial).
-        const ach = useAchievementsStore.getState();
-        if (!ach.seeded) {
-          ach.sync({
-            history: useWorkoutsStore.getState().history,
-            weeklyGoalDays: useAppStore.getState().profile?.weeklyGoalDays,
-          });
-        }
-      })
       .finally(() => {
         setStoresHydrated(true);
         SplashScreen.hideAsync().catch(() => {});
       });
   }, [hydrate]);
+
+  // La racha y los logros se recalculan ante hidratación, cambios del objetivo
+  // y actualizaciones posteriores del historial local o remoto.
+  useEffect(() => {
+    if (!storesHydrated) return;
+    useAppStore.getState().refreshWeeklyProgress();
+    useAchievementsStore.getState().sync({ history: workoutHistory, weeklyGoalDays });
+  }, [storesHydrated, weeklyGoalDays, workoutHistory]);
 
   // 2. Ruta única para sesión inicial + eventos auth. Suscribirse antes de
   // getSession permite que INITIAL_SESSION rescate la sesión cacheada si la

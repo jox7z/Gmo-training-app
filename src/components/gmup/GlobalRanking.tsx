@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { SkeletonRows } from '@/components/ui/Skeleton';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Avatar } from '@/components/Avatar';
+import { RankEmblem } from '@/components/RankEmblem';
 import { SocialErrorState } from '@/components/social/SocialErrorState';
 import { colors, fontSize, spacing, RANKS, type RankId } from '@/theme/tokens';
 import { useGlobalLeaderboard, type GlobalRankEntry } from '@/lib/queries/social';
@@ -56,14 +57,14 @@ export function GlobalRanking({ bottomInset = 0 }: Props) {
           <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
             {hasEntries && (
               <Text variant="label" tone="secondary">
-                TOP ATLETAS · POR PUNTOS
+                TOP ATLETAS
               </Text>
             )}
             {showStaleError && (
               <SocialErrorState
                 compact
                 title="No pudimos actualizar el ranking"
-                subtitle="Las posiciones mostradas son las últimas que guardamos."
+                subtitle="Posiciones sin actualizar."
                 onRetry={() => void leaderboardQuery.refetch()}
                 isRetrying={leaderboardQuery.isFetching}
               />
@@ -87,7 +88,7 @@ export function GlobalRanking({ bottomInset = 0 }: Props) {
         ) : showBlockingError ? (
           <SocialErrorState
             title="No pudimos cargar el ranking"
-            subtitle="Parece que hay un problema de conexión. Inténtalo de nuevo para ver las posiciones."
+            subtitle="Revisa tu conexión."
             onRetry={() => void leaderboardQuery.refetch()}
             isRetrying={leaderboardQuery.isFetching}
           />
@@ -95,7 +96,7 @@ export function GlobalRanking({ bottomInset = 0 }: Props) {
           <EmptyState
             icon="trophy"
             title="Sin ranking todavía"
-            description="Cuando los atletas acumulen puntos aparecerán aquí en el top global."
+            description="Aún sin posiciones."
           />
         )
       }
@@ -123,8 +124,8 @@ function RankingRow({
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`Posición ${position}: ${entry.displayName}`}
-      accessibilityHint={`${entry.rankPoints.toLocaleString()} puntos. Abre su perfil`}
+      accessibilityLabel={`Posición ${position}: ${entry.displayName}, rango ${info.label}`}
+      accessibilityHint="Abre su perfil"
       accessibilityState={{ selected: entry.isMe }}
       onPress={onOpen}
       pressScale={0.98}
@@ -153,14 +154,12 @@ function RankingRow({
           </Text>
           <Text variant="caption" tone="muted" numberOfLines={1}>@{entry.username}</Text>
         </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text weight="bold" numeric style={{ color: info.color }}>
-            {entry.rankPoints.toLocaleString()}
-          </Text>
-          <Text variant="label" tone="muted" style={{ fontSize: fontSize.xs }}>
-            {info.label}
-          </Text>
-        </View>
+        <RankEmblem
+          rankId={entry.currentRank}
+          size={spacing['2xl']}
+          halo={false}
+          accessible={false}
+        />
       </Card>
     </PressableScale>
   );

@@ -218,7 +218,6 @@ export default function NotificationsScreen() {
 
       <ScreenHeader
         title="Notificaciones"
-        subtitle="Reacciones, comentarios y seguidores recientes"
         border
         style={{ backgroundColor: colors.bg.base }}
         right={
@@ -259,7 +258,7 @@ export default function NotificationsScreen() {
               <EmptyState
                 icon="bell"
                 title="Sin notificaciones"
-                description="Cuando alguien reaccione, comente o te siga, aparecerá aquí."
+                description="Aquí verás reacciones, comentarios y seguidores."
                 action={{ label: "Buscar atletas", onPress: () => router.push("/discover") }}
                 style={{ paddingTop: spacing["3xl"] }}
               />

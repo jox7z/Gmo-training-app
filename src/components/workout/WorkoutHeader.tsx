@@ -16,7 +16,7 @@ interface Props {
 /**
  * Header del workout activo: cerrar + contexto + chip de tiempo total, y
  * debajo una barra de progreso global segmentada (un segmento por ejercicio).
- * El accent sweep animado vive en la pantalla (depende de un Animated.Value local).
+ * Mantiene el resumen de serie en una composición completamente estática.
  */
 export function WorkoutHeader({ context, elapsedLabel, segments, onClose }: Props) {
   return (

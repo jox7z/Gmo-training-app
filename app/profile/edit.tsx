@@ -4,7 +4,6 @@ import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -99,7 +98,7 @@ export default function EditProfile() {
     try {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        toast.show({ message: 'Necesitamos permiso para acceder a tus fotos.', tone: 'info' });
+        toast.show({ message: 'Falta permiso para acceder a tus fotos.', tone: 'info' });
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -243,10 +242,7 @@ export default function EditProfile() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Avatar */}
-          <Animated.View
-            entering={FadeInDown.springify().damping(18)}
-            style={{ alignItems: 'center', marginBottom: spacing.md }}
-          >
+          <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
             <PressableScale onPress={pickImage} hitSlop={6} pressScale={0.95}>
               <View style={{ position: 'relative' }}>
                 <Avatar uri={avatarUrl} name={displayName || username} size={110} />
@@ -274,10 +270,10 @@ export default function EditProfile() {
                 {uploading ? 'Subiendo…' : 'Cambiar foto'}
               </Text>
             </PressableScale>
-          </Animated.View>
+          </View>
 
           {/* Identidad */}
-          <Animated.View entering={FadeInDown.delay(50).springify().damping(18)}>
+          <View>
             <Text variant="label" tone="muted" style={{ marginBottom: spacing.sm, letterSpacing: 1 }}>
               PERFIL
             </Text>
@@ -338,10 +334,10 @@ export default function EditProfile() {
                 </View>
               </View>
             </Card>
-          </Animated.View>
+          </View>
 
           {/* Redes y datos */}
-          <Animated.View entering={FadeInDown.delay(100).springify().damping(18)}>
+          <View>
             <Text variant="label" tone="muted" style={{ marginBottom: spacing.sm, letterSpacing: 1 }}>
               REDES Y DATOS
             </Text>
@@ -401,9 +397,9 @@ export default function EditProfile() {
                 </View>
               </View>
             </Card>
-          </Animated.View>
+          </View>
 
-          <Animated.View entering={FadeInDown.delay(150).springify().damping(18)}>
+          <View>
             <Button
               title={saving ? 'Guardando…' : 'Guardar cambios'}
               onPress={handleSave}
@@ -412,7 +408,7 @@ export default function EditProfile() {
               fullWidth
               style={{ marginTop: spacing.md }}
             />
-          </Animated.View>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

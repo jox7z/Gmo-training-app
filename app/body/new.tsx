@@ -121,7 +121,6 @@ export default function NewBodyMeasurement() {
       >
         <ScreenHeader
           title="Nueva medición"
-          subtitle="Registra tu peso corporal y notas del día"
           backIcon="close"
           onBack={close}
           border
@@ -150,7 +149,7 @@ export default function NewBodyMeasurement() {
             </View>
             <Text variant="heading">Registra tu peso</Text>
             <Text variant="caption" tone="secondary" style={{ textAlign: 'center' }}>
-              Anota tu medición. El peso es obligatorio; el resto es opcional.
+              Solo el peso es obligatorio.
             </Text>
           </Card>
 

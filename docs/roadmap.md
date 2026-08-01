@@ -173,6 +173,10 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   quedan en carga/reps/tiempo; Trabajo permanece solo en ledger/social factual.
   El sheet permanece fijo mientras solo cambia la lista filtrada. Sin dependencia
   ni cambio DB.
+- **Ajuste local de racha/logros (2026-08-01):** el layout raíz recalcula ambos
+  derivados ante hidratación, meta e historial. Perfil queda como vitrina compacta;
+  la colección de Logros reúne próximos hitos y GMO estático según avance. Sin
+  cambio de contratos, persistencia ni Supabase.
 - **Recuperación (2026-07-29):** 285 ediciones exactas reconstruidas desde
   transcripciones; la base alcanza 20 suites/122 tests. Cliente de objetivos alineado
   con `profiles.goals`; SQL live timestamped recuperado. `0051`/`0052` siguen

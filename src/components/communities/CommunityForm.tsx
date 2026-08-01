@@ -62,11 +62,11 @@ export function CommunityForm({ initialValues, onSubmit, submitLabel }: Props) {
 
   const handleSubmit = async () => {
     if (!canSubmit) {
-      toast.show({ message: 'El nombre debe tener al menos 3 caracteres', tone: 'danger' });
+      toast.show({ message: 'Mínimo 3 caracteres', tone: 'danger' });
       return;
     }
     if (descLen > 500) {
-      toast.show({ message: 'La descripción supera los 500 caracteres', tone: 'danger' });
+      toast.show({ message: 'Máximo 500 caracteres', tone: 'danger' });
       return;
     }
 
@@ -173,7 +173,7 @@ export function CommunityForm({ initialValues, onSubmit, submitLabel }: Props) {
           <Input
             value={description}
             onChangeText={setDescription}
-            placeholder="Cuéntale a la gente de qué va tu comunidad…"
+            placeholder="¿De qué va tu comunidad?"
             multiline
             numberOfLines={4}
             maxLength={500}

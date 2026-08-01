@@ -26,7 +26,6 @@ export default function CommunitiesScreen() {
       >
         <ScreenHeader
           title="Comunidades"
-          subtitle="Grupos a los que perteneces y por descubrir"
           padded={false}
           style={{ paddingVertical: 0 }}
         />

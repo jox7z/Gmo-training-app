@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, Modal, FlatList } from 'react-native';
-import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,7 +47,6 @@ import { runHapticSafely } from '@/lib/haptics';
 import { RestMascotCoach } from '@/components/workout/RestMascotCoach';
 import { WorkoutPrMascot } from '@/components/workout/WorkoutPrMascot';
 import { WorkoutMetric } from '@/components/workout/WorkoutMetric';
-import { enter } from '@/theme/motion';
 import { recentExerciseIds, sortByRecentExercise } from '@/lib/recentExercises';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -908,7 +906,7 @@ function WarmupPhase({
         </ScrollView>
         {days.length > 1 && (
           <Text variant="caption" tone="muted" style={{ marginTop: spacing.sm }}>
-            ¿Cambio de planes? Elige otro día solo por hoy: tu rutina no se modifica.
+            Solo por hoy. Tu rutina no cambia.
           </Text>
         )}
       </View>
@@ -1620,7 +1618,7 @@ function Summary({
             )}
           </View>
 
-          <Animated.View entering={enter(2)} style={{ alignItems: 'center' }}>
+          <View style={{ alignItems: 'center' }}>
             <Text
               variant="title"
               weight="black"
@@ -1636,7 +1634,7 @@ function Summary({
             <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs }}>
               tiempo total
             </Text>
-          </Animated.View>
+          </View>
         </View>
 
         <View

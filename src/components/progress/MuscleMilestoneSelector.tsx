@@ -107,7 +107,6 @@ export function MuscleMilestoneSelector({
       visible={visible}
       onClose={close}
       title="Elegir músculo"
-      subtitle="Busca en el mapa completo y filtra por registro"
       maxHeightRatio={0.9}
       keyboardOffset={keyboardHeight}
       closeAccessibilityLabel="Cerrar selector de hitos"

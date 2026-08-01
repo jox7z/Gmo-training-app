@@ -91,7 +91,7 @@ export default function ExerciseDetailScreen() {
             Ejercicio no encontrado
           </Text>
           <Text tone="secondary" style={styles.centeredText}>
-            Este ejercicio ya no está disponible o el enlace no es válido.
+            Este ejercicio ya no está disponible.
           </Text>
           <Button title="Volver al inicio" onPress={() => router.replace('/(tabs)')} />
         </View>
@@ -199,7 +199,6 @@ function InformationTab({ exercise }: { exercise: Exercise }) {
       <SectionTitle
         icon="target"
         title="Cómo hacerlo"
-        subtitle="Prioriza el control y una técnica consistente."
       />
       <Card variant="section" padding="lg" style={styles.instructionCard}>
         <View style={styles.stepBadge}>
@@ -220,7 +219,6 @@ function InformationTab({ exercise }: { exercise: Exercise }) {
       <SectionTitle
         icon="muscle"
         title="Enfoque muscular"
-        subtitle="Músculo principal y sinergistas relevantes."
       />
       <View style={styles.chipRow}>
         <MusclePill
@@ -420,7 +418,7 @@ function RecordsTab({
       <SectionTitle
         icon="trophy"
         title="Mejores marcas"
-        subtitle="Calculadas con tus series efectivas completadas."
+        subtitle="Sobre series efectivas."
       />
       <View style={styles.recordGrid}>
         <RecordCard
@@ -612,7 +610,8 @@ function SectionTitle({
 }: {
   icon: IconName;
   title: string;
-  subtitle: string;
+  /** Solo cuando aporta un dato que el título no da (recuento, alcance…). */
+  subtitle?: string;
 }) {
   return (
     <View style={styles.sectionTitle}>
@@ -623,9 +622,11 @@ function SectionTitle({
         <Text variant="heading" weight="bold">
           {title}
         </Text>
-        <Text variant="caption" tone="muted">
-          {subtitle}
-        </Text>
+        {subtitle ? (
+          <Text variant="caption" tone="muted">
+            {subtitle}
+          </Text>
+        ) : null}
       </View>
     </View>
   );

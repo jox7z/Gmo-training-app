@@ -4,7 +4,6 @@
  */
 import { Alert, ScrollView, View } from 'react-native';
 import { useMemo } from 'react';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { Screen } from '@/components/ui/Screen';
 import { Card } from '@/components/ui/Card';
@@ -67,7 +66,6 @@ export default function TemplatesModal() {
     <Screen scroll={false} padded={false}>
       <ScreenHeader
         title="Plantillas famosas"
-        subtitle="Rutinas base que puedes copiar y editar a tu gusto"
         border
       />
 
@@ -79,11 +77,7 @@ export default function TemplatesModal() {
         }}
       >
         {options.map((opt, i) => (
-          // Card de plantilla con entrada escalonada
-          <Animated.View
-            key={opt.routine.id}
-            entering={FadeInDown.delay(Math.min(i, 8) * 60).springify().damping(18)}
-          >
+          <View key={opt.routine.id}>
             <Card variant="raised" padding="lg" style={{ gap: spacing.sm }}>
               {/* Badge "Famosa" */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -143,7 +137,7 @@ export default function TemplatesModal() {
                 style={{ marginTop: spacing.sm }}
               />
             </Card>
-          </Animated.View>
+          </View>
         ))}
       </ScrollView>
     </Screen>

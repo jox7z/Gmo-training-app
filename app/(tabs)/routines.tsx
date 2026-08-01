@@ -91,7 +91,7 @@ export default function Routines() {
       {!activeRoutine ? (
         <MascotState
           title="Construyamos tu primera rutina"
-          description="Elige una plantilla probada o créala desde cero."
+          description="Usa una plantilla o créala desde cero."
           mascotSize={168}
           style={{ marginTop: spacing.xl }}
         >
@@ -180,7 +180,7 @@ export default function Routines() {
           <MuscleVolumeMap
             results={plannedVolume}
             title="Volumen semanal de la rutina"
-            subtitle="Estimación por series principales y secundarias. Toca un músculo."
+            subtitle="Series equivalentes. Toca un músculo."
             frequencyUnit="días/semana"
             gender={profile?.sex ?? 'male'}
             selectorLayout="grid"
@@ -203,7 +203,7 @@ export default function Routines() {
         <RoutineChangeAction
           icon="target"
           title="Elegir plantilla"
-          description="Empieza desde una estructura ya preparada."
+          description="Estructura ya preparada."
           onPress={openTemplates}
         />
         <RoutineChangeAction

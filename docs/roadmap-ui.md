@@ -106,6 +106,16 @@ una serie, descansar y celebrar PR: la primera es estática con Reduce Motion y 
 El encabezado del ejercicio seleccionado suma una variante plana con diadema y
 cuaderno, situada a la derecha sin competir con la tendencia real.
 
+**Delta Ranking 2026-08-01:** Comunidad conserva el orden factual del leaderboard,
+pero usa el emblema y el nombre del rango en filas y podio; oculta los valores
+numéricos de puntos también al lector de pantalla.
+
+**Delta racha, logros y motion 2026-08-01:** racha y desbloqueos se sincronizan de
+forma central desde el historial y la meta semanal. Perfil reduce Logros a una
+vitrina; el detalle muestra colección, próximos hitos y GMO estático de inicio,
+motivación u orgullo —sin expresión de enojo. Se retira el motion visual
+personalizado de interacciones, entradas, refresco, cargas y celebraciones.
+
 **Delta agentes visuales 2026-07-26:** dirección `gym editorial industrial` para
 adultos jóvenes gym-first. MotionSites aporta composición/coreografía, nunca
 cursores/WebGL/scroll web; Hevy aporta logging+progreso+social; Nike aporta lenguaje
