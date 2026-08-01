@@ -1,6 +1,6 @@
 # Checklist de avance
 
-> Fuente viva del estado del proyecto. Última actualización: 2026-07-29.
+> Fuente viva del estado del proyecto. Última actualización: 2026-08-01.
 > No marcar un bloque como completado sin `npm test`, `npm run typecheck`,
 > `npm run lint` y revisión de calidad. El smoke visual en Expo sigue siendo manual.
 
@@ -16,7 +16,118 @@
 | Progreso | ✅ honesto | Tendencia real, calendario mensual, hitos por cargas reales, peso separado y punto→sesión |
 | Gamificación | ✅ | Racha derivada por meta, 9 rangos, logros, eventos y comunidades |
 | Diseño visual | ✅ C0/C1/C2 social | Sistema dark casi rectangular, identidad GMO y stream público full-width |
-| Calidad técnica | 🟡 | 128 tests puros en 20 suites, typecheck/lint y export Android limpios; falta smoke físico |
+| Calidad técnica | 🟡 | 136 tests puros en 22 suites y typecheck/lint limpios; falta smoke físico |
+
+## Interfaz 2D y mascota GMO — 2026-08-01
+
+### Implementación
+
+- [x] `GmoMascot` conserva la pose base 2D con alfa y las poses de acción se recortan directamente de la lámina de marca entregada; no hay placa ni fondo oscuro cuadrado alrededor de GMO.
+- [x] El CTA de Rutinas monta la mascota directamente y no añade un shell oscuro alrededor de ella; los demás estados reutilizan componentes y assets compartidos.
+- [x] El CTA `Empezar entreno` usa el segundo GMO de “Mascota principal” de la lámina, recortado con alfa, sobre una superficie oscura con texto e icono naranja.
+- [x] Todos los `Button` compartidos pasan a un solo plano 2D: se retiran edge, profundidad y recorrido vertical sin cambiar props, haptics, estados ni targets de 44 px.
+- [x] `Registrar peso` conserva su acción y reemplaza el SVG genérico por una báscula analógica 2D de lectura más clara.
+- [x] `Registrar peso` incorpora `gmo-body-weight.webp`: GMO plano corporativo crema/negro/ember apunta a una fila de tabla de peso resaltada; el control mantiene etiqueta y apertura del formulario.
+- [x] El encabezado del ejercicio seleccionado en `Progreso por ejercicio` incorpora `gmo-exercise-progress.webp`: GMO con diadema apunta al resultado de un cuaderno, a la derecha del nombre y sin alterar métrica, gráfica ni selección.
+- [x] La fase de serie usa `gmo-mascot-motivating.webp` con el globo “Tú puedes” de la lámina; descanso usa `gmo-mascot-rest.webp`, con ojos cerrados y Zs. Ambos preservan transparencia y el descanso mantiene frase estable, una entrada finita y estado estático con Reduce Motion.
+- [x] El Summary deriva el PR del workout frente al historial antes de finalizar; solo entonces usa `gmo-mascot-pr.webp` de la lámina, que brota una vez con Reanimated y se vuelve estático con Reduce Motion.
+- [x] La mascota 3D previa se conserva como master histórico y no se duplica ningún asset por pantalla.
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 22 suites / 136 tests / 0 fallos.
+- [x] `npm run typecheck` — 0 errores.
+- [x] `npm run lint` — 0 errores / 0 warnings.
+- [x] `git diff --check` — limpio.
+- [x] Inspección de assets — las tres poses de la lámina y las dos ilustraciones planas de Progreso se exportaron como WebP RGBA; el píxel de esquina `(0, 0, 0, 0)` confirma transparencia exterior.
+- [ ] Smoke físico Expo Go: contraste y encuadre de GMO sobre CTA, encabezado de ejercicio, vacíos, descanso y Summary con/sin PR en 360 px/texto grande y Reduce Motion. Sin emulador ni dispositivo ADB conectado.
+
+Riesgo restante: la transparencia, contraste y encuadre de la entrada PR necesitan validación en la composición nativa de Android/iOS.
+
+Siguiente paso: realizar el smoke físico en Expo Go con un workout normal y otro con PR.
+
+## P0: repetir sesiones, recientes y filtros de actividad — 2026-08-01
+
+### Implementación
+
+- [x] `startWorkoutFromHistory` crea una sesión pendiente nueva con IDs nuevos, conserva estructura/legacy/notas/calentamientos y no muta el ledger fuente.
+- [x] La repetición descarta explícitamente una sesión activa solo tras confirmación, cierra el ledger y abre el workout activo; no copia duración, descansos, publicación, visibilidad, foto ni totales.
+- [x] Ejercicios recientes se derivan del historial por última fecha válida, sin favoritos ni persistencia adicional; los selectores de cambio y editor los priorizan después de sus filtros actuales.
+- [x] Actividad del Perfil filtra localmente por ejercicio, rutina, 30/90 días/todo y sesiones publicadas; las opciones incluyen nombres legacy y solo cambian las filas de FlashList.
+- [x] Sin repos, queries, RPC, RLS, migraciones, Supabase ni cambios al formato `gmo:workouts:v1`.
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 22 suites / 136 tests / 0 fallos.
+- [x] `npm run typecheck` — 0 errores.
+- [x] `npm run lint` — 0 errores / 0 warnings.
+- [ ] Smoke físico Expo Go: repetir con/sin sesión activa, selectores kg/lb, Actividad vacía/filtrada/publicada, teclado del sheet y 360 px. No hay emulador ni dispositivo ADB conectado.
+
+Riesgo restante: falta validar visualmente el retorno de foco y la altura del sheet de filtros en Android/iOS.
+
+Siguiente paso: ejecutar el smoke físico pendiente en Expo Go y registrar las incidencias, sin cambiar stores o backend.
+
+## Navegación y actualización estática — 2026-08-01
+
+### Implementación
+
+- [x] El `PagerView` inicia en Entreno y la etiqueta visible `Ejercicio` pasa a `Entreno`; las keys y rutas no cambian.
+- [x] Social, Perfil y Progreso actualizan con el mismo mark GMO transparente sin desplazar el contenido; su única vuelta dura 540 ms (50% más lenta).
+- [x] Scrolls y listas principales bloquean rebote/overscroll vertical para no arrastrar la pantalla hacia abajo.
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 22 suites / 136 tests / 0 fallos.
+- [x] `npm run typecheck` — 0 errores.
+- [x] `npm run lint` — 0 errores / 0 warnings.
+- [ ] Smoke físico Expo Go: apertura inicial en Entreno, gesto vertical en cada tab y vuelta GMO a 540 ms. Sin emulador ni dispositivo ADB conectado.
+
+Riesgo restante: validar el gesto simultáneo con el PagerView y el comportamiento nativo de overscroll en iOS/Android.
+
+Siguiente paso: smoke físico de navegación/refresh en Expo Go.
+
+## Rutinas: CTA y selector muscular — 2026-08-01
+
+### Implementación
+
+- [x] El CTA de rutina es plano, usa la mascota GMO y muestra tanto el nombre libre de la rutina como el próximo día; no usa icono de mancuerna ni relieve 3D.
+- [x] `Cambiar rutina` queda centrado y abre una hoja dark GMO para editar, elegir plantilla o crear desde cero; se retira el alerta nativo.
+- [x] El volumen semanal de Rutinas muestra una cuadrícula de músculos individuales seleccionables, sin buscador ni filtros por grupo.
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 22 suites / 136 tests / 0 fallos.
+- [x] `npm run typecheck` — 0 errores.
+- [x] `npm run lint` — 0 errores / 0 warnings.
+- [ ] Smoke físico Expo Go: CTA con nombres largos, hoja de cambio y selección de músculo en 360 px/texto grande. Sin emulador ni dispositivo ADB conectado.
+
+Riesgo restante: confirmar visualmente que la mascota y nombres largos mantienen el contraste y no hacen wrap inesperado.
+
+Siguiente paso: smoke físico de Rutinas en Expo Go.
+
+## Refinamiento visual: entrenamiento y Progreso — 2026-08-01
+
+### Implementación
+
+- [x] Targets visuales de `Button`, `IconButton`, `Chip` y segmentos elevados a 44 px.
+- [x] Tab bar conectada a los tokens `glass.tabBar`; conserva el PagerView y sus keys.
+- [x] Entrenamiento activo sin transiciones decorativas ni frases de descanso rotatorias; Summary usa entradas declarativas de Reanimated y Reduce Motion del sistema.
+- [x] Progreso prioriza el ejercicio y la métrica seleccionada; no añade gráficas, calendarios ni conclusiones nuevas.
+- [x] Lectura de peso, historial de workout y rutina activa pasan a secciones más abiertas; los controles conservan sus superficies contenidas.
+- [x] Perfil reduce la decoración de los ledgers y conserva rango/emblema como la única excepción ceremonial.
+- [x] Sin cambios en stores, repos, queries, rutas, activos, contratos de datos ni Supabase.
+
+### Verificación
+
+- [x] `npm test -- --runInBand` — 20 suites / 128 tests / 0 fallos.
+- [x] `npm run typecheck` — 0 errores.
+- [x] `npm run lint` — 0 errores / 0 warnings.
+- [x] `git diff --check` — limpio.
+- [ ] Smoke físico Expo Go: no hay emulador ni dispositivo ADB conectado para revisar 360 px, texto grande, teclado, sheets y Reduce Motion.
+
+Riesgo restante: la verificación de jerarquía, clipping y targets en Android/iOS sigue pendiente de dispositivo real.
+
+Siguiente paso: ejecutar el smoke visual de entrenamiento activo, Progreso y Perfil en Expo Go y registrar capturas o incidencias.
 
 ## Limpieza visual general — 2026-07-29
 

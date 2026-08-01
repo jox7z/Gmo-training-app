@@ -4,6 +4,7 @@ import { uuidv4 } from '@/lib/ids';
 import { parseWorkoutSnapshot } from '@/lib/workoutPersistence';
 import { exerciseById } from '@/data/exercises';
 import type { WorkoutVisibility } from '@/lib/workoutVisibility';
+import { hasValidSetPerformance } from '@/lib/workoutValidation';
 
 export interface SetEntry {
   id: string;
@@ -69,6 +70,8 @@ interface State {
     visibility?: WorkoutVisibility,
   ) => void;
   startWorkout: (init: { routineDayId?: string; routineName?: string; exercises: WorkoutExercise[] }) => void;
+  /** Crea una sesión pendiente desde un ledger terminado sin mutar su fuente. */
+  startWorkoutFromHistory: (source: Workout) => Workout | null;
   cancelWorkout: () => void;
   finishWorkout: (extras: { feeling?: Workout['feeling']; photoUri?: string; published?: boolean }) => Workout | null;
   updateSet: (
@@ -346,6 +349,60 @@ export const useWorkoutsStore = create<State>((set, get) => ({
       },
     });
     persistSnapshot(get().history, get().active);
+  },
+
+  startWorkoutFromHistory: (source) => {
+    if (!source.exercises.length) return null;
+
+    const groupIds = new Map<string, string>();
+    const exercises = source.exercises.map((exercise) => {
+      const fallbackWeight =
+        exerciseById(exercise.exerciseId)?.equipment === 'bodyweight' ? 0 : 20;
+      let groupId: string | undefined;
+      if (exercise.supersetGroupId) {
+        groupId = groupIds.get(exercise.supersetGroupId);
+        if (!groupId) {
+          groupId = nid();
+          groupIds.set(exercise.supersetGroupId, groupId);
+        }
+      }
+
+      return {
+        id: nid(),
+        exerciseId: exercise.exerciseId,
+        exerciseName: exercise.exerciseName,
+        muscleGroup: exercise.muscleGroup,
+        ...(exercise.notes ? { notes: exercise.notes } : {}),
+        ...(groupId ? { supersetGroupId: groupId } : {}),
+        ...(groupId && exercise.groupRestEnabled !== undefined
+          ? { groupRestEnabled: exercise.groupRestEnabled }
+          : {}),
+        sets: exercise.sets.map((set) => {
+          const validReference = hasValidSetPerformance(set);
+          return {
+            id: nid(),
+            reps: validReference ? set.reps : 8,
+            weightKg: validReference ? set.weightKg : fallbackWeight,
+            ...(set.isWarmup ? { isWarmup: true } : {}),
+            isCompleted: false,
+          };
+        }),
+      } satisfies WorkoutExercise;
+    });
+
+    const active: Workout = {
+      id: nid(),
+      ...(source.routineDayId ? { routineDayId: source.routineDayId } : {}),
+      ...(source.routineName ? { routineName: source.routineName } : {}),
+      startedAt: new Date().toISOString(),
+      totalReps: 0,
+      totalRestSeconds: 0,
+      totalActiveSeconds: 0,
+      exercises,
+    };
+    set({ active });
+    persistSnapshot(get().history, active);
+    return active;
   },
 
   cancelWorkout: () => {

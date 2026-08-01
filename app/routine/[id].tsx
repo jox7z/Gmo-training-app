@@ -29,6 +29,8 @@ import { calculatePlannedMuscleVolume } from '@/lib/muscleVolume';
 import { MuscleVolumeMap } from '@/components/MuscleVolumeMap';
 import { computeRoutineQualityScore } from '@/lib/routineQualityScore';
 import { RoutineQualityCard } from '@/components/routines/RoutineQualityCard';
+import { useWorkoutsStore, type Workout } from '@/store/workouts';
+import { recentExerciseIds, sortByRecentExercise } from '@/lib/recentExercises';
 
 const EMPTY_ROUTINE = (): Routine => ({
   id: nid(),
@@ -45,6 +47,7 @@ export default function RoutineEditor() {
   const existing = useRoutinesStore((s) => s.routines.find((r) => r.id === id));
   const upsert = useRoutinesStore((s) => s.upsertRoutine);
   const profile = useAppStore((s) => s.profile);
+  const workoutHistory = useWorkoutsStore((s) => s.history);
 
   const [routine, setRoutine] = useState<Routine>(existing ?? EMPTY_ROUTINE());
   const [activeDayIdx, setActiveDayIdx] = useState(0);
@@ -378,6 +381,7 @@ export default function RoutineEditor() {
         visible={pickerOpen}
         onClose={() => setPickerOpen(false)}
         group={pickerGroup}
+        history={workoutHistory}
         onGroupChange={setPickerGroup}
         onSelect={addExercise}
       />
@@ -480,21 +484,26 @@ function ExercisePicker({
   visible,
   onClose,
   group,
+  history,
   onGroupChange,
   onSelect,
 }: {
   visible: boolean;
   onClose: () => void;
   group: string;
+  history: Workout[];
   onGroupChange: (g: string) => void;
   onSelect: (id: string) => void;
 }) {
   const filtered = useMemo(() => {
-    if (group === 'all') return EXERCISES;
+    if (group === 'all') return sortByRecentExercise(EXERCISES, recentExerciseIds(history));
     const g = MUSCLE_FILTER_GROUPS.find((x) => x.id === group);
-    if (!g) return EXERCISES;
-    return EXERCISES.filter((e) => g.muscles.includes(e.muscle as MuscleGroup));
-  }, [group]);
+    if (!g) return sortByRecentExercise(EXERCISES, recentExerciseIds(history));
+    return sortByRecentExercise(
+      EXERCISES.filter((e) => g.muscles.includes(e.muscle as MuscleGroup)),
+      recentExerciseIds(history),
+    );
+  }, [group, history]);
 
   return (
     <Modal

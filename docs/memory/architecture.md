@@ -41,6 +41,10 @@
 
 - Workout/rutinas/perfil local viven en Zustand + AsyncStorage aunque no exista
   sesión. Las mutaciones del workout se escriben con cola serializada.
+- `startWorkoutFromHistory(source)` reconstruye una sesión activa pendiente en el
+  mismo store/local snapshot: asigna IDs nuevos, conserva ejercicios legacy o del
+  catálogo, notas, calentamientos y superseries, y reinicia metadata derivada. No
+  modifica la fuente ni crea un contrato remoto o una preferencia persistente.
 - Logout y cambio de cuenta vacían perfil, workouts, rutinas, logros y Query
   cache mediante resets serializados; nunca se mezcla historial entre usuarios.
 - `SetEntry.restStartedAt` es metadata local de workflow: reanuda el descanso
@@ -67,6 +71,11 @@
   compartida una vez por fase de descanso y ejecuta solo una entrada finita en UI
   thread; Reduce Motion salta directamente al estado final. `RestRing` es factual,
   sin umbral de recuperación, gradiente ni prescripción.
+- `GmoMascot`, `RestMascotCoach` y `WorkoutPrMascot` resuelven la pose base 2D y
+  los recortes WebP con alfa de motivación, descanso y PR de la lámina entregada
+  (`assets/brand/gmo-mascot-{motivating,rest,pr}.webp`); los call sites no añaden
+  placas oscuras ni copias por pantalla. El Summary deriva el PR frente al historial
+  antes de finalizar y la entrada de celebración respeta Reduce Motion.
 - `numericAccessibilityValue()` construye un `accessibilityValue` exclusivamente
   textual para los inputs decimales. No incluir `now/min/max`: Fabric puede
   convertirlos a enteros nativos y fallar con valores válidos como `22.5`.
@@ -127,6 +136,10 @@
 - El perfil propio usa una sola FlashList, encabezado compacto, tabs sticky y
   `FeedItem` canónico. Actividad/logros son hechos locales; el menú de tres puntos
   abre Compartir/Ajustes y Settings posee el único sign-out.
+- `recentExercises.ts` y `workoutHistoryFilters.ts` son helpers puros sobre
+  `Workout[]`. Los recientes solo ordenan filas existentes del catálogo; los filtros
+  de Actividad (ejercicio, rutina, periodo y publicación) cambian solo la lista del
+  Perfil y no afectan calendario, récords, gráficas ni el snapshot almacenado.
 - El score de rutina es transparente y no prescriptivo; no incluye weak groups,
   recuperación ni consejos. El mapa de volumen estimado sigue factual e interactivo.
 - En Progreso, el selector de hitos es buscable y separa `Con hitos`/`Sin hitos`

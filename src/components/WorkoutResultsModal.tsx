@@ -7,15 +7,18 @@
 
 import { useMemo } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { useConfirm } from '@/components/ui/ConfirmDialog';
 import { Text } from '@/components/ui/Text';
 import { hasValidSetPerformance } from '@/lib/workoutValidation';
 import { formatWeight, toDisplay } from '@/lib/units';
 import { useAppStore } from '@/store/app';
-import type { Workout } from '@/store/workouts';
+import { useWorkoutsStore, type Workout } from '@/store/workouts';
 import { colors, fontSize, radius, spacing } from '@/theme/tokens';
 
 interface Props {
@@ -25,7 +28,13 @@ interface Props {
 }
 
 export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
+  const router = useRouter();
+  const confirm = useConfirm();
   const unit = useAppStore((state) => state.profile?.unit ?? 'kg');
+  const activeWorkout = useWorkoutsStore((state) => state.active);
+  const startWorkoutFromHistory = useWorkoutsStore(
+    (state) => state.startWorkoutFromHistory,
+  );
 
   const data = useMemo(() => {
     if (!workout) return null;
@@ -57,6 +66,23 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
   }, [workout]);
 
   if (!workout || !data) return null;
+
+  const handleRepeat = async () => {
+    if (!workout.exercises.length) return;
+    if (activeWorkout) {
+      const accepted = await confirm({
+        title: 'Reemplazar sesión activa',
+        message:
+          'Se descartará el entrenamiento en curso antes de crear la repetición.',
+        confirmLabel: 'Reemplazar',
+        destructive: true,
+      });
+      if (!accepted) return;
+    }
+    if (!startWorkoutFromHistory(workout)) return;
+    onClose();
+    router.push('/workout/active');
+  };
 
   return (
     <Modal
@@ -100,7 +126,7 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
             </View>
           </View>
 
-          <Card variant="raised" padding="lg">
+          <Card variant="section" padding="lg">
             <View style={styles.statRow}>
               <SessionStat label="Duración" value={formatDuration(data.durationSeconds)} />
               <SessionStat label="Ejercicios" value={String(data.exercises.length)} />
@@ -123,7 +149,7 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
 
           <View style={styles.exerciseList}>
             {data.exercises.map(({ exercise, sets }, exerciseIndex) => (
-              <Card key={exercise.id} padding="md">
+              <View key={exercise.id} style={styles.exerciseSection}>
                 <View style={styles.exerciseHeader}>
                   <View style={styles.exerciseIndex}>
                     <Text variant="caption" tone="brand" weight="bold" numeric>
@@ -153,13 +179,22 @@ export function WorkoutResultsModal({ visible, workout, onClose }: Props) {
                     </View>
                   ))}
                 </View>
-              </Card>
+              </View>
             ))}
           </View>
 
           <Text variant="caption" tone="muted" style={styles.footerNote}>
             Valores guardados en esta sesión.
           </Text>
+          {workout.exercises.length > 0 ? (
+            <Button
+              title="Repetir sesión"
+              variant="secondary"
+              onPress={() => void handleRepeat()}
+              style={styles.repeatButton}
+              fullWidth
+            />
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -240,8 +275,8 @@ const styles = StyleSheet.create({
     fontSize: fontSize.lg,
   },
   closeButton: {
-    width: spacing['2xl'],
-    height: spacing['2xl'],
+    width: spacing['2xl'] + spacing.md,
+    height: spacing['2xl'] + spacing.md,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',
@@ -305,6 +340,12 @@ const styles = StyleSheet.create({
   exerciseList: {
     gap: spacing.md,
   },
+  exerciseSection: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
   exerciseHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -343,5 +384,8 @@ const styles = StyleSheet.create({
   footerNote: {
     marginTop: spacing.lg,
     textAlign: 'center',
+  },
+  repeatButton: {
+    marginTop: spacing.md,
   },
 });

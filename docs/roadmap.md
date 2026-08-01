@@ -1,6 +1,6 @@
 # Roadmap — Gmo Training App
 
-> **Fecha base:** 2026-07-07 · **Última revisión:** 2026-07-29 · **Base:** v0.1.0, rama `feat/initial-app-foundation`
+> **Fecha base:** 2026-07-07 · **Última revisión:** 2026-08-01 · **Base:** v0.1.0, rama `feat/initial-app-foundation`
 >
 > **Leyenda de prioridad:** P0 (crítico) · P1 (importante) · P2 (deseable)
 > **Leyenda de esfuerzo:** S (<1/2 día) · M (1–3 días) · L (1+ semana)
@@ -92,6 +92,7 @@ Priorizada por **retención**, comparado con Strong/Hevy/Fitbod/Strava.
 | 🟡 Estabilidad pre-release | P0 | M | Checkpoint creado; perfil sin nested scroll, posts paginados y cache social coherente. Falta smoke físico, bundle final y reconciliar ledger Supabase. |
 | 🟡 Privacidad de entrenos | P0 | M | Cliente y migración `0052`: Público/Seguidores/Privado con enforcement RLS/RPC. Repo-only hasta reconciliar ledger live; media restringida bloqueada mientras bucket sea público. |
 | ✅ Dashboard personal | P1 | M | Perfil compacto con FlashList única, tabs sticky, FeedItem canónico, actividad factual, logros y menú Compartir/Ajustes. |
+| ✅ Repetir sesiones + recientes + filtros locales | P0 | S | Ledger repite una sesión con IDs nuevos y confirmación si hay activa; recientes no persisten favoritos y Actividad filtra solo sus filas por ejercicio/rutina/periodo/publicadas. Sin backend. |
 | ✅ Mapa + GMO Rating | P1 | M | Editor/Rutinas muestran radial transparente de cobertura, volumen, frecuencia y estructura; Progreso usa calendario + hitos, no volumen. |
 | 🟡 Sprint C3 — hitos/perfil/crash | P0 | M | Código y gates completos: rangos reales, refresh fijo, calendario, hitos, selector, perfil compacto y editor estable. Falta smoke físico Expo Go. |
 | 🟡 Workout visual abierto | P1 | S | Peso/reps/tiempo comparten `WorkoutMetric`; progreso neutral, CTA rojo único y robot GMO en cada descanso. Crash Fabric con pesos decimales corregido. Falta smoke físico 360/390/430/768. |
@@ -187,11 +188,12 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   `GMO Rating`, calendario mensual, mapa de hitos con evidencia, selector muscular
   buscable, perfil compacto y editor de series por IDs. Gates: 20 suites/122 tests,
   typecheck/lint limpios y export Android; smoke físico pendiente.
-- **Workout visual abierto (2026-07-29):** menos tarjetas/bordes y efectos;
+- **Workout visual abierto (2026-08-01):** menos tarjetas/bordes y efectos;
   `WorkoutMetric` repite la jerarquía de peso, reps, descanso y resumen. El rojo
-  queda en CTA/PR/estados, progreso normal usa crema. GMO aparece en cada descanso
-  con una única entrada accesible; no hay splash, frases rotatorias ni prescripción
-  de recuperación.
+  queda en CTA/PR/estados, progreso normal usa crema. Los recortes transparentes
+  de la lámina GMO motivan durante la serie, aparecen dormidos en cada descanso con
+  una única entrada accesible y brotan al cerrar una sesión con PR; Reduce Motion
+  queda estático. No hay splash, frases rotatorias ni prescripción de recuperación.
 - **Continuidad de captura (2026-07-29):** cada serie laboral hereda el peso real
   de la anterior dentro del mismo ejercicio, sin pisar ediciones. El refresh del
   Feed usa el mark GMO con una única vuelta completa y mantiene la lista inmóvil.
@@ -200,6 +202,14 @@ Estudio comparativo de UI/UX contra Strong, Hevy, Fitbod y Strava (benchmark de 
   botón robot; refresh con PNG transparente. Radios casi rectos, menos glow,
   jerarquía por espacio/tipo y `Stat` compartido. El calendario 6×7 usa gap de
   4 px. Sin dependencias, migraciones ni cambios Supabase.
+- **Refinamiento visual (2026-08-01):** targets compartidos de 44 px, chrome de
+  tabs tokenizado y menos superficies en workout, Progreso, Rutinas, Perfil y
+  ledgers. El resumen usa Reanimated declarativo y el descanso conserva una frase
+  estable. Gates pasan; queda smoke físico Expo Go.
+- **P0 historial local (2026-08-01):** repetir desde el ledger crea una sesión
+  pendiente sin mutar la fuente ni copiar resultados; cambio/editor ordenan por
+  recientes derivados y Perfil filtra Actividad de forma local. Gates: 22 suites/
+  136 tests, typecheck/lint limpios; smoke Expo Go pendiente.
 - **Bloqueador backend P0 — rangos semanales:** reconciliar ledger alojado; cerrar
   `recalc_weekly_ranks()` al Data API; garantizar idempotencia/concurrencia por
   semana; migrar a los 9 umbrales canónicos; backfill sin celebraciones falsas.

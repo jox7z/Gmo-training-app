@@ -1,6 +1,6 @@
 # Roadmap UI — Gmo Training App (Pista C)
 
-> **Fecha base:** 2026-07-07 · **Revisión incremental:** 2026-07-29 · **Base:** v0.1.0, rama `feat/initial-app-foundation` · Complementa [roadmap.md](roadmap.md) (Pista C = UI/UX)
+> **Fecha base:** 2026-07-07 · **Revisión incremental:** 2026-08-01 · **Base:** v0.1.0, rama `feat/initial-app-foundation` · Complementa [roadmap.md](roadmap.md) (Pista C = UI/UX)
 >
 > **Leyenda de prioridad:** P0 (crítico) · P1 (importante) · P2 (deseable)
 > **Leyenda de esfuerzo:** S (<1/2 día) · M (1–3 días) · L (1+ semana)
@@ -69,6 +69,41 @@ el mark PNG transparente, sin botón robot. La escala compartida vuelve a radios
 casi rectos, cards/botones ordinarios pierden glow, `Stat` concentra datos
 repetidos y el rojo queda para acciones, récords y estados. El calendario mensual
 mantiene 6×7 con separación GitHub de 4 px.
+
+**Refinamiento visual 2026-08-01:** targets compartidos suben a 44 px y la tab bar
+consume `glass.tabBar`. Entrenamiento activo elimina transiciones decorativas y
+copy rotatorio; Summary usa entradas declarativas que obedecen Reduce Motion.
+Progreso prioriza ejercicio+métrica sin ampliar la superficie de datos. Rutinas,
+Perfil y ledgers sustituyen decoración repetida por secciones abiertas. Gates
+automáticos pasan; smoke físico Expo Go sigue pendiente.
+
+**Delta historial local 2026-08-01:** el ledger permite repetir una sesión con
+confirmación ante una activa; los selectores priorizan ejercicios recientes sin
+preferencias guardadas y Actividad abre una hoja estable de filtros locales. No hay
+cambio de Supabase, gráficas, calendario ni persistencia nueva.
+
+**Delta navegación 2026-08-01:** la sesión arranca en Entreno; el pull-to-refresh
+de Social, Perfil y Progreso usa el mark GMO transparente sin traducir el contenido
+y una sola vuelta de 540 ms. El rebote vertical queda desactivado en las listas
+principales; el smoke físico sigue pendiente.
+
+**Delta Rutinas 2026-08-01:** el inicio de entreno usa una tarjeta plana con la
+mascota GMO 2D transparente y nombres de rutina/día; no hay shell oscuro cuadrado
+alrededor de ella. Cambiar rutina abre una hoja dark coherente y el volumen semanal
+lista músculos individuales en cuadrícula, sin buscador. Gates automáticos pasan;
+falta smoke físico.
+
+**Ajuste CTA 2026-08-01:** `Empezar entreno` usa el segundo GMO de “Mascota
+principal” de la lámina, sobre fondo oscuro con texto y chevron naranja.
+
+**Delta 2D 2026-08-01:** `Button` deja el relieve chunky y conserva una sola
+superficie plana con targets de 44 px. `Registrar peso` usa una báscula analógica
+2D. GMO usa los recortes transparentes de la lámina entregada para motivar durante
+una serie, descansar y celebrar PR: la primera es estática con Reduce Motion y la
+última brota una vez al cerrar una sesión que realmente supera el historial previo.
+`Registrar peso` muestra GMO señalando una tabla corporal sin alterar su formulario.
+El encabezado del ejercicio seleccionado suma una variante plana con diadema y
+cuaderno, situada a la derecha sin competir con la tendencia real.
 
 **Delta agentes visuales 2026-07-26:** dirección `gym editorial industrial` para
 adultos jóvenes gym-first. MotionSites aporta composición/coreografía, nunca
@@ -199,7 +234,7 @@ adoptamos:** kudos separado ni consejos automáticos.
 | Hevy | "Clean/modern", 3 temas (dark/light/auto); body diagram como gráfico identitario; adopción rápida del lenguaje de plataforma (liquid glass iOS 26, Live Activities). |
 | Fitbod | Refresh de branding 2024; denso pero jerárquico; video/foto real como lenguaje dominante. |
 | Strava | Sistema ejemplar: dark mode global 2024 (3 opciones), tipografía dual (Boathouse marca / Inter datos), Strava Orange + acentos, **sistema propio de 1.440 iconos**. |
-| **Gmo hoy** | Paleta dark roja, botones 3D chunky y tab bar con blur/scale/haptics. C0 añadió tipografía con line-height/letter-spacing, metales/gradientes y `Chip`/`IconButton`/`SegmentedControl`. **Falta:** migrar usos duplicados, unificar 3 sistemas de iconos y eliminar 88 hex fuera de tokens. |
+| **Gmo hoy** | Paleta dark roja, botones 2D planos y tab bar con blur/scale/haptics. C0 añadió tipografía con line-height/letter-spacing, metales/gradientes y `Chip`/`IconButton`/`SegmentedControl`. **Falta:** migrar usos duplicados, unificar 3 sistemas de iconos y eliminar 88 hex fuera de tokens. |
 
 **Adoptamos:** fachada interna de iconos, tokens de line-height/letter-spacing y
 limpieza gradual de hex. El mapa de volumen queda como referencia factual de series
@@ -219,7 +254,7 @@ Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
    transcurrido neutral. No afirmar recuperación ni reintroducir comparativas.
 3. **SetProgressPills** estable y neutral; sin loop decorativo. Haptics solo en
    acciones mediante `PressableScale`.
-4. **Botones 3D chunky** (`Button` con edge/pressTravel) — identidad propia; no sustituir por botones planos de ninguna librería.
+4. **Botones 2D planos** (`Button` compartido) — conservan contraste, haptic y targets sin edge ni pressTravel.
 5. **Tab bar con blur** (expo-blur) y pull-to-refresh inmóvil con el mark GMO:
    una vuelta por actualización, sin loop.
 6. **Racha semanal** basada en objetivo (`weekly_goal_days`) — validada como el diseño correcto por Hevy y Strava; no convertirla en racha diaria.
@@ -245,7 +280,7 @@ Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 
 | Item | Prioridad | Esfuerzo | Depende de | Dimensión |
 |---|---|---|---|---|
-| ✅ Robot GMO como icono/splash/adaptive/fav + mascota WebP compartida (2026-07-19) | P0 | S | — | D8 |
+| ✅ Robot GMO como icono/splash/adaptive/fav + pose base 2D y recortes transparentes de la lámina para motivación, descanso y PR (2026-08-01) | P0 | S | — | D8 |
 | ✅ 9 emblemas de rango originales con alpha (2026-07-19) | P0 | S | — | D5 |
 | Ilustraciones de empty states (unDraw/Open Peeps, CC0) en `assets/illustrations/` | P1 | S | — | D7 |
 
@@ -267,6 +302,7 @@ Vinculante para C2/C4: ninguna adopción de librería puede degradar esto.
 | 12 | ✅ Stream social edge-to-edge: móvil full width, tablet 600 px, fotos 4:5 y galería pública 3 columnas (2026-07-22) | P0 | M | — | D2/D5/D7 |
 | 13 | ✅ Secciones informativas sin bordes laterales vía `Card section`; controles conservan marco (2026-07-22) | P0 | S | — | D8 |
 | 14 | ✅ Selector de progreso escalable: sheet fijo, miniaturas locales, recientes, más entrenados, búsqueda y filtros músculo/equipo; tendencias sin métrica Trabajo (2026-07-24) | P0 | S | — | D3/D4 |
+| 15 | ✅ Repetición desde ledger, recientes en cambio/editor y filtros locales de Actividad (2026-08-01); sin favoritos ni backend | P0 | S | — | D1/D2/D4 |
 
 ### C3 — Tier 2 (GATE: el mismo salto a development build que push B1 — no antes)
 

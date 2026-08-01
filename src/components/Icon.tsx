@@ -670,14 +670,15 @@ function renderIcon(name: IconName, c: string, filled = false) {
     case 'scale':
       return (
         <>
-          <Rect x="3" y="6" width="18" height="14" rx="2" stroke={c} strokeWidth={2} />
+          <Rect x="4" y="5" width="16" height="16" rx="3" stroke={c} strokeWidth={2} />
           <Path
-            d="M8 10h8M12 10v3"
+            d="M7.5 14a4.5 4.5 0 019 0"
             stroke={c}
             strokeWidth={2}
             strokeLinecap="round"
           />
-          <Circle cx="12" cy="15" r="2" stroke={c} strokeWidth={2} />
+          <Path d="M12 14l2.6-2.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          <Circle cx="12" cy="14" r="1.1" fill={c} />
         </>
       );
 

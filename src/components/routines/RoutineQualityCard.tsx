@@ -66,7 +66,7 @@ export function RoutineQualityCard({ result, style }: Props) {
       accessibilityLabel={`GMO Rating ${result.score} de 100, nivel ${result.label}. ${accessibilitySummary}. Estimación de la planificación; no predice resultados.`}
     >
       <View style={styles.header}>
-        <Text variant="label" tone="accent">GMO RATING</Text>
+        <Text variant="label" tone="accent">GMO Rating</Text>
         <Text variant="heading" weight="bold">{result.label}</Text>
       </View>
 

@@ -32,6 +32,7 @@ export interface StaticPullListProps {
   onScroll: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
   scrollEventThrottle: number;
   bounces: false;
+  alwaysBounceVertical: false;
   overScrollMode: 'never';
   accessibilityActions: { name: string; label: string }[];
   onAccessibilityAction: (event: AccessibilityActionEvent) => void;
@@ -40,6 +41,7 @@ export interface StaticPullListProps {
 interface Props {
   refreshing: boolean;
   onRefresh: () => void | Promise<void>;
+  label?: string;
   children: (props: StaticPullListProps) => React.ReactNode;
 }
 
@@ -51,6 +53,7 @@ interface Props {
 export function StaticPullToRefresh({
   refreshing,
   onRefresh,
+  label = 'Actualizando',
   children,
 }: Props) {
   const reduceMotion = useReduceMotion();
@@ -160,9 +163,10 @@ export function StaticPullToRefresh({
           onScroll,
           scrollEventThrottle: 16,
           bounces: false,
+          alwaysBounceVertical: false,
           overScrollMode: 'never',
           accessibilityActions: [
-            { name: 'refresh', label: 'Actualizar feed' },
+            { name: 'refresh', label: `Actualizar ${label.toLocaleLowerCase('es')}` },
           ],
           onAccessibilityAction: (event) => {
             if (event.nativeEvent.actionName === 'refresh') {
@@ -173,6 +177,7 @@ export function StaticPullToRefresh({
         <GmoRefreshIndicator
           refreshing={refreshing}
           pullDistance={pullDistance}
+          label={label}
         />
       </View>
     </GestureDetector>
@@ -182,9 +187,11 @@ export function StaticPullToRefresh({
 export function GmoRefreshIndicator({
   refreshing,
   pullDistance,
+  label = 'Actualizando',
 }: {
   refreshing: boolean;
   pullDistance: SharedValue<number>;
+  label?: string;
 }) {
   const motion = useMotion();
   const spin = useSharedValue(0);
@@ -206,7 +213,7 @@ export function GmoRefreshIndicator({
           1,
           {
             ...motion.timing('base'),
-            duration: duration.slow,
+            duration: duration.slow * 1.5,
           },
           (finished) => {
             if (finished) spinComplete.value = true;
@@ -261,7 +268,7 @@ export function GmoRefreshIndicator({
       pointerEvents="none"
       accessible={refreshing}
       accessibilityRole="progressbar"
-      accessibilityLabel="Actualizando feed"
+      accessibilityLabel={label}
       accessibilityLiveRegion="polite"
       style={[
         {

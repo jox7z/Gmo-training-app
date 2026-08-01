@@ -288,3 +288,144 @@ describe('workouts store set updates', () => {
     ]);
   });
 });
+
+describe('startWorkoutFromHistory', () => {
+  beforeEach(() => {
+    useWorkoutsStore.setState({ history: [], active: null });
+  });
+
+  it('repite estructura, calentamientos y notas con ids nuevos sin mutar el ledger', () => {
+    const source = makeWorkout({
+      id: 'finished-source',
+      routineDayId: 'day-source',
+      routineName: 'Torso',
+      endedAt: '2026-07-20T11:00:00.000Z',
+      durationSeconds: 3600,
+      isPublished: true,
+      visibility: 'public',
+      photoUri: 'file://photo.jpg',
+      exercises: [
+        {
+          id: 'press-entry',
+          exerciseId: 'bench-press',
+          exerciseName: 'Press de banca',
+          muscleGroup: 'chest',
+          notes: 'Pausa abajo',
+          supersetGroupId: 'source-superset',
+          groupRestEnabled: true,
+          sets: [
+            {
+              id: 'warmup-source',
+              reps: 10,
+              weightKg: 20,
+              isWarmup: true,
+              isCompleted: true,
+              durationSeconds: 48,
+              restStartedAt: '2026-07-20T10:10:00.000Z',
+              restAfterSeconds: 90,
+            },
+            {
+              id: 'work-source',
+              reps: 8,
+              weightKg: 80,
+              isCompleted: true,
+              rpe: 9,
+              durationSeconds: 36,
+              restAfterSeconds: 120,
+            },
+          ],
+        },
+        {
+          id: 'row-entry',
+          exerciseId: 'barbell-row',
+          exerciseName: 'Remo con barra',
+          muscleGroup: 'back',
+          supersetGroupId: 'source-superset',
+          groupRestEnabled: true,
+          sets: [{ id: 'row-source', reps: 10, weightKg: 60, isCompleted: true }],
+        },
+      ],
+    });
+    const snapshot = JSON.stringify(source);
+    useWorkoutsStore.setState({ history: [source], active: null });
+
+    const repeated = useWorkoutsStore.getState().startWorkoutFromHistory(source);
+
+    expect(repeated).not.toBeNull();
+    expect(repeated).toMatchObject({
+      routineDayId: 'day-source',
+      routineName: 'Torso',
+      totalReps: 0,
+      totalRestSeconds: 0,
+      totalActiveSeconds: 0,
+    });
+    expect(repeated).not.toHaveProperty('endedAt');
+    expect(repeated).not.toHaveProperty('durationSeconds');
+    expect(repeated).not.toHaveProperty('isPublished');
+    expect(repeated).not.toHaveProperty('visibility');
+    expect(repeated).not.toHaveProperty('photoUri');
+    expect(repeated?.id).not.toBe(source.id);
+    expect(repeated?.exercises[0]).toMatchObject({
+      exerciseId: 'bench-press',
+      notes: 'Pausa abajo',
+      groupRestEnabled: true,
+    });
+    expect(repeated?.exercises[0].id).not.toBe('press-entry');
+    expect(repeated?.exercises[0].sets).toEqual([
+      expect.objectContaining({ reps: 10, weightKg: 20, isWarmup: true, isCompleted: false }),
+      expect.objectContaining({ reps: 8, weightKg: 80, isCompleted: false }),
+    ]);
+    expect(repeated?.exercises[0].sets[0]).not.toHaveProperty('durationSeconds');
+    expect(repeated?.exercises[0].sets[0]).not.toHaveProperty('restStartedAt');
+    expect(repeated?.exercises[0].sets[0]).not.toHaveProperty('restAfterSeconds');
+    expect(repeated?.exercises[0].sets[0]).not.toHaveProperty('rpe');
+    expect(repeated?.exercises[0].supersetGroupId).toBe(repeated?.exercises[1].supersetGroupId);
+    expect(repeated?.exercises[0].supersetGroupId).not.toBe('source-superset');
+    expect(JSON.stringify(source)).toBe(snapshot);
+    expect(useWorkoutsStore.getState().history).toEqual([source]);
+  });
+
+  it('usa defaults seguros en valores legacy no plausibles y conserva identificadores personalizados', () => {
+    const source = makeWorkout({
+      exercises: [
+        {
+          id: 'legacy-entry',
+          exerciseId: 'legacy-custom-machine',
+          exerciseName: 'Máquina personalizada',
+          muscleGroup: 'legacy',
+          sets: [{ id: 'invalid', reps: 0, weightKg: Number.POSITIVE_INFINITY, isCompleted: true }],
+        },
+        {
+          id: 'bodyweight-entry',
+          exerciseId: 'push-up',
+          exerciseName: 'Flexiones',
+          muscleGroup: 'chest',
+          sets: [{ id: 'invalid-bodyweight', reps: 1000, weightKg: -1, isCompleted: true }],
+        },
+      ],
+    });
+
+    const repeated = useWorkoutsStore.getState().startWorkoutFromHistory(source);
+
+    expect(repeated?.exercises[0]).toMatchObject({
+      exerciseId: 'legacy-custom-machine',
+      exerciseName: 'Máquina personalizada',
+      muscleGroup: 'legacy',
+      sets: [expect.objectContaining({ reps: 8, weightKg: 20, isCompleted: false })],
+    });
+    expect(repeated?.exercises[1].sets[0]).toMatchObject({
+      reps: 8,
+      weightKg: 0,
+      isCompleted: false,
+    });
+  });
+
+  it('no reemplaza la sesión activa cuando la fuente no contiene ejercicios', () => {
+    const active = makeWorkout({ id: 'active-existing' });
+    const source = makeWorkout({ exercises: [] });
+    useWorkoutsStore.setState({ active, history: [source] });
+
+    expect(useWorkoutsStore.getState().startWorkoutFromHistory(source)).toBeNull();
+    expect(useWorkoutsStore.getState().active).toBe(active);
+  });
+});

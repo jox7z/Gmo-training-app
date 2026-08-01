@@ -224,9 +224,15 @@ the only place that decides where the user goes. Key invariants there:
   `assets/brand/gmo-mark-master.png`; `assets/icon.png` is the single optimized
   source used by icon, splash and Android adaptive configuration. Feed refresh
   uses `assets/brand/gmo-mark-transparent.png`; do not restore a square icon
-  background around that indicator. The reusable
-  transparent mascot is `assets/brand/gmo-mascot.webp` (25 KB), rendered only through
-  `src/components/GmoMascot.tsx`. Reuse it; do not create per-screen copies.
+  background around that indicator. The reusable transparent base mascot is
+  `assets/brand/gmo-mascot-2d.webp`, rendered through `src/components/GmoMascot.tsx`.
+  The direct transparent crops from the delivered brand board are
+  `gmo-mascot-start.webp`, `gmo-mascot-motivating.webp`,
+  `gmo-mascot-rest.webp` and `gmo-mascot-pr.webp`, rendered only in their matching
+  start/active-workout states. `gmo-body-weight.webp` is the only dedicated visual
+  for the Progress body-weight CTA. `gmo-exercise-progress.webp` is reserved for the
+  selected-exercise chart header. Reuse them; do not create per-screen copies or add
+  an opaque square background.
 - **Progress metrics:** use only completed, non-warmup sets. Exercise trends expose
   only top load, total reps or recorded active time; body weight stays in its
   separate body-measurement section. Work (`weightKg * reps`) is not a selectable

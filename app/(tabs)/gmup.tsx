@@ -227,6 +227,9 @@ function ExploreView({ onChangeView }: { onChangeView: (view: GmupView) => void 
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
+      bounces={false}
+      alwaysBounceVertical={false}
+      overScrollMode="never"
       contentContainerStyle={{
         paddingTop: spacing.lg,
         paddingBottom: insets.bottom + TAB_BAR_CLEARANCE,

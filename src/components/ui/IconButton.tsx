@@ -29,7 +29,7 @@ export interface IconButtonProps {
 
 const sizeMap: Record<IconButtonSize, { button: number; icon: number }> = {
   sm: {
-    button: spacing['2xl'] + spacing.sm,
+    button: spacing['2xl'] + spacing.md,
     icon: spacing.lg,
   },
   md: {
@@ -76,7 +76,7 @@ export function IconButton({
       disabled={disabled}
       haptic={haptic ? Haptics.ImpactFeedbackStyle.Light : false}
       hitSlop={spacing.sm}
-      pressScale={0.9}
+      pressScale={0.96}
       testID={testID}
       style={[
         styles.base,

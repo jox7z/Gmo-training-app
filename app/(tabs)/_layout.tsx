@@ -4,7 +4,7 @@ import PagerView, { type PagerViewOnPageSelectedEvent } from 'react-native-pager
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, glass, radius, spacing } from '@/theme/tokens';
 import { TabIcon } from '@/components/TabIcon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { Text } from '@/components/ui/Text';
@@ -23,16 +23,16 @@ import ProfileScreen from './profile';
 const TABS: { key: MainTabName; label: string }[] = [
   { key: 'feed',     label: 'Social'    },
   { key: 'gmup',     label: 'Comunidad' },
-  { key: 'routines', label: 'Ejercicio' },
+  { key: 'routines', label: 'Entreno' },
   { key: 'progress', label: 'Progreso' },
   { key: 'profile',  label: 'Perfil'   },
 ];
 
 export default function TabsLayout() {
   const pagerRef = useRef<PagerView>(null);
-  const activeIndexRef = useRef(0);
+  const activeIndexRef = useRef(2);
   const tabPressTargetRef = useRef<number | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(2);
   const insets = useSafeAreaInsets();
   const requestedTab = useMainTabsStore((state) => state.requestedTab);
   const consumeTabRequest = useMainTabsStore((state) => state.consumeRequest);
@@ -73,7 +73,7 @@ export default function TabsLayout() {
       <PagerView
         ref={pagerRef}
         style={styles.pager}
-        initialPage={0}
+        initialPage={2}
         onPageSelected={handlePageSelected}
       >
         <View key="0" style={styles.page}><FeedScreen /></View>
@@ -91,7 +91,7 @@ export default function TabsLayout() {
       >
         <BlurView
           tint="dark"
-          intensity={40}
+          intensity={glass.tabBar.intensity}
           pointerEvents="none"
           style={StyleSheet.absoluteFill}
         />
@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    backgroundColor: colors.bg.overlay,
+    borderTopColor: glass.tabBar.hairline,
+    backgroundColor: glass.tabBar.overlay,
     overflow: 'hidden',
   },
   tabRow: {

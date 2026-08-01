@@ -1,7 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState, type RefObject } from 'react';
 import {
   ActivityIndicator,
-  RefreshControl,
   Share,
   View,
 } from 'react-native';
@@ -12,6 +11,8 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AchievementMedal } from '@/components/achievements/AchievementMedal';
+import { ActivityFiltersSheet } from '@/components/profile/ActivityFiltersSheet';
+import { StaticPullToRefresh } from '@/components/feed/StaticPullToRefresh';
 import { Avatar } from '@/components/Avatar';
 import { CommentSheet } from '@/components/feed/CommentSheet';
 import { FeedItem } from '@/components/feed/FeedItem';
@@ -33,6 +34,11 @@ import {
 } from '@/lib/achievements';
 import { formatPostShareMessage } from '@/lib/postSharing';
 import {
+  DEFAULT_WORKOUT_HISTORY_FILTERS,
+  filterWorkoutHistory,
+  type WorkoutHistoryFilters,
+} from '@/lib/workoutHistoryFilters';
+import {
   useDeletePost,
   useIncrementShare,
   useToggleReaction,
@@ -51,6 +57,7 @@ type ProfileTab = 'posts' | 'activity' | 'achievements';
 
 type ProfileRow =
   | { kind: 'tabs' }
+  | { kind: 'activity-filters' }
   | { kind: 'post'; post: Post }
   | { kind: 'workout'; workout: Workout }
   | { kind: 'achievement'; achievement: AchievementProgress };
@@ -82,7 +89,12 @@ export default function Profile() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [profileMenuVisible, setProfileMenuVisible] = useState(false);
   const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+  const [activityFilters, setActivityFilters] = useState<WorkoutHistoryFilters>(
+    DEFAULT_WORKOUT_HISTORY_FILTERS,
+  );
+  const [activityFiltersVisible, setActivityFiltersVisible] = useState(false);
   const listRef = useRef<FlashListRef<ProfileRow>>(null);
+  const activityFiltersTriggerRef = useRef<View>(null);
 
   const userPosts = useMemo(() => {
     const seen = new Set<string>();
@@ -101,6 +113,10 @@ export default function Profile() {
       }),
     [profile?.weeklyGoalDays, workoutHistory],
   );
+  const filteredActivity = useMemo(
+    () => filterWorkoutHistory(workoutHistory, activityFilters),
+    [activityFilters, workoutHistory],
+  );
 
   const rows = useMemo<ProfileRow[]>(() => {
     const nextRows: ProfileRow[] = [{ kind: 'tabs' }];
@@ -109,8 +125,9 @@ export default function Profile() {
       return nextRows;
     }
     if (activeTab === 'activity') {
+      nextRows.push({ kind: 'activity-filters' });
       nextRows.push(
-        ...workoutHistory.map((workout) => ({ kind: 'workout' as const, workout })),
+        ...filteredActivity.map((workout) => ({ kind: 'workout' as const, workout })),
       );
       return nextRows;
     }
@@ -121,7 +138,7 @@ export default function Profile() {
       })),
     );
     return nextRows;
-  }, [achievements, activeTab, userPosts, workoutHistory]);
+  }, [achievements, activeTab, filteredActivity, userPosts]);
 
   const handleSelectTab = useCallback(
     (tab: ProfileTab) => {
@@ -259,13 +276,21 @@ export default function Profile() {
       action="Crear publicación"
       onAction={() => router.push('/publish')}
     />
-  ) : activeTab === 'activity' ? (
+  ) : activeTab === 'activity' && workoutHistory.length === 0 ? (
     <TabState
       icon="dumbbell"
       title="Aún no hay actividad"
       message="Tus entrenamientos terminados aparecerán aquí."
       action="Ir a rutinas"
       onAction={goToRoutines}
+    />
+  ) : activeTab === 'activity' ? (
+    <TabState
+      icon="filter"
+      title="Sin sesiones con estos filtros"
+      message="Prueba con otro periodo, ejercicio o rutina."
+      action="Limpiar filtros"
+      onAction={() => setActivityFilters(DEFAULT_WORKOUT_HISTORY_FILTERS)}
     />
   ) : null;
 
@@ -303,13 +328,20 @@ export default function Profile() {
         />
       </View>
 
+      <StaticPullToRefresh
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        label="Actualizando perfil"
+      >
+        {(pullProps) => (
       <FlashList<ProfileRow>
         ref={listRef}
         data={rows}
-        extraData={activeTab}
+        extraData={{ activeTab, activityFilters }}
         stickyHeaderIndices={STICKY_HEADER_INDICES}
         keyExtractor={(item) => {
           if (item.kind === 'tabs') return 'profile-tabs';
+          if (item.kind === 'activity-filters') return 'profile-activity-filters';
           if (item.kind === 'post') return `post-${item.post.id}`;
           if (item.kind === 'workout') return `workout-${item.workout.id}`;
           return `achievement-${item.achievement.def.id}`;
@@ -340,6 +372,16 @@ export default function Profile() {
             );
           }
 
+          if (item.kind === 'activity-filters') {
+            return (
+              <ActivityFiltersControl
+                activeCount={countActivityFilters(activityFilters)}
+                onPress={() => setActivityFiltersVisible(true)}
+                focusRef={activityFiltersTriggerRef}
+              />
+            );
+          }
+
           if (item.kind === 'workout') {
             return (
               <View
@@ -348,7 +390,7 @@ export default function Profile() {
                   maxWidth: 600,
                   alignSelf: 'center',
                   paddingHorizontal: spacing.lg,
-                  paddingTop: index === 1 ? spacing.md : 0,
+                  paddingTop: index === 2 ? spacing.md : 0,
                   paddingBottom: spacing.md,
                 }}
               >
@@ -409,7 +451,7 @@ export default function Profile() {
           />
         }
         ListFooterComponent={
-          rows.length === 1 ? (
+          (activeTab === 'activity' && filteredActivity.length === 0) || rows.length === 1 ? (
             emptyState
           ) : activeTab === 'posts' && userPostsQuery.isFetchingNextPage ? (
             <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
@@ -420,19 +462,13 @@ export default function Profile() {
           )
         }
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
-        refreshControl={
-          activeTab === 'posts' ? (
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.primary.DEFAULT}
-            />
-          ) : undefined
-        }
+        {...pullProps}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.5}
         showsVerticalScrollIndicator={false}
       />
+        )}
+      </StaticPullToRefresh>
 
       <Sheet
         visible={profileMenuVisible}
@@ -452,6 +488,15 @@ export default function Profile() {
           onPress={handleOpenSettings}
         />
       </Sheet>
+
+      <ActivityFiltersSheet
+        visible={activityFiltersVisible}
+        history={workoutHistory}
+        value={activityFilters}
+        onChange={setActivityFilters}
+        onClose={() => setActivityFiltersVisible(false)}
+        returnFocusTarget={activityFiltersTriggerRef.current}
+      />
 
       <CommentSheet
         visible={!!commentsPost}
@@ -578,7 +623,7 @@ function ProfileHeader({
             }}
           >
             <Text variant="label" weight="black" style={{ color: rank.color }}>
-              {rank.label.toUpperCase()}
+              {rank.label}
             </Text>
             {streakWeeks > 0 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
@@ -975,6 +1020,58 @@ function ProfileMenuAction({
   );
 }
 
+function ActivityFiltersControl({
+  activeCount,
+  onPress,
+  focusRef,
+}: {
+  activeCount: number;
+  onPress: () => void;
+  focusRef: RefObject<View | null>;
+}) {
+  return (
+    <View
+      style={{
+        width: '100%',
+        maxWidth: 600,
+        alignSelf: 'center',
+        minHeight: 52,
+        paddingHorizontal: spacing.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
+        backgroundColor: colors.bg.base,
+      }}
+    >
+      <Text variant="caption" tone="secondary" weight="semibold">
+        {activeCount > 0 ? `${activeCount} filtro${activeCount === 1 ? '' : 's'} activo${activeCount === 1 ? '' : 's'}` : 'Todas las sesiones'}
+      </Text>
+      <View ref={focusRef} collapsable={false}>
+        <IconButton
+          name="filter"
+          accessibilityLabel={
+            activeCount > 0
+              ? `Abrir filtros de actividad, ${activeCount} activos`
+              : 'Abrir filtros de actividad'
+          }
+          onPress={onPress}
+          variant="ghost"
+          size="md"
+        />
+      </View>
+    </View>
+  );
+}
+
+function countActivityFilters(filters: WorkoutHistoryFilters): number {
+  return Number(filters.exerciseId !== null) +
+    Number(filters.routineName !== null) +
+    Number(filters.period !== 'all') +
+    Number(filters.publishedOnly);
+}
+
 function WorkoutHistoryCard({ workout }: { workout: Workout }) {
   const durationMin = Math.round((workout.durationSeconds ?? 0) / 60);
   const sets = workout.exercises.reduce(
@@ -989,19 +1086,19 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
   });
 
   return (
-    <Card variant="raised" padding="lg">
+    <Card variant="section" padding="lg">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         <View
           style={{
             width: 44,
             height: 44,
             borderRadius: radius.sm,
-            backgroundColor: colors.primary.muted,
+            backgroundColor: colors.surfaceVeil,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Icon name="dumbbell" size={20} color={colors.primary.DEFAULT} />
+          <Icon name="dumbbell" size={20} color={colors.text.secondary} />
         </View>
         <View style={{ flex: 1 }}>
           <Text weight="bold" numberOfLines={1}>
@@ -1047,35 +1144,14 @@ function WorkoutHistoryCard({ workout }: { workout: Workout }) {
       {workout.exercises.length > 0 ? (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: spacing.sm }}>
           {workout.exercises.slice(0, 4).map((exercise) => (
-            <View
-              key={exercise.id}
-              style={{
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 4,
-                borderRadius: radius.sm,
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text variant="caption" tone="secondary">{exercise.exerciseName}</Text>
-            </View>
+            <Text key={exercise.id} variant="caption" tone="secondary">
+              {exercise.exerciseName}
+            </Text>
           ))}
           {workout.exercises.length > 4 ? (
-            <View
-              style={{
-                paddingHorizontal: spacing.sm,
-                paddingVertical: 4,
-                borderRadius: radius.sm,
-                backgroundColor: colors.bg.elevated,
-                borderWidth: 1,
-                borderColor: colors.border,
-              }}
-            >
-              <Text variant="caption" tone="muted">
-                +{workout.exercises.length - 4} más
-              </Text>
-            </View>
+            <Text variant="caption" tone="muted">
+              +{workout.exercises.length - 4} más
+            </Text>
           ) : null}
         </View>
       ) : null}

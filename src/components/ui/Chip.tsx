@@ -73,7 +73,7 @@ export function Chip({
 
 const styles = {
   base: {
-    minHeight: spacing['2xl'] + spacing.xs,
+    minHeight: spacing['2xl'] + spacing.md,
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',

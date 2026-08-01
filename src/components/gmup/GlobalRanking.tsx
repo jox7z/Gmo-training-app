@@ -37,6 +37,9 @@ export function GlobalRanking({ bottomInset = 0 }: Props) {
 
   return (
     <FlatList<GlobalRankEntry>
+      bounces={false}
+      alwaysBounceVertical={false}
+      overScrollMode="never"
       data={entries}
       keyExtractor={(e) => e.id}
       renderItem={({ item, index }) => (

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, type Href } from 'expo-router';
 
 import { Icon } from '@/components/Icon';
@@ -23,7 +24,7 @@ import {
 import { toDisplay } from '@/lib/units';
 import type { Unit } from '@/store/app';
 import type { Workout } from '@/store/workouts';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { colors, spacing } from '@/theme/tokens';
 
 interface Props {
   history: Workout[];
@@ -41,6 +42,8 @@ const RANGE_OPTIONS = [
   { value: '90d', label: '90 d' },
   { value: 'all', label: 'Todo' },
 ] as const;
+
+const GMO_EXERCISE_PROGRESS = require('../../../assets/brand/gmo-exercise-progress.webp');
 
 export function ProgressInsightsSection({ history, unit }: Props) {
   const router = useRouter();
@@ -97,9 +100,6 @@ export function ProgressInsightsSection({ history, unit }: Props) {
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Text variant="heading">Progreso por ejercicio</Text>
-        <Text variant="caption" tone="muted" style={styles.headerCaption}>
-          Tendencia de tus sesiones reales
-        </Text>
       </View>
 
       {selectedExercise ? (
@@ -112,15 +112,18 @@ export function ProgressInsightsSection({ history, unit }: Props) {
 
           <Card variant="section" padding="lg">
             <View style={styles.chartHeader}>
-              <View style={styles.chartIcon}>
-                <Icon name="chart" size={spacing.lg} color={colors.primary.DEFAULT} />
-              </View>
               <View style={styles.chartHeadingCopy}>
-                <Text weight="bold">Registro histórico</Text>
+                <Text variant="headline" numberOfLines={1}>{selectedExercise.name}</Text>
                 <Text variant="caption" tone="muted">
                   {metricLabel(activeMetric)}
                 </Text>
               </View>
+              <Image
+                source={GMO_EXERCISE_PROGRESS}
+                style={styles.chartMascot}
+                contentFit="contain"
+                accessible={false}
+              />
             </View>
 
             <View style={styles.controls}>
@@ -239,24 +242,18 @@ const styles = StyleSheet.create({
   sectionHeader: {
     gap: spacing.xs,
   },
-  headerCaption: {
-    marginTop: spacing.xs,
-  },
   chartHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  chartIcon: {
-    width: spacing['2xl'],
-    height: spacing['2xl'],
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary.muted,
-  },
   chartHeadingCopy: {
     flex: 1,
+  },
+  chartMascot: {
+    width: spacing['4xl'],
+    height: spacing['4xl'],
+    flexShrink: 0,
   },
   controls: {
     marginTop: spacing.lg,

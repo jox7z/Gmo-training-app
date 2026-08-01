@@ -2,7 +2,7 @@
 
 > Fuente única del tooling de UI/visualización e imágenes de Gmo Training.
 > `CLAUDE.md`, `README.md` y `docs/memory/overview.md` enlazan aquí en vez de
-> duplicar el detalle. Última revisión: 2026-07-29.
+> duplicar el detalle. Última revisión: 2026-08-01.
 
 ## Estrategia de build (por fases)
 
@@ -102,9 +102,16 @@ local cuando una de ellas cubra el caso.
 - **Límite legal:** la licencia MIT de ese dataset excluye `images/` y `videos/`.
   Pertenecen a Gym visual y requieren licencia propia. No descargarlos, copiarlos
   ni referenciarlos en runtime; ver `THIRD_PARTY_NOTICES.md`.
-- **Mascota GMO:** `assets/brand/gmo-mascot.webp` es la única derivada runtime
-  (512 px, alpha, ~25 KB). Consumirla vía `GmoMascot`/`MascotState`; no copiarla
-  por pantalla ni añadir Lottie para estados estáticos.
+- **Mascota GMO:** `assets/brand/gmo-mascot-2d.webp` es la pose base 2D. Las
+  poses `gmo-mascot-start.webp`, `gmo-mascot-motivating.webp`,
+  `gmo-mascot-rest.webp` y `gmo-mascot-pr.webp` son recortes RGBA transparentes
+  directos de la lámina de marca entregada. Ninguna lleva placa ni fondo oscuro
+  cuadrado. Consumirlas vía `GmoMascot`/`RestMascotCoach`/`WorkoutPrMascot` o el
+  CTA de Rutinas; no copiar assets por pantalla ni añadir Lottie para estados
+  estáticos. `gmo-body-weight.webp` es la ilustración RGBA plana corporativa del
+  registro corporal: GMO crema/negro/ember apunta a una tabla tech de peso y se usa
+  únicamente en el CTA de Progreso. `gmo-exercise-progress.webp` es la variante con
+  diadema y cuaderno de resultados, reservada al encabezado del ejercicio seleccionado.
 - **Emblemas de rank:** los PNG reales ya existen en `assets/ranks/<id>.png`.
   Mantener nombre, alpha y safe area; no cambia `src/theme/rankImages.ts`.
 

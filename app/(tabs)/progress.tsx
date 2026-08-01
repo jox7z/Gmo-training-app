@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { View, ScrollView, RefreshControl, Alert } from 'react-native';
+import { View, ScrollView, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Card } from '@/components/ui/Card';
 import { Text } from '@/components/ui/Text';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
-import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/Icon';
 import { PressableScale } from '@/components/ui/PressableScale';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
@@ -32,6 +32,9 @@ import { useToast } from '@/components/ui/Toast';
 import { ProgressInsightsSection } from '@/components/progress/ProgressInsightsSection';
 import { MonthlyTrainingCalendar } from '@/components/progress/MonthlyTrainingCalendar';
 import { MuscleMilestoneMap } from '@/components/progress/MuscleMilestoneMap';
+import { StaticPullToRefresh } from '@/components/feed/StaticPullToRefresh';
+
+const GMO_BODY_WEIGHT = require('../../assets/brand/gmo-body-weight.webp');
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
@@ -62,21 +65,24 @@ export default function ProgressScreen() {
 
       <ScreenHeader
         title="Progreso"
-        subtitle="Rendimiento real y peso corporal"
         showBack={false}
         border
         style={{ backgroundColor: colors.bg.base }}
       />
 
+      <StaticPullToRefresh
+        refreshing={refreshing}
+        onRefresh={onRefresh}
+        label="Actualizando progreso"
+      >
+        {(pullProps) => (
       <ScrollView
+        {...pullProps}
         contentContainerStyle={{
           padding: spacing.lg,
           paddingBottom: insets.bottom + 100,
           gap: spacing.md,
         }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary.DEFAULT} />
-        }
       >
         <MonthlyTrainingCalendar
           history={history}
@@ -120,6 +126,8 @@ export default function ProgressScreen() {
         />
 
       </ScrollView>
+        )}
+      </StaticPullToRefresh>
     </SafeAreaView>
   );
 }
@@ -168,12 +176,7 @@ function BodySection({
           justifyContent: 'space-between',
         }}
       >
-        <View>
-          <Text variant="heading">Peso corporal</Text>
-          <Text variant="caption" tone="muted" style={{ marginTop: spacing.xs }}>
-            Seguimiento de tus mediciones
-          </Text>
-        </View>
+        <Text variant="heading">Peso corporal</Text>
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Abrir detalle del peso corporal"
@@ -185,8 +188,8 @@ function BodySection({
         >
           <View
             style={{
-              width: 36,
-              height: 36,
+              width: 44,
+              height: 44,
               borderRadius: radius.sm,
               backgroundColor: colors.bg.elevated,
               alignItems: 'center',
@@ -208,12 +211,38 @@ function BodySection({
         haptic={false}
       />
 
-      <Button
-        title="Registrar peso de hoy"
-        leftIcon={<Icon name="scale" size={18} color={colors.text.primary} />}
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel="Registrar peso corporal"
+        accessibilityHint="Abre el registro de una nueva medición de peso"
         onPress={onAdd}
-        fullWidth
-      />
+        pressScale={0.98}
+        style={{
+          minHeight: 96,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          paddingHorizontal: spacing.md,
+          borderRadius: radius.md,
+          borderWidth: 1,
+          borderColor: colors.borderEmber,
+          backgroundColor: colors.bg.elevated,
+        }}
+      >
+        <Image
+          source={GMO_BODY_WEIGHT}
+          contentFit="contain"
+          accessible={false}
+          style={{ width: 92, height: 82 }}
+        />
+        <View style={{ flex: 1, gap: spacing.xs }}>
+          <Text variant="heading" weight="black">Registrar peso</Text>
+          <Text variant="caption" tone="secondary">
+            Añade una medición a tu historial corporal.
+          </Text>
+        </View>
+        <Icon name="chevron-right" size={20} color={colors.accent.DEFAULT} />
+      </PressableScale>
 
       {measurementsLoading ? (
         <SkeletonGroup
@@ -312,7 +341,7 @@ function BodySection({
       )}
 
       {!measurementsLoading && recent.length > 0 && (
-        <Card padding="lg">
+        <Card variant="section" padding="lg">
           <Text variant="label" tone="secondary" style={{ marginBottom: spacing.md }}>
             Últimas mediciones
           </Text>
@@ -433,7 +462,7 @@ function WeightTimelineCard({ data, unit }: { data: BodyTimelinePoint[]; unit: U
 
   return (
     <Card variant="section" padding="lg">
-      <Text variant="label" tone="secondary">EVOLUCIÓN DEL PESO ({unit})</Text>
+      <Text variant="label" tone="secondary">Evolución del peso · {unit}</Text>
       <View style={{ marginTop: spacing.md }}>
         <WeightChart data={data} unit={unit} />
       </View>

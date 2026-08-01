@@ -65,7 +65,7 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
 | Métricas repetibles | `src/components/ui/Stat.tsx` + `WorkoutMetric.tsx` |
 | Hub del ejercicio | `app/exercise/[id].tsx` + `src/lib/exerciseDetails.ts` |
 | Puente de tabs externas | `src/store/mainTabs.ts` |
-| Mascota reutilizable | `src/components/GmoMascot.tsx` + `assets/brand/gmo-mascot.webp` |
+| Mascotas reutilizables | `GmoMascot.tsx`, `RestMascotCoach.tsx`, `WorkoutPrMascot.tsx` + `assets/brand/gmo-mascot-{start,motivating,rest,pr}.webp`, `gmo-body-weight.webp` y `gmo-exercise-progress.webp` |
 | Metadata exercise-dataset | `scripts/sync-exercises-dataset.mjs` + `src/data/exerciseDatasetDetails.generated.json` |
 | Schema y evolución BD | `supabase/migrations/` + ledger timestamped recuperado |
 
@@ -128,7 +128,13 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   aunque queden uno o cero resultados. No hay backend ni persistencia.
 - **Historial navegable:** tocar un punto de Progreso abre la sesión exacta. El
   detalle muestra duración, ejercicios, series, reps, trabajo y filas registradas;
-  no incluye felicitaciones comparativas ni deltas automáticos.
+  no incluye felicitaciones comparativas ni deltas automáticos. Desde el ledger se
+  puede repetir la estructura como sesión local pendiente: siempre con IDs nuevos,
+  sin alterar la fuente ni copiar metadata de resultado/publicación.
+- **Recientes y Actividad locales:** los selectores de cambio y editor priorizan
+  ejercicios usados más recientemente sin guardar favoritos. Perfil > Actividad
+  permite filtrar las filas por ejercicio, rutina, periodo y publicación; no altera
+  el historial, Progreso ni datos remotos.
 - **Workout social factual:** compositor y Feed comparten una tarjeta rectangular
   con duración, series, reps, trabajo, músculos y ejercicios. La metadata remota
   se valida con fallback legacy; compartir fuera de la app incluye esas métricas.
@@ -176,9 +182,10 @@ logros offline por niveles, comunidades, eventos y heatmap anual.
   domingo en la zona local, refresh al volver a foreground y semana actual
   incompleta sin romper antes de tiempo. La migración v2 re-siembra tiers
   antiguos de racha sin borrar otros logros.
-- **Identidad GMO:** rostro-robot crema/negro/rojo como icono y una sola mascota
-  WebP transparente compartida por vacíos y celebración. Icono/splash/adaptive
-  apuntan al mismo archivo para evitar copias.
+- **Identidad GMO:** rostro-robot crema/negro/rojo como icono, pose base 2D WebP
+  y recortes transparentes de la lámina de marca para motivar, descanso y PR, sin
+  fondo cuadrado. Los componentes compartidos resuelven cada pose; no hay copias
+  por pantalla.
 - **Composición corporal:** registro opcional en el bloque Peso corporal. Peso
   siempre visible, % grasa/músculo/agua bajo toggle "avanzado".
   Tabla `body_measurements`, RLS solo own.

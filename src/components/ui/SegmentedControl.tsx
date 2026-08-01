@@ -107,7 +107,7 @@ const styles = {
     backgroundColor: colors.bg.track,
   },
   segment: {
-    minHeight: spacing['2xl'] + spacing.sm,
+    minHeight: spacing['2xl'] + spacing.md,
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',

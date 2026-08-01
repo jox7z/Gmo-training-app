@@ -31,6 +31,9 @@ export function Screen({
       style={{ flex: 1 }}
       contentContainerStyle={[{ paddingBottom: insets.bottom + 100 }, containerPadding, contentContainerStyle]}
       showsVerticalScrollIndicator={false}
+      bounces={false}
+      alwaysBounceVertical={false}
+      overScrollMode="never"
       refreshControl={
         onRefresh ? (
           <RefreshControl

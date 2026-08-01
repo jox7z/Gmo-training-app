@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, Modal, FlatList } from 'react-native';
+import { View, Pressable, Alert, Dimensions, ScrollView, Keyboard, KeyboardAvoidingView, Platform, InputAccessoryView, Modal, FlatList } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +22,7 @@ import { Icon } from '@/components/Icon';
 import { saveWorkout } from '@/lib/repos/workouts';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import {
+  detectPRs,
   detectSetPR,
   getCarriedWeightForSet,
   getPreviousSetValue,
@@ -43,19 +45,17 @@ import {
 import { PlateCalculatorModal } from '@/components/workout/PlateCalculatorModal';
 import { GmoMascot } from '@/components/GmoMascot';
 import { runHapticSafely } from '@/lib/haptics';
-import { useReduceMotion } from '@/components/ui/useReduceMotion';
 import { RestMascotCoach } from '@/components/workout/RestMascotCoach';
+import { WorkoutPrMascot } from '@/components/workout/WorkoutPrMascot';
 import { WorkoutMetric } from '@/components/workout/WorkoutMetric';
-import { duration as motionDuration, spring as motionSpring } from '@/theme/motion';
-
-const REST_PHRASES = [
-  'Buen trabajo. Sigue así.',
-  'Respira. La siguiente es tuya.',
-  'Mantén el ritmo.',
-  'Serie registrada.',
-];
+import { enter } from '@/theme/motion';
+import { recentExerciseIds, sortByRecentExercise } from '@/lib/recentExercises';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+// Poses extraídas de la lámina de marca entregada por la persona usuaria.
+const GMO_MOTIVATING_MASCOT = require('../../assets/brand/gmo-mascot-motivating.webp');
+const GMO_REST_MASCOT = require('../../assets/brand/gmo-mascot-rest.webp');
+const GMO_PR_MASCOT = require('../../assets/brand/gmo-mascot-pr.webp');
 
 type Phase = 'warmup' | 'set' | 'log' | 'rest' | 'summary';
 
@@ -206,6 +206,7 @@ export default function ActiveWorkout() {
   const [phase, setPhase] = useState<Phase>(initialResumePosition?.phase ?? 'warmup');
   const [swapOpen, setSwapOpen] = useState(false);
   const [summaryWorkout, setSummaryWorkout] = useState<Workout | null>(null);
+  const [summaryHasPr, setSummaryHasPr] = useState(false);
   const [unlockQueue, setUnlockQueue] = useState<UnlockedAchievement[]>([]);
   const [exIdx, setExIdx] = useState(initialResumePosition?.exIdx ?? 0);
   const [setIdx, setSetIdx] = useState(initialResumePosition?.setIdx ?? 0);
@@ -221,47 +222,8 @@ export default function ActiveWorkout() {
   const autofillWorkoutId = useRef<string | null>(null);
   const enteredSetIds = useRef(new Set<string>());
   const editedSetIds = useRef(new Set<string>());
-  const reduceMotion = useReduceMotion();
 
-  // Transición breve de fase. Sin sweep, halo ni splash.
-  const heroScale   = useRef(new Animated.Value(1)).current;
-  const heroOpacity = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (reduceMotion) {
-      heroScale.stopAnimation();
-      heroOpacity.stopAnimation();
-      heroScale.setValue(1);
-      heroOpacity.setValue(1);
-      return;
-    }
-
-    heroScale.setValue(0.98);
-    heroOpacity.setValue(0);
-
-    const animation = Animated.parallel([
-      Animated.spring(heroScale, {
-        toValue: 1,
-        damping: motionSpring.enter.damping,
-        stiffness: motionSpring.enter.stiffness,
-        mass: motionSpring.enter.mass,
-        useNativeDriver: true,
-      }),
-      Animated.timing(heroOpacity, {
-        toValue: 1,
-        duration: motionDuration.fast,
-        useNativeDriver: true,
-      }),
-    ]);
-    animation.start();
-    return () => animation.stop();
-  }, [
-    heroOpacity,
-    heroScale,
-    phase,
-    reduceMotion,
-  ]);
-
+  // Las fases cambian de inmediato: el registro no espera una transición visual.
   // Start warmup timer on mount
   useEffect(() => {
     const now = Date.now();
@@ -642,6 +604,7 @@ export default function ActiveWorkout() {
       return;
     }
     if (phase === 'rest') captureRest();
+    const hasNewPr = detectPRs(useWorkoutsStore.getState().history, current).size > 0;
     const finished = finishWorkout({ feeling: 'good' });
     if (finished) {
       addWorkoutDay();
@@ -650,6 +613,7 @@ export default function ActiveWorkout() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
       );
       setSummaryWorkout(finished);
+      setSummaryHasPr(hasNewPr);
       setPhase('summary');
 
       // Reevalúa logros con el historial ya actualizado y encola los nuevos
@@ -738,6 +702,7 @@ export default function ActiveWorkout() {
         <Summary
           workout={summaryWorkout}
           profile={profile}
+          hasPr={summaryHasPr}
           onClose={() => router.replace('/(tabs)')}
           onPublishWithCaption={() =>
             router.replace({
@@ -770,15 +735,13 @@ export default function ActiveWorkout() {
       <View style={{ height: 1, backgroundColor: colors.border }} />
 
       {/* Phase content — centred, fills remaining space */}
-      <Animated.View
+      <View
         style={{
           flex: 1,
           width: '100%',
           maxWidth: 600,
           alignSelf: 'center',
           minHeight: 0,
-          opacity: heroOpacity,
-          transform: [{ scale: heroScale }],
           paddingHorizontal: spacing.lg,
           justifyContent: 'space-between',
           paddingBottom: insets.bottom + spacing.xl,
@@ -854,13 +817,14 @@ export default function ActiveWorkout() {
             onConfirm={handleRestConfirm}
           />
         )}
-      </Animated.View>
+      </View>
 
       {/* Cambio de ejercicio solo para esta sesión */}
       <SwapExerciseModal
         visible={swapOpen}
         currentExerciseId={currentEx?.exerciseId ?? ''}
         usedExerciseIds={usedExerciseIds}
+        history={history}
         onClose={() => setSwapOpen(false)}
         onSelect={handleSwapSelect}
       />
@@ -870,48 +834,30 @@ export default function ActiveWorkout() {
 
 // ---- Phase components ----
 
-// Chip de día con "pop" elástico al quedar seleccionado.
+// Selector de día compacto: la selección se comunica por estado y contraste.
 function DayChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const reduceMotion = useReduceMotion();
-
-  useEffect(() => {
-    if (active) {
-      if (reduceMotion) {
-        scale.stopAnimation();
-        scale.setValue(1);
-        return;
-      }
-      scale.setValue(0.9);
-      const animation = Animated.spring(scale, {
-        toValue: 1,
-        friction: 4,
-        tension: 200,
-        useNativeDriver: true,
-      });
-      animation.start();
-      return () => animation.stop();
-    }
-  }, [active, reduceMotion, scale]);
-
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
-      <Pressable
-        onPress={onPress}
-        style={{
-          paddingVertical: 10,
-          paddingHorizontal: 18,
-          borderRadius: radius.sm,
-          backgroundColor: active ? colors.primary.DEFAULT : colors.bg.elevated,
-          borderWidth: 1,
-          borderColor: active ? colors.primary.DEFAULT : colors.border,
-        }}
-      >
-        <Text weight="bold" tone={active ? 'primary' : 'secondary'}>
-          {label}
-        </Text>
-      </Pressable>
-    </Animated.View>
+    <PressableScale
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
+      pressScale={0.97}
+      style={{
+        minHeight: 44,
+        justifyContent: 'center',
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        borderRadius: radius.sm,
+        backgroundColor: active ? colors.primary.muted : colors.bg.elevated,
+        borderWidth: 1,
+        borderColor: active ? colors.primary.glow : colors.border,
+      }}
+    >
+      <Text weight="bold" tone={active ? 'primary' : 'secondary'}>
+        {label}
+      </Text>
+    </PressableScale>
   );
 }
 
@@ -929,36 +875,8 @@ function WarmupPhase({
   onDone: () => void;
 }) {
   const selDay = days.find((d) => d.id === selectedDayId) ?? days[0];
-  const reduceMotion = useReduceMotion();
 
-  // El preview de ejercicios entra con fade + slide cada vez que cambia el día.
-  const previewOpacity = useRef(new Animated.Value(1)).current;
-  const previewY = useRef(new Animated.Value(0)).current;
-  const firstRender = useRef(true);
-
-  useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
-    if (reduceMotion) {
-      previewOpacity.stopAnimation();
-      previewY.stopAnimation();
-      previewOpacity.setValue(1);
-      previewY.setValue(0);
-      return;
-    }
-    previewOpacity.setValue(0);
-    previewY.setValue(14);
-    const animation = Animated.parallel([
-      Animated.timing(previewOpacity, { toValue: 1, duration: 220, useNativeDriver: true }),
-      Animated.spring(previewY, { toValue: 0, friction: 6, tension: 140, useNativeDriver: true }),
-    ]);
-    animation.start();
-    void runHapticSafely(() => Haptics.selectionAsync());
-    return () => animation.stop();
-  }, [previewOpacity, previewY, reduceMotion, selectedDayId]);
-
+  // El preview permanece estable al cambiar de día para no distraer del inicio.
   const previewExercises = selDay?.exercises.slice(0, 4) ?? [];
   const extraCount = Math.max(0, (selDay?.exercises.length ?? 0) - previewExercises.length);
 
@@ -1022,11 +940,8 @@ function WarmupPhase({
 
           <View style={{ height: 1, backgroundColor: colors.border, marginVertical: spacing.lg }} />
 
-          {/* Preview animado de lo que toca hoy */}
-          <Animated.View
+          <View
             style={{
-              opacity: previewOpacity,
-              transform: [{ translateY: previewY }],
               gap: spacing.sm,
             }}
           >
@@ -1046,7 +961,7 @@ function WarmupPhase({
                 +{extraCount} más
               </Text>
             )}
-          </Animated.View>
+          </View>
         </View>
       </View>
 
@@ -1120,6 +1035,14 @@ function SetPhase({
           />
         </PressableScale>
 
+        <Image
+          source={GMO_MOTIVATING_MASCOT}
+          contentFit="contain"
+          accessible
+          accessibilityLabel="GMO te motiva: tú puedes"
+          style={{ alignSelf: 'center', width: 78, height: 94 }}
+        />
+
         <WorkoutMetric
           label="Tiempo"
           value={formatClock(elapsed)}
@@ -1164,12 +1087,14 @@ function SwapExerciseModal({
   visible,
   currentExerciseId,
   usedExerciseIds,
+  history,
   onClose,
   onSelect,
 }: {
   visible: boolean;
   currentExerciseId: string;
   usedExerciseIds: string[];
+  history: Workout[];
   onClose: () => void;
   onSelect: (id: string) => void;
 }) {
@@ -1193,14 +1118,8 @@ function SwapExerciseModal({
     if (g && g.muscles.length > 0) {
       list = list.filter((e) => g.muscles.includes(e.muscle));
     }
-    if (current) {
-      // Mismo músculo exacto primero: son los reemplazos más naturales.
-      list = [...list].sort(
-        (a, b) => Number(b.muscle === current.muscle) - Number(a.muscle === current.muscle),
-      );
-    }
-    return list;
-  }, [group, currentExerciseId, usedExerciseIds, current]);
+    return sortByRecentExercise(list, recentExerciseIds(history));
+  }, [group, currentExerciseId, usedExerciseIds, history]);
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
@@ -1556,10 +1475,6 @@ function RestPhase({
   const pillsTotal = next ? next.totalSets : currentExercise.sets.length;
   const pillsCurrent = next ? next.setNumber - 1 : currentSetIdx;
   const pillsCompleted = pillsEx.sets.filter((s) => s.isCompleted).length;
-  const phrase =
-    REST_PHRASES[
-      (currentSetIdx + currentExercise.exerciseId.length) % REST_PHRASES.length
-    ];
 
   return (
     <>
@@ -1601,8 +1516,9 @@ function RestPhase({
         showsVerticalScrollIndicator={false}
       >
         <RestMascotCoach
-          phrase={phrase}
+          phrase="Respira. La siguiente serie es tuya."
           mascotSize={Math.max(88, Math.min(96, SCREEN_HEIGHT * 0.11))}
+          mascotSource={GMO_REST_MASCOT}
           style={{ paddingVertical: spacing.sm }}
         />
         <RestRing
@@ -1652,54 +1568,18 @@ function RestPhase({
 function Summary({
   workout,
   profile,
+  hasPr,
   onClose,
   onPublishWithCaption,
 }: {
   workout: Workout;
   profile: ReturnType<typeof useAppStore.getState>['profile'];
+  hasPr: boolean;
   onClose: () => void;
   onPublishWithCaption: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const [publishing] = useState(false);
-  const reduceMotion = useReduceMotion();
-
-  // Success animation: ring scales+pulses in
-  const ringScale   = useRef(new Animated.Value(0.4)).current;
-  const ringOpacity = useRef(new Animated.Value(0)).current;
-  const checkScale  = useRef(new Animated.Value(0)).current;
-  const textOpacity = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (reduceMotion) {
-      ringScale.stopAnimation();
-      ringOpacity.stopAnimation();
-      checkScale.stopAnimation();
-      textOpacity.stopAnimation();
-      ringScale.setValue(1);
-      ringOpacity.setValue(1);
-      checkScale.setValue(1);
-      textOpacity.setValue(1);
-      return;
-    }
-    const anim = Animated.sequence([
-      Animated.parallel([
-        Animated.spring(ringScale, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }),
-        Animated.timing(ringOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-      ]),
-      Animated.spring(checkScale, { toValue: 1, friction: 4, tension: 100, useNativeDriver: true }),
-      Animated.timing(textOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-    ]);
-    anim.start();
-    return () => anim.stop();
-  }, [
-    checkScale,
-    reduceMotion,
-    ringOpacity,
-    ringScale,
-    textOpacity,
-  ]);
-
   const totalSets = workout.exercises.reduce(
     (a, e) => a + e.sets.filter((s) => s.isCompleted && !s.isWarmup).length,
     0,
@@ -1721,26 +1601,26 @@ function Summary({
       >
         {/* ---- Hero header ---- */}
         <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>
-          <Animated.View
+          <View
             style={{
               width: 132,
               height: 132,
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: ringOpacity,
-              transform: [{ scale: ringScale }],
               marginBottom: spacing.lg,
             }}
           >
-            <Animated.View style={{ transform: [{ scale: checkScale }] }}>
+            {hasPr ? (
+              <WorkoutPrMascot source={GMO_PR_MASCOT} size={132} />
+            ) : (
               <GmoMascot
                 size={128}
                 accessibilityLabel="GMO celebra tu entrenamiento completado"
               />
-            </Animated.View>
-          </Animated.View>
+            )}
+          </View>
 
-          <Animated.View style={{ opacity: textOpacity, alignItems: 'center' }}>
+          <Animated.View entering={enter(2)} style={{ alignItems: 'center' }}>
             <Text
               variant="title"
               weight="black"

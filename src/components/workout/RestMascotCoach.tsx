@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
-import { type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Image,
+  type ImageSourcePropType,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Animated, {
   cancelAnimation,
   useAnimatedStyle,
@@ -15,6 +20,8 @@ import { spacing } from '@/theme/tokens';
 interface RestMascotCoachProps {
   phrase?: string;
   mascotSize?: number;
+  /** Ilustración 2D específica de descanso. Si falta, usa la mascota base. */
+  mascotSource?: ImageSourcePropType;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -27,6 +34,7 @@ const DEFAULT_PHRASE = 'Respira. La siguiente serie es tuya.';
 export function RestMascotCoach({
   phrase = DEFAULT_PHRASE,
   mascotSize = 104,
+  mascotSource,
   style,
 }: RestMascotCoachProps) {
   const { reduce, timing } = useMotion();
@@ -72,7 +80,15 @@ export function RestMascotCoach({
       ]}
     >
       <Animated.View style={mascotStyle}>
-        <GmoMascot size={mascotSize} accessible={false} />
+        {mascotSource ? (
+          <Image
+            source={mascotSource}
+            accessibilityIgnoresInvertColors
+            style={{ width: mascotSize, height: mascotSize }}
+          />
+        ) : (
+          <GmoMascot size={mascotSize} accessible={false} />
+        )}
       </Animated.View>
       <Text
         variant="body"

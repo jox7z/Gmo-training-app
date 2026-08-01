@@ -5,7 +5,8 @@ import { Image } from 'expo-image';
 import { Text } from '@/components/ui/Text';
 import { spacing } from '@/theme/tokens';
 
-const GMO_MASCOT = require('../../assets/brand/gmo-mascot.webp');
+// Ilustración 2D con alfa: el lienzo se adapta a cada superficie sin placa ni fondo.
+const GMO_MASCOT = require('../../assets/brand/gmo-mascot-2d.webp');
 
 interface GmoMascotProps {
   size?: number;

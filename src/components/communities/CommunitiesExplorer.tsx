@@ -52,6 +52,9 @@ export function CommunitiesExplorer({ bottomInset = 0 }: Props) {
 
   return (
     <FlatList<Community>
+      bounces={false}
+      alwaysBounceVertical={false}
+      overScrollMode="never"
       data={data}
       keyExtractor={(c) => c.id}
       renderItem={({ item }) => (

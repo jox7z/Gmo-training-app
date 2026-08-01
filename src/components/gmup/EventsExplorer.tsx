@@ -44,6 +44,9 @@ export function EventsExplorer({ bottomInset = 0 }: Props) {
 
   return (
     <FlatList<CommunityEvent>
+      bounces={false}
+      alwaysBounceVertical={false}
+      overScrollMode="never"
       data={events}
       keyExtractor={(e) => e.id}
       renderItem={({ item }) => (
